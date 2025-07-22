@@ -57,6 +57,9 @@ jobs:
           name: executables
           path: bin/
 
+      - name: List files for debugging
+        run: ls -la bin/
+
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -86,4 +89,4 @@ jobs:
           - Auto-lock timeout validation
           - Multiple security profiles (default, strict, relaxed, developer, eai)
           - Detailed reporting with actionable recommendations" \
-            ./bin/index-macos#eai-security-check-macos
+            ./bin/index#eai-security-check-macos
