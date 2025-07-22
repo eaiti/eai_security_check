@@ -1,6 +1,46 @@
 # EAI Security Check
 
-A Node.js + TypeScript tool for auditing macOS security settings against a JSON configuration file.
+A Node.js + TypeScript tool for auditing macOS security settings against ### Initialize Configuration
+
+Create a sample security configuration file:
+
+```bash```bash
+# Using standalone executable - Basic usage
+./eai-security-check check
+
+# Using globally installed version
+eai-security-check check
+
+# Using predefined security profiles (works from any directory)
+./eai-security-check check default             # Recommended security settings
+./eai-security-check check strict              # Maximum security (3-min auto-lock)
+./eai-security-check check relaxed             # Balanced security (15-min auto-lock)
+./eai-security-check check developer           # Developer-friendly (remote access enabled)
+./eai-security-check check eai                 # EAI focused security (essential checks only)
+
+# Using custom config file
+./eai-security-check check --config ./my-config.json
+
+# Save report to file
+./eai-security-check check strict --output ./security-report.txt
+
+# Quiet mode (summary only)
+./eai-security-check check eai --quiet
+```executable
+./eai-security-check init
+
+# Using globally installed version
+eai-security-check init
+
+# Create with different security profiles
+./eai-security-check init --profile strict      # Maximum security (3-min auto-lock)
+./eai-security-check init --profile relaxed     # Balanced security (15-min auto-lock)
+./eai-security-check init --profile developer   # Developer-friendly (remote access enabled)
+./eai-security-check init --profile eai         # EAI focused security (essential checks only)
+
+# Custom filename
+./eai-security-check init --file my-config.json
+```ion file.
 
 ## Features
 
@@ -19,7 +59,18 @@ A Node.js + TypeScript tool for auditing macOS security settings against a JSON 
 
 ## Installation
 
-### For End Users (Global Installation)
+### For End Users (Standalone Executable - Recommended)
+
+Download the standalone executable for your platform from the [GitHub Releases](https://github.com/your-repo/eai_security_check/releases) page. **No Node.js installation required!**
+
+```bash
+# macOS
+curl -L -o eai-security-check https://github.com/your-repo/eai_security_check/releases/latest/download/eai-security-check-macos
+chmod +x eai-security-check
+./eai-security-check --help
+```
+
+### For End Users (NPM Global Installation)
 
 Install globally to use the `eai-security-check` command from anywhere:
 
@@ -37,6 +88,24 @@ npm install -g .
 ```
 
 After global installation, you can use `eai-security-check` from any directory.
+
+## Quick Start (Standalone Executable)
+
+```bash
+# 1. Download the executable for your platform
+curl -L -o eai-security-check https://github.com/your-repo/eai_security_check/releases/latest/download/eai-security-check-macos
+chmod +x eai-security-check
+
+# 2. Run a quick security check with the EAI profile
+./eai-security-check check eai
+
+# 3. Get detailed report
+./eai-security-check check eai --output security-report.txt
+
+# 4. Try different security profiles
+./eai-security-check check strict    # Maximum security
+./eai-security-check check relaxed   # Balanced approach
+```
 
 ### For Development
 
@@ -59,13 +128,17 @@ npm run build
 The tool provides comprehensive help information:
 
 ```bash
-# General help
+# Using standalone executable
+./eai-security-check --help
+./eai-security-check help
+
+# Using globally installed version
 eai-security-check --help
 eai-security-check help
 
 # Command-specific help
-eai-security-check help check
-eai-security-check help init
+./eai-security-check help check
+./eai-security-check help init
 ```
 
 ### Initialize Configuration
@@ -221,6 +294,11 @@ The project includes multiple example configurations:
 Profiles can be used as arguments to the check command:
 
 ```bash
+# With standalone executable
+./eai-security-check check strict      # Use strict security profile
+./eai-security-check check eai         # Use EAI focused profile
+
+# With globally installed version
 eai-security-check check strict      # Use strict security profile
 eai-security-check check eai         # Use EAI focused profile
 ```
@@ -287,6 +365,11 @@ npm run lint
 
 ## Requirements
 
+### For Standalone Executable Users
+- macOS (tested on macOS 14+)
+- **No Node.js installation required!**
+
+### For Development or Source Installation
 - macOS (tested on macOS 14+)
 - Node.js 18+
 - TypeScript
