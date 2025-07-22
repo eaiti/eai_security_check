@@ -64,27 +64,34 @@ jobs:
       - name: List files for debugging
         run: ls -la bin/
 
+      - name: Rename executable with version
+        run: |
+          VERSION=${{ github.ref_name }}
+          mv bin/index bin/eai-security-check-macos-${VERSION}
+          ls -la bin/
+
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          VERSION=${{ github.ref_name }}
           gh release create ${{ github.ref_name }} \
             --title "Release ${{ github.ref_name }}" \
             --notes "## EAI Security Check Release
 
           ### 📦 Standalone Executable
           Download the macOS executable:
-          - **macOS**: \`eai-security-check-macos\`
+          - **macOS**: \`eai-security-check-macos-${VERSION}\`
 
           No Node.js installation required! Just download and run.
 
           ### 🔍 Quick Start
           \`\`\`bash
           # Make executable
-          chmod +x eai-security-check-macos
+          chmod +x eai-security-check-macos-${VERSION}
 
           # Run security check
-          ./eai-security-check-macos check eai
+          ./eai-security-check-macos-${VERSION} check eai
           \`\`\`
 
           ### 📋 Features
@@ -93,4 +100,4 @@ jobs:
           - Auto-lock timeout validation
           - Multiple security profiles (default, strict, relaxed, developer, eai)
           - Detailed reporting with actionable recommendations" \
-            ./bin/index#eai-security-check-macos
+            ./bin/eai-security-check-macos-${VERSION}
