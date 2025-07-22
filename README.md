@@ -1,0 +1,269 @@
+# EAI Security Check
+
+A Node.js + TypeScript tool for auditing macOS security settings against a JSON configuration file.
+
+## Features
+
+- **🔒 FileVault Check**: Verifies disk encryption is enabled to protect data if device is lost/stolen
+- **🔑 Password Protection**: Ensures login password and immediate screen saver password requirements are configured
+- **⏰ Auto-lock Timeout**: Validates screen automatically locks within specified time limit to prevent unauthorized access
+- **🔥 Firewall**: Checks application firewall and stealth mode status to block malicious network traffic
+- **🛡️ Gatekeeper**: Verifies downloaded applications are checked for malware before execution
+- **🔐 System Integrity Protection (SIP)**: Ensures system files are protected from modification
+- **🌐 Remote Access**: Checks SSH/remote login and management services configuration
+- **🔄 Automatic Updates**: Validates security updates are enabled to protect against known vulnerabilities
+- **📡 Sharing Services**: Audits file sharing, screen sharing, and remote access services
+- **📋 JSON Configuration**: Easy-to-customize security requirements with flexible profiles
+- **📊 Detailed Reports**: Clear pass/fail status with actionable security advice and risk levels
+- **🎯 Risk Prioritization**: Groups security issues by High/Medium/Low priority for efficient remediation
+
+## Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+```
+
+## Usage
+
+### Get Help
+
+The tool provides comprehensive help information:
+
+```bash
+# General help
+eai-security-check --help
+eai-security-check help
+
+# Command-specific help
+eai-security-check help check
+eai-security-check help init
+```
+
+### Initialize Configuration
+
+Create a sample security configuration file:
+
+```bash
+# Create default configuration
+eai-security-check init
+
+# Create with different security profiles
+eai-security-check init --profile strict      # Maximum security (3-min auto-lock)
+eai-security-check init --profile relaxed     # Balanced security (15-min auto-lock)  
+eai-security-check init --profile developer   # Developer-friendly (remote access enabled)
+
+# Custom filename
+eai-security-check init --file my-config.json
+```
+
+This creates a `security-config.json` file with default security requirements:
+
+```json
+{
+  "filevault": {
+    "enabled": true
+  },
+  "passwordProtection": {
+    "enabled": true,
+    "requirePasswordImmediately": true
+  },
+  "autoLock": {
+    "maxTimeoutMinutes": 7
+  },
+  "firewall": {
+    "enabled": true,
+    "stealthMode": true
+  },
+  "gatekeeper": {
+    "enabled": true
+  },
+  "systemIntegrityProtection": {
+    "enabled": true
+  },
+  "remoteLogin": {
+    "enabled": false
+  },
+  "remoteManagement": {
+    "enabled": false
+  },
+  "automaticUpdates": {
+    "enabled": true,
+    "securityUpdatesOnly": true
+  },
+  "sharingServices": {
+    "fileSharing": false,
+    "screenSharing": false,
+    "remoteLogin": false
+  }
+}
+```
+
+### Run Security Audit
+
+Check your system against the configuration:
+
+```bash
+# Using default config file
+eai-security-check check
+
+# Using custom config file
+eai-security-check check --config ./my-config.json
+
+# Try different security profiles
+eai-security-check check --config ./examples/strict-config.json
+eai-security-check check --config ./examples/relaxed-config.json
+eai-security-check check --config ./examples/developer-config.json
+
+# Save report to file
+eai-security-check check --output ./security-report.txt
+
+# Quiet mode (summary only)
+eai-security-check check --quiet
+```
+
+### Development Commands
+
+For development and testing:
+
+```bash
+# Using npm scripts (for development)
+npm run dev -- init
+npm run dev -- check
+npm run dev -- help
+
+# Build and run production version
+npm run check
+```
+
+## Configuration Options
+
+### 🔒 FileVault
+- `enabled`: Boolean - Whether disk encryption should be enabled
+
+### 🔑 Password Protection
+- `enabled`: Boolean - Whether login password protection should be enabled
+- `requirePasswordImmediately`: Boolean - Whether password should be required immediately after screen saver activates
+
+### ⏰ Auto-lock
+- `maxTimeoutMinutes`: Number - Maximum minutes before screen should automatically lock (recommended: 7 or less)
+
+### 🔥 Firewall
+- `enabled`: Boolean - Whether application firewall should be enabled
+- `stealthMode`: Boolean (optional) - Whether stealth mode should be enabled (makes system less visible to network scans)
+
+### 🛡️ Gatekeeper
+- `enabled`: Boolean - Whether Gatekeeper should verify downloaded applications
+
+### 🔐 System Integrity Protection
+- `enabled`: Boolean - Whether SIP should be enabled to protect system files
+
+### 🌐 Remote Login
+- `enabled`: Boolean - Whether SSH/remote login should be enabled (typically false for security)
+
+### 📱 Remote Management
+- `enabled`: Boolean - Whether remote management/screen control should be enabled (typically false)
+
+### 🔄 Automatic Updates
+- `enabled`: Boolean - Whether automatic update checking should be enabled
+- `securityUpdatesOnly`: Boolean (optional) - Whether security updates should auto-install
+
+### 📡 Sharing Services
+- `fileSharing`: Boolean - Whether file sharing should be enabled
+- `screenSharing`: Boolean - Whether screen sharing should be enabled
+- `remoteLogin`: Boolean - Whether remote login sharing should be enabled
+
+## Security Profiles
+
+The project includes three example configurations:
+
+- **`strict-config.json`**: Maximum security, minimal convenience (3-minute auto-lock, all security features enabled)
+- **`relaxed-config.json`**: Balanced security with more convenience (15-minute auto-lock, some relaxed settings)
+- **`developer-config.json`**: Developer-friendly with necessary remote access enabled
+
+## Example Output
+
+```
+🔒 macOS Security Audit Report
+📅 Generated: 7/22/2025, 10:30:00 AM
+💻 System: macOS 14.5
+✅ Overall Status: FAILED
+
+📋 Security Check Results:
+============================================================
+
+✅ PASS FileVault [High Risk]
+   Expected: true
+   Actual: true
+   Status: FileVault is enabled - disk encryption is active
+   📝 What it does: FileVault provides full-disk encryption, protecting your data if your Mac is lost or stolen.
+   💡 Security advice: Should be ENABLED. Without FileVault, anyone with physical access can read your files by booting from external media.
+
+❌ FAIL Firewall [High Risk]
+   Expected: true
+   Actual: false
+   Status: Firewall is disabled - system is vulnerable to network attacks
+   📝 What it does: Application firewall blocks unauthorized network connections and protects against network-based attacks.
+   💡 Security advice: Should be ENABLED. Protects against malicious network traffic and unauthorized remote access attempts.
+
+✅ PASS Auto-lock Timeout [Medium Risk]
+   Expected: ≤ 7 minutes
+   Actual: 5 minutes
+   Status: Screen locks after 5 minutes (within acceptable limit)
+   📝 What it does: Automatically locks your screen after a period of inactivity to prevent unauthorized access.
+   💡 Security advice: Should be ≤7 minutes for security, ≤15 minutes for convenience. Shorter timeouts provide better security.
+
+⚠️  Security Issues Found!
+The checks marked as FAIL indicate potential security vulnerabilities.
+Review the security advice above and adjust your system settings accordingly.
+
+🚨 HIGH PRIORITY: Firewall, Automatic Updates
+⚠️  MEDIUM PRIORITY: Auto-lock Timeout, File Sharing
+```
+
+## Development
+
+```bash
+# Run in development mode
+npm run dev
+
+# Build TypeScript
+npm run build
+
+# Run tests
+npm test
+
+# Lint code
+npm run lint
+```
+
+## Requirements
+
+- macOS (tested on macOS 14+)
+- Node.js 18+
+- TypeScript
+
+## Security Checks Performed
+
+1. **🔒 FileVault Status**: Uses `fdesetup status` to check disk encryption
+2. **🔑 Password Requirements**: Checks system preferences for login and screen saver password settings
+3. **⏰ Auto-lock Timeout**: Reads screen saver idle time from system defaults
+4. **🔥 Firewall**: Checks application firewall status and stealth mode via `socketfilterfw`
+5. **🛡️ Gatekeeper**: Verifies Gatekeeper status using `spctl --status`
+6. **🔐 System Integrity Protection**: Checks SIP status via `csrutil status`
+7. **🌐 Remote Login**: Examines SSH service status and remote login settings
+8. **📱 Remote Management**: Checks for active remote management services
+9. **🔄 Automatic Updates**: Reads system update preferences
+10. **📡 Sharing Services**: Monitors file sharing, screen sharing, and remote access services
+
+## Exit Codes
+
+- `0`: All security checks passed
+- `1`: One or more security checks failed or error occurred
+
+## License
+
+MIT

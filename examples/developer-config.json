@@ -1,0 +1,37 @@
+{
+  "filevault": {
+    "enabled": true
+  },
+  "passwordProtection": {
+    "enabled": true,
+    "requirePasswordImmediately": true
+  },
+  "autoLock": {
+    "maxTimeoutMinutes": 10
+  },
+  "firewall": {
+    "enabled": true,
+    "stealthMode": false
+  },
+  "gatekeeper": {
+    "enabled": true
+  },
+  "systemIntegrityProtection": {
+    "enabled": true
+  },
+  "remoteLogin": {
+    "enabled": true
+  },
+  "remoteManagement": {
+    "enabled": false
+  },
+  "automaticUpdates": {
+    "enabled": true,
+    "securityUpdatesOnly": true
+  },
+  "sharingServices": {
+    "fileSharing": true,
+    "screenSharing": true,
+    "remoteLogin": true
+  }
+}
