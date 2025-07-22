@@ -1,0 +1,103 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Build executables
+        run: npm run pkg:build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: executables
+          path: bin/
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: executables
+          path: bin/
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+          body: |
+            ## EAI Security Check Release
+
+            ### 📦 Standalone Executables
+            Download the appropriate executable for your platform:
+            - **macOS**: `eai-security-check-macos`
+
+            No Node.js installation required! Just download and run.
+
+            ### 🔍 Quick Start
+            ```bash
+            # Make executable (macOS/Linux)
+            chmod +x eai-security-check-macos
+
+            # Run security check
+            ./eai-security-check-macos check eai
+            ```
+
+            ### 📋 Features
+            - FileVault encryption check
+            - Password protection verification
+            - Auto-lock timeout validation
+            - Multiple security profiles (default, strict, relaxed, developer, eai)
+            - Detailed reporting with actionable recommendations
+
+      - name: Upload macOS Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/index-macos
+          asset_name: eai-security-check-macos
+          asset_content_type: application/octet-stream

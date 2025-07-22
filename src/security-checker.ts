@@ -4,7 +4,7 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 export class MacOSSecurityChecker {
-  
+
   async checkFileVault(): Promise<boolean> {
     try {
       const { stdout } = await execAsync('fdesetup status');
@@ -19,16 +19,16 @@ export class MacOSSecurityChecker {
     try {
       // Check if password is required for login
       const { stdout: loginPasswordCheck } = await execAsync('defaults read com.apple.loginwindow DisableLoginItemSuppression 2>/dev/null || echo "enabled"');
-      
+
       // Check screen saver password requirement
       const { stdout: screenSaverPassword } = await execAsync('defaults read com.apple.screensaver askForPassword 2>/dev/null || echo "0"');
-      
+
       // Check password delay
       const { stdout: passwordDelay } = await execAsync('defaults read com.apple.screensaver askForPasswordDelay 2>/dev/null || echo "0"');
-      
+
       const passwordEnabled = !loginPasswordCheck.includes('disabled');
       const requirePasswordImmediately = screenSaverPassword.trim() === '1' && parseInt(passwordDelay.trim()) === 0;
-      
+
       return {
         enabled: passwordEnabled,
         requirePasswordImmediately
@@ -44,7 +44,7 @@ export class MacOSSecurityChecker {
       // Check screen saver timeout (in seconds)
       const { stdout } = await execAsync('defaults -currentHost read com.apple.screensaver idleTime 2>/dev/null || echo "0"');
       const timeoutSeconds = parseInt(stdout.trim());
-      
+
       // Convert to minutes
       return Math.ceil(timeoutSeconds / 60);
     } catch (error) {

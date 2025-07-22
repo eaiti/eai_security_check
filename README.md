@@ -19,7 +19,32 @@ A Node.js + TypeScript tool for auditing macOS security settings against a JSON 
 
 ## Installation
 
+### For End Users (Global Installation)
+
+Install globally to use the `eai-security-check` command from anywhere:
+
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd eai_security_check
+
+# Install dependencies and build
+npm install
+npm run build
+
+# Install globally (makes eai-security-check available system-wide)
+npm install -g .
+```
+
+After global installation, you can use `eai-security-check` from any directory.
+
+### For Development
+
+```bash
+# Clone and setup for development
+git clone <repository-url>
+cd eai_security_check
+
 # Install dependencies
 npm install
 
@@ -53,8 +78,9 @@ eai-security-check init
 
 # Create with different security profiles
 eai-security-check init --profile strict      # Maximum security (3-min auto-lock)
-eai-security-check init --profile relaxed     # Balanced security (15-min auto-lock)  
+eai-security-check init --profile relaxed     # Balanced security (15-min auto-lock)
 eai-security-check init --profile developer   # Developer-friendly (remote access enabled)
+eai-security-check init --profile eai         # EAI focused security (essential checks only)
 
 # Custom filename
 eai-security-check init --file my-config.json
@@ -107,22 +133,24 @@ This creates a `security-config.json` file with default security requirements:
 Check your system against the configuration:
 
 ```bash
-# Using default config file
+# Using default config file or profile
 eai-security-check check
+
+# Using predefined security profiles (works from any directory)
+eai-security-check check default             # Recommended security settings
+eai-security-check check strict              # Maximum security (3-min auto-lock)
+eai-security-check check relaxed             # Balanced security (15-min auto-lock)
+eai-security-check check developer           # Developer-friendly (remote access enabled)
+eai-security-check check eai                 # EAI focused security (essential checks only)
 
 # Using custom config file
 eai-security-check check --config ./my-config.json
 
-# Try different security profiles
-eai-security-check check --config ./examples/strict-config.json
-eai-security-check check --config ./examples/relaxed-config.json
-eai-security-check check --config ./examples/developer-config.json
-
 # Save report to file
-eai-security-check check --output ./security-report.txt
+eai-security-check check strict --output ./security-report.txt
 
 # Quiet mode (summary only)
-eai-security-check check --quiet
+eai-security-check check eai --quiet
 ```
 
 ### Development Commands
@@ -140,6 +168,8 @@ npm run check
 ```
 
 ## Configuration Options
+
+**Note**: All configuration sections are optional. If a section is omitted from your configuration file, that security check will be skipped entirely.
 
 ### 🔒 FileVault
 - `enabled`: Boolean - Whether disk encryption should be enabled
@@ -178,11 +208,26 @@ npm run check
 
 ## Security Profiles
 
-The project includes three example configurations:
+The project includes multiple example configurations:
 
-- **`strict-config.json`**: Maximum security, minimal convenience (3-minute auto-lock, all security features enabled)
-- **`relaxed-config.json`**: Balanced security with more convenience (15-minute auto-lock, some relaxed settings)
-- **`developer-config.json`**: Developer-friendly with necessary remote access enabled
+- **`default`**: Recommended security settings (7-minute auto-lock, all security features enabled)
+- **`strict`**: Maximum security, minimal convenience (3-minute auto-lock, all security features enabled)
+- **`relaxed`**: Balanced security with more convenience (15-minute auto-lock, some relaxed settings)
+- **`developer`**: Developer-friendly with necessary remote access enabled
+- **`eai`**: EAI focused security (7-minute auto-lock, essential security checks only: FileVault, password protection, auto-lock)
+
+### Using Profiles
+
+Profiles can be used as arguments to the check command:
+
+```bash
+eai-security-check check strict      # Use strict security profile
+eai-security-check check eai         # Use EAI focused profile
+```
+
+### Customizing Security Checks
+
+The EAI profile demonstrates selective security checking - it only includes essential checks (FileVault, password protection, auto-lock) and skips others (firewall, Gatekeeper, SIP, remote services, etc.). You can create custom configurations by omitting sections you don't want to check.
 
 ## Example Output
 

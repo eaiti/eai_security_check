@@ -1,0 +1,12 @@
+{
+  "filevault": {
+    "enabled": true
+  },
+  "passwordProtection": {
+    "enabled": true,
+    "requirePasswordImmediately": true
+  },
+  "autoLock": {
+    "maxTimeoutMinutes": 7
+  }
+}

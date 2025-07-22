@@ -3,24 +3,46 @@
   "version": "1.0.0",
   "description": "A Node.js tool to check macOS security settings against a JSON configuration",
   "main": "dist/index.js",
+  "bin": {
+    "eai-security-check": "./dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "check": "npm run build && npm start check",
     "lint": "eslint src/**/*.ts",
-    "test": "jest"
+    "test": "jest",
+    "pkg:build": "npm run build && pkg dist/index.js --targets node18-macos-x64,node18-linux-x64,node18-win-x64 --out-path ./bin",
+    "pkg:macos": "npm run build && pkg dist/index.js --targets node18-macos-x64 --out-path ./bin",
+    "pkg:local": "npm run build && pkg dist/index.js --targets node18-macos-x64 --out-path ./bin"
   },
-  "keywords": ["macos", "security", "audit", "filevault", "password"],
+  "keywords": [
+    "macos",
+    "security",
+    "audit",
+    "filevault",
+    "password"
+  ],
   "author": "",
   "license": "MIT",
+  "pkg": {
+    "assets": [
+      "examples/**/*.json"
+    ],
+    "scripts": [
+      "dist/**/*.js"
+    ],
+    "outputPath": "./bin"
+  },
   "devDependencies": {
+    "@types/jest": "^29.0.0",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.0.0",
     "jest": "^29.0.0",
-    "@types/jest": "^29.0.0",
+    "pkg": "^5.8.1",
     "ts-jest": "^29.0.0",
     "ts-node": "^10.0.0",
     "typescript": "^5.0.0"

@@ -15,9 +15,9 @@ describe('SecurityAuditor', () => {
     it('should return a security report with correct structure', async () => {
       const config: SecurityConfig = {
         filevault: { enabled: true },
-        passwordProtection: { 
-          enabled: true, 
-          requirePasswordImmediately: true 
+        passwordProtection: {
+          enabled: true,
+          requirePasswordImmediately: true
         },
         autoLock: { maxTimeoutMinutes: 7 },
         firewall: { enabled: true, stealthMode: true },
@@ -26,10 +26,10 @@ describe('SecurityAuditor', () => {
         remoteLogin: { enabled: false },
         remoteManagement: { enabled: false },
         automaticUpdates: { enabled: true, securityUpdatesOnly: true },
-        sharingServices: { 
-          fileSharing: false, 
-          screenSharing: false, 
-          remoteLogin: false 
+        sharingServices: {
+          fileSharing: false,
+          screenSharing: false,
+          remoteLogin: false
         }
       };
 
@@ -55,9 +55,9 @@ describe('SecurityAuditor', () => {
     it('should check for FileVault setting', async () => {
       const config: SecurityConfig = {
         filevault: { enabled: true },
-        passwordProtection: { 
-          enabled: true, 
-          requirePasswordImmediately: true 
+        passwordProtection: {
+          enabled: true,
+          requirePasswordImmediately: true
         },
         autoLock: { maxTimeoutMinutes: 7 },
         firewall: { enabled: true },
@@ -66,16 +66,16 @@ describe('SecurityAuditor', () => {
         remoteLogin: { enabled: false },
         remoteManagement: { enabled: false },
         automaticUpdates: { enabled: true },
-        sharingServices: { 
-          fileSharing: false, 
-          screenSharing: false, 
-          remoteLogin: false 
+        sharingServices: {
+          fileSharing: false,
+          screenSharing: false,
+          remoteLogin: false
         }
       };
 
       const report = await auditor.auditSecurity(config);
       const fileVaultResult = report.results.find(r => r.setting === 'FileVault');
-      
+
       expect(fileVaultResult).toBeDefined();
       expect(fileVaultResult?.expected).toBe(true);
     });
@@ -85,9 +85,9 @@ describe('SecurityAuditor', () => {
     it('should generate a formatted report string', async () => {
       const config: SecurityConfig = {
         filevault: { enabled: true },
-        passwordProtection: { 
-          enabled: true, 
-          requirePasswordImmediately: true 
+        passwordProtection: {
+          enabled: true,
+          requirePasswordImmediately: true
         },
         autoLock: { maxTimeoutMinutes: 7 },
         firewall: { enabled: true },
@@ -96,10 +96,10 @@ describe('SecurityAuditor', () => {
         remoteLogin: { enabled: false },
         remoteManagement: { enabled: false },
         automaticUpdates: { enabled: true },
-        sharingServices: { 
-          fileSharing: false, 
-          screenSharing: false, 
-          remoteLogin: false 
+        sharingServices: {
+          fileSharing: false,
+          screenSharing: false,
+          remoteLogin: false
         }
       };
 

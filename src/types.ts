@@ -1,38 +1,38 @@
 export interface SecurityConfig {
-  filevault: {
+  filevault?: {
     enabled: boolean;
   };
-  passwordProtection: {
+  passwordProtection?: {
     enabled: boolean;
-    requirePasswordImmediately: boolean;
+    requirePasswordImmediately?: boolean;
   };
-  autoLock: {
+  autoLock?: {
     maxTimeoutMinutes: number;
   };
-  firewall: {
+  firewall?: {
     enabled: boolean;
     stealthMode?: boolean;
   };
-  gatekeeper: {
+  gatekeeper?: {
     enabled: boolean;
   };
-  systemIntegrityProtection: {
+  systemIntegrityProtection?: {
     enabled: boolean;
   };
-  remoteLogin: {
+  remoteLogin?: {
     enabled: boolean;
   };
-  remoteManagement: {
+  remoteManagement?: {
     enabled: boolean;
   };
-  automaticUpdates: {
+  automaticUpdates?: {
     enabled: boolean;
     securityUpdatesOnly?: boolean;
   };
-  sharingServices: {
-    fileSharing: boolean;
-    screenSharing: boolean;
-    remoteLogin: boolean;
+  sharingServices?: {
+    fileSharing?: boolean;
+    screenSharing?: boolean;
+    remoteLogin?: boolean;
   };
 }
 

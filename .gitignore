@@ -18,6 +18,9 @@ coverage/
 
 # Compiled output
 dist/
+
+# Built binaries
+bin/
 build/
 lib/
 
