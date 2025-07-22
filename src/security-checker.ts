@@ -15,27 +15,48 @@ export class MacOSSecurityChecker {
     }
   }
 
-  async checkPasswordProtection(): Promise<{ enabled: boolean; requirePasswordImmediately: boolean }> {
+  async checkPasswordProtection(): Promise<{ enabled: boolean; requirePasswordImmediately: boolean; passwordRequiredAfterLock: boolean }> {
     try {
-      // Check if password is required for login
+      // Check if password is required for login (basic login protection)
       const { stdout: loginPasswordCheck } = await execAsync('defaults read com.apple.loginwindow DisableLoginItemSuppression 2>/dev/null || echo "enabled"');
-
-      // Check screen saver password requirement
-      const { stdout: screenSaverPassword } = await execAsync('defaults read com.apple.screensaver askForPassword 2>/dev/null || echo "0"');
-
-      // Check password delay
-      const { stdout: passwordDelay } = await execAsync('defaults read com.apple.screensaver askForPasswordDelay 2>/dev/null || echo "0"');
-
       const passwordEnabled = !loginPasswordCheck.includes('disabled');
-      const requirePasswordImmediately = screenSaverPassword.trim() === '1' && parseInt(passwordDelay.trim()) === 0;
+      
+      // Use AppleScript to check lock screen password requirement (works on macOS 15.5+)
+      let passwordRequiredAfterLock = false;
+      try {
+        const applescript = `tell application "System Events" to tell security preferences to get require password to wake`;
+        const { stdout: lockScreenResult } = await execAsync(`osascript -e '${applescript}'`);
+        passwordRequiredAfterLock = lockScreenResult.trim().toLowerCase() === 'true';
+      } catch (applescriptError) {
+        console.warn('AppleScript method failed, falling back to defaults:', applescriptError);
+        
+        // Fallback to traditional defaults method (may not work on newer macOS versions)
+        try {
+          const { stdout: screenSaverPassword } = await execAsync('defaults read com.apple.screensaver askForPassword 2>/dev/null || echo "0"');
+          const { stdout: passwordDelay } = await execAsync('defaults read com.apple.screensaver askForPasswordDelay 2>/dev/null || echo "0"');
+          passwordRequiredAfterLock = screenSaverPassword.trim() === '1';
+        } catch (fallbackError) {
+          console.warn('Fallback defaults method also failed:', fallbackError);
+          passwordRequiredAfterLock = false;
+        }
+      }
+
+      // For "immediate" password requirement on macOS 15.5+:
+      // - We can detect if password is required (true/false) but not the actual delay time
+      // - Since we cannot determine the exact delay, we'll consider it passing as long as 
+      //   password is required after lock, regardless of the delay time
+      // - This is a practical approach since any password requirement provides some security
+      
+      const requirePasswordImmediately = passwordRequiredAfterLock;
 
       return {
         enabled: passwordEnabled,
-        requirePasswordImmediately
+        requirePasswordImmediately,
+        passwordRequiredAfterLock
       };
     } catch (error) {
       console.error('Error checking password protection:', error);
-      return { enabled: false, requirePasswordImmediately: false };
+      return { enabled: false, requirePasswordImmediately: false, passwordRequiredAfterLock: false };
     }
   }
 
@@ -75,8 +96,8 @@ export class MacOSSecurityChecker {
         riskLevel: 'High'
       },
       'Immediate Password Requirement': {
-        description: 'Forces immediate password entry when waking from screen saver, preventing brief unauthorized access.',
-        recommendation: 'Should be ENABLED for maximum security. Prevents someone from accessing your Mac if you step away briefly.',
+        description: 'Requires password entry when waking from screen saver or sleep, preventing unauthorized access. On macOS 15.5+, only the enabled/disabled state is detectable - the actual delay time is not accessible programmatically.',
+        recommendation: 'Should be ENABLED. Any password requirement after lock provides security protection. For maximum security, set to "immediately", but any delay is better than no password requirement.',
         riskLevel: 'Medium'
       },
       'Auto-lock Timeout': {

@@ -5,8 +5,8 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     return Promise.resolve(true);
   }
 
-  async checkPasswordProtection(): Promise<{ enabled: boolean; requirePasswordImmediately: boolean }> {
-    return Promise.resolve({ enabled: true, requirePasswordImmediately: true });
+  async checkPasswordProtection(): Promise<{ enabled: boolean; requirePasswordImmediately: boolean; passwordRequiredAfterLock: boolean }> {
+    return Promise.resolve({ enabled: true, requirePasswordImmediately: true, passwordRequiredAfterLock: true });
   }
 
   async checkAutoLockTimeout(): Promise<number> {
