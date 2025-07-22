@@ -58,46 +58,32 @@ jobs:
           path: bin/
 
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-          body: |
-            ## EAI Security Check Release
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "Release ${{ github.ref_name }}" \
+            --notes "## EAI Security Check Release
 
-            ### 📦 Standalone Executable
-            Download the macOS executable:
-            - **macOS**: `eai-security-check-macos`
+          ### 📦 Standalone Executable
+          Download the macOS executable:
+          - **macOS**: \`eai-security-check-macos\`
 
-            No Node.js installation required! Just download and run.
+          No Node.js installation required! Just download and run.
 
-            ### 🔍 Quick Start
-            ```bash
-            # Make executable
-            chmod +x eai-security-check-macos
+          ### 🔍 Quick Start
+          \`\`\`bash
+          # Make executable
+          chmod +x eai-security-check-macos
 
-            # Run security check
-            ./eai-security-check-macos check eai
-            ```
+          # Run security check
+          ./eai-security-check-macos check eai
+          \`\`\`
 
-            ### 📋 Features
-            - FileVault encryption check
-            - Password protection verification
-            - Auto-lock timeout validation
-            - Multiple security profiles (default, strict, relaxed, developer, eai)
-            - Detailed reporting with actionable recommendations
-
-      - name: Upload macOS Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/index-macos
-          asset_name: eai-security-check-macos
-          asset_content_type: application/octet-stream
+          ### 📋 Features
+          - FileVault encryption check
+          - Password protection verification
+          - Auto-lock timeout validation
+          - Multiple security profiles (default, strict, relaxed, developer, eai)
+          - Detailed reporting with actionable recommendations" \
+            ./bin/index-macos#eai-security-check-macos
