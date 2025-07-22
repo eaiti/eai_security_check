@@ -13,7 +13,7 @@
     "check": "npm run build && npm start check",
     "lint": "eslint src/**/*.ts",
     "test": "jest",
-    "pkg:build": "npm run build && pkg dist/index.js --targets node18-macos-x64,node18-linux-x64,node18-win-x64 --out-path ./bin",
+    "pkg:build": "npm run build && pkg dist/index.js --targets node18-macos-x64 --out-path ./bin",
     "pkg:macos": "npm run build && pkg dist/index.js --targets node18-macos-x64 --out-path ./bin",
     "pkg:local": "npm run build && pkg dist/index.js --targets node18-macos-x64 --out-path ./bin"
   },

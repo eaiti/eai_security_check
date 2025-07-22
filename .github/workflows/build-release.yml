@@ -63,22 +63,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
           body: |
             ## EAI Security Check Release
 
-            ### 📦 Standalone Executables
-            Download the appropriate executable for your platform:
+            ### 📦 Standalone Executable
+            Download the macOS executable:
             - **macOS**: `eai-security-check-macos`
 
             No Node.js installation required! Just download and run.
 
             ### 🔍 Quick Start
             ```bash
-            # Make executable (macOS/Linux)
+            # Make executable
             chmod +x eai-security-check-macos
 
             # Run security check
