@@ -219,13 +219,18 @@ export class MacOSSecurityChecker {
         riskLevel: 'Medium'
       },
       'Automatic Updates': {
-        description: 'Automatically checks for and installs software updates, including critical security patches.',
-        recommendation: 'Should be ENABLED. Ensures you receive important security updates promptly to protect against known vulnerabilities.',
+        description: 'Automatically checks for, downloads, and/or installs software updates. Different modes provide varying levels of automation and security protection.',
+        recommendation: 'Should be ENABLED with at least automatic security updates. Choose the mode that balances security with your workflow needs.',
+        riskLevel: 'High'
+      },
+      'Automatic Update Mode': {
+        description: 'Determines the level of automation for software updates: disabled (no automatic checking), check-only (manual download/install), download-only (automatic download but manual install), or fully-automatic (completely automated).',
+        recommendation: 'At minimum use "download-only" mode for convenience, or "fully-automatic" for maximum security. Avoid "disabled" and "check-only" modes.',
         riskLevel: 'High'
       },
       'Security Updates': {
-        description: 'Automatically installs critical security updates without user intervention.',
-        recommendation: 'Should be ENABLED. Critical security patches should be installed immediately to prevent exploitation.',
+        description: 'Automatically installs critical security updates without user intervention, protecting against known vulnerabilities immediately.',
+        recommendation: 'Should be ENABLED. Critical security patches should be installed immediately to prevent exploitation of known vulnerabilities.',
         riskLevel: 'High'
       },
       'File Sharing': {
@@ -320,20 +325,72 @@ export class MacOSSecurityChecker {
     }
   }
 
-  async checkAutomaticUpdates(): Promise<{ enabled: boolean; securityUpdatesOnly: boolean }> {
+  async checkAutomaticUpdates(): Promise<{ 
+    enabled: boolean; 
+    securityUpdatesOnly: boolean;
+    automaticDownload: boolean;
+    automaticInstall: boolean;
+    automaticSecurityInstall: boolean;
+    configDataInstall: boolean;
+    updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
+  }> {
     try {
-      // Check if automatic updates are enabled
-      const { stdout: autoUpdate } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled 2>/dev/null || echo "0"');
-      const enabled = autoUpdate.trim() === '1';
+      // Check if automatic checking for updates is enabled
+      const { stdout: autoCheck } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled 2>/dev/null || echo "0"');
+      const enabled = autoCheck.trim() === '1';
 
-      // Check if security updates are enabled
+      // Check if automatic downloading is enabled
+      const { stdout: autoDownload } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload 2>/dev/null || echo "0"');
+      const automaticDownload = autoDownload.trim() === '1';
+
+      // Check if automatic installation of macOS updates is enabled
+      const { stdout: autoInstallOS } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates 2>/dev/null || echo "0"');
+      const automaticInstall = autoInstallOS.trim() === '1';
+
+      // Check if critical/security updates are automatically installed
       const { stdout: securityUpdates } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall 2>/dev/null || echo "0"');
-      const securityUpdatesOnly = securityUpdates.trim() === '1';
+      const automaticSecurityInstall = securityUpdates.trim() === '1';
 
-      return { enabled, securityUpdatesOnly };
+      // Check if system data files and security updates are automatically installed
+      const { stdout: configData } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall 2>/dev/null || echo "0"');
+      const configDataInstall = configData.trim() === '1';
+
+      // Determine update mode based on settings
+      let updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
+      
+      if (!enabled) {
+        updateMode = 'disabled';
+      } else if (!automaticDownload) {
+        updateMode = 'check-only';
+      } else if (!automaticInstall && !automaticSecurityInstall) {
+        updateMode = 'download-only';
+      } else {
+        updateMode = 'fully-automatic';
+      }
+
+      // Legacy securityUpdatesOnly for backward compatibility
+      const securityUpdatesOnly = automaticSecurityInstall && !automaticInstall;
+
+      return { 
+        enabled, 
+        securityUpdatesOnly,
+        automaticDownload,
+        automaticInstall,
+        automaticSecurityInstall,
+        configDataInstall,
+        updateMode
+      };
     } catch (error) {
       console.error('Error checking automatic updates status:', error);
-      return { enabled: false, securityUpdatesOnly: false };
+      return { 
+        enabled: false, 
+        securityUpdatesOnly: false,
+        automaticDownload: false,
+        automaticInstall: false,
+        automaticSecurityInstall: false,
+        configDataInstall: false,
+        updateMode: 'disabled'
+      };
     }
   }
 

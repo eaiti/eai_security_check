@@ -28,6 +28,10 @@ export interface SecurityConfig {
   automaticUpdates?: {
     enabled: boolean;
     securityUpdatesOnly?: boolean;
+    // New granular settings for improved detection
+    downloadOnly?: boolean;           // Check and download, but don't install
+    automaticInstall?: boolean;       // Install all updates automatically
+    automaticSecurityInstall?: boolean; // Install security updates automatically
   };
   sharingServices?: {
     fileSharing?: boolean;

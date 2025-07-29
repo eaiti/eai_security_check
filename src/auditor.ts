@@ -8,6 +8,21 @@ export class SecurityAuditor {
     this.checker = new MacOSSecurityChecker();
   }
 
+  private getUpdateModeDescription(mode: string): string {
+    switch (mode) {
+      case 'disabled':
+        return 'no automatic checking, downloading, or installing';
+      case 'check-only':
+        return 'automatic checking enabled, but manual download and install required';
+      case 'download-only':
+        return 'automatic checking and downloading, but manual install required';
+      case 'fully-automatic':
+        return 'automatic checking, downloading, and installing';
+      default:
+        return 'unknown update mode';
+    }
+  }
+
   async auditSecurity(config: SecurityConfig): Promise<SecurityReport> {
     const results: SecurityCheckResult[] = [];
 
@@ -153,16 +168,53 @@ export class SecurityAuditor {
     // Check Automatic Updates (only if configured)
     if (config.automaticUpdates) {
       const updateInfo = await this.checker.checkAutomaticUpdates();
+      
+      // Check basic automatic updates enabled setting
       results.push({
         setting: 'Automatic Updates',
         expected: config.automaticUpdates.enabled,
         actual: updateInfo.enabled,
         passed: updateInfo.enabled === config.automaticUpdates.enabled,
         message: updateInfo.enabled
-          ? 'Automatic updates are enabled'
+          ? 'Automatic update checking is enabled'
           : 'Automatic updates are disabled - security patches may be delayed'
       });
 
+      // Check specific update mode if granular settings are provided
+      if (config.automaticUpdates.downloadOnly !== undefined) {
+        const downloadOnlyExpected = config.automaticUpdates.downloadOnly;
+        const downloadOnlyActual = updateInfo.updateMode === 'download-only';
+        results.push({
+          setting: 'Automatic Update Mode',
+          expected: downloadOnlyExpected ? 'download-only' : 'fully-automatic or disabled',
+          actual: updateInfo.updateMode,
+          passed: downloadOnlyExpected === downloadOnlyActual,
+          message: `Update mode is "${updateInfo.updateMode}" - ${this.getUpdateModeDescription(updateInfo.updateMode)}`
+        });
+      } else if (config.automaticUpdates.automaticInstall !== undefined) {
+        const automaticInstallExpected = config.automaticUpdates.automaticInstall;
+        const automaticInstallActual = updateInfo.automaticInstall;
+        results.push({
+          setting: 'Automatic Installation',
+          expected: automaticInstallExpected,
+          actual: automaticInstallActual,
+          passed: automaticInstallExpected === automaticInstallActual,
+          message: automaticInstallActual
+            ? 'All updates are installed automatically'
+            : 'Updates require manual installation'
+        });
+      } else {
+        // Provide general update mode information when no specific settings are configured
+        results.push({
+          setting: 'Automatic Update Mode',
+          expected: 'At least download-only or fully-automatic',
+          actual: updateInfo.updateMode,
+          passed: updateInfo.updateMode !== 'disabled' && updateInfo.updateMode !== 'check-only',
+          message: `Update mode is "${updateInfo.updateMode}" - ${this.getUpdateModeDescription(updateInfo.updateMode)}`
+        });
+      }
+
+      // Check security updates setting - maintain backward compatibility
       if (config.automaticUpdates.securityUpdatesOnly !== undefined) {
         results.push({
           setting: 'Security Updates',
@@ -170,6 +222,16 @@ export class SecurityAuditor {
           actual: updateInfo.securityUpdatesOnly,
           passed: updateInfo.securityUpdatesOnly === config.automaticUpdates.securityUpdatesOnly,
           message: updateInfo.securityUpdatesOnly
+            ? 'Security updates are automatically installed'
+            : 'Security updates require manual installation'
+        });
+      } else if (config.automaticUpdates.automaticSecurityInstall !== undefined) {
+        results.push({
+          setting: 'Security Updates',
+          expected: config.automaticUpdates.automaticSecurityInstall,
+          actual: updateInfo.automaticSecurityInstall,
+          passed: updateInfo.automaticSecurityInstall === config.automaticUpdates.automaticSecurityInstall,
+          message: updateInfo.automaticSecurityInstall
             ? 'Security updates are automatically installed'
             : 'Security updates require manual installation'
         });

@@ -296,5 +296,154 @@ describe('SecurityAuditor', () => {
 
       expect(wifiResult).toBeUndefined();
     });
+
+    describe('Automatic Updates Checks', () => {
+      it('should check basic automatic updates setting', async () => {
+        const config: SecurityConfig = {
+          automaticUpdates: { enabled: true }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const automaticUpdatesResult = report.results.find(r => r.setting === 'Automatic Updates');
+        const updateModeResult = report.results.find(r => r.setting === 'Automatic Update Mode');
+
+        expect(automaticUpdatesResult).toBeDefined();
+        expect(automaticUpdatesResult?.passed).toBe(true);
+        expect(automaticUpdatesResult?.actual).toBe(true);
+        
+        expect(updateModeResult).toBeDefined();
+        expect(updateModeResult?.actual).toBe('download-only');
+        expect(updateModeResult?.message).toContain('automatic checking and downloading, but manual install required');
+      });
+
+      it('should check granular automatic update settings with downloadOnly', async () => {
+        const config: SecurityConfig = {
+          automaticUpdates: { 
+            enabled: true,
+            downloadOnly: true
+          }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const updateModeResult = report.results.find(r => r.setting === 'Automatic Update Mode');
+
+        expect(updateModeResult).toBeDefined();
+        expect(updateModeResult?.passed).toBe(true);
+        expect(updateModeResult?.actual).toBe('download-only');
+        expect(updateModeResult?.expected).toBe('download-only');
+      });
+
+      it('should check granular automatic update settings with automaticInstall', async () => {
+        const config: SecurityConfig = {
+          automaticUpdates: { 
+            enabled: true,
+            automaticInstall: false
+          }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const automaticInstallResult = report.results.find(r => r.setting === 'Automatic Installation');
+
+        expect(automaticInstallResult).toBeDefined();
+        expect(automaticInstallResult?.passed).toBe(true);
+        expect(automaticInstallResult?.actual).toBe(false);
+        expect(automaticInstallResult?.expected).toBe(false);
+      });
+
+      it('should check granular security updates setting with automaticSecurityInstall', async () => {
+        const config: SecurityConfig = {
+          automaticUpdates: { 
+            enabled: true,
+            automaticSecurityInstall: true
+          }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const securityUpdatesResult = report.results.find(r => r.setting === 'Security Updates');
+
+        expect(securityUpdatesResult).toBeDefined();
+        expect(securityUpdatesResult?.passed).toBe(true);
+        expect(securityUpdatesResult?.actual).toBe(true);
+        expect(securityUpdatesResult?.expected).toBe(true);
+      });
+
+      it('should maintain backward compatibility with securityUpdatesOnly', async () => {
+        const config: SecurityConfig = {
+          automaticUpdates: { 
+            enabled: true,
+            securityUpdatesOnly: true
+          }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const securityUpdatesResult = report.results.find(r => r.setting === 'Security Updates');
+
+        expect(securityUpdatesResult).toBeDefined();
+        expect(securityUpdatesResult?.passed).toBe(true);
+        expect(securityUpdatesResult?.actual).toBe(true);
+        expect(securityUpdatesResult?.expected).toBe(true);
+      });
+
+      it('should skip automatic updates check when not configured', async () => {
+        const config: SecurityConfig = {
+          filevault: { enabled: true }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const automaticUpdatesResult = report.results.find(r => r.setting === 'Automatic Updates');
+
+        expect(automaticUpdatesResult).toBeUndefined();
+      });
+
+      it('should test different update modes', async () => {
+        // Test disabled mode
+        (auditor as any).checker.checkAutomaticUpdates = jest.fn().mockResolvedValue({
+          enabled: false,
+          securityUpdatesOnly: false,
+          automaticDownload: false,
+          automaticInstall: false,
+          automaticSecurityInstall: false,
+          configDataInstall: false,
+          updateMode: 'disabled'
+        });
+
+        const config: SecurityConfig = {
+          automaticUpdates: { enabled: false }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const updateModeResult = report.results.find(r => r.setting === 'Automatic Update Mode');
+
+        expect(updateModeResult?.actual).toBe('disabled');
+        expect(updateModeResult?.message).toContain('no automatic checking, downloading, or installing');
+      });
+
+      it('should handle fully-automatic mode', async () => {
+        // Test fully-automatic mode
+        (auditor as any).checker.checkAutomaticUpdates = jest.fn().mockResolvedValue({
+          enabled: true,
+          securityUpdatesOnly: false,
+          automaticDownload: true,
+          automaticInstall: true,
+          automaticSecurityInstall: true,
+          configDataInstall: true,
+          updateMode: 'fully-automatic'
+        });
+
+        const config: SecurityConfig = {
+          automaticUpdates: { 
+            enabled: true,
+            automaticInstall: true 
+          }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const installResult = report.results.find(r => r.setting === 'Automatic Installation');
+
+        expect(installResult?.actual).toBe(true);
+        expect(installResult?.passed).toBe(true);
+        expect(installResult?.message).toContain('All updates are installed automatically');
+      });
+    });
   });
 });

@@ -1,0 +1,12 @@
+{
+  "comment": "Example demonstrating different automatic update configurations",
+  "filevault": {
+    "enabled": true
+  },
+  "automaticUpdates": {
+    "enabled": true,
+    "automaticInstall": false,
+    "downloadOnly": true,
+    "automaticSecurityInstall": true
+  }
+}
