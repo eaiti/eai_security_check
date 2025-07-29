@@ -38,6 +38,12 @@
     "targetVersion": "latest"
   },
   "wifiSecurity": {
-    "bannedNetworks": ["EAIguest", "xfinitywifi", "Guest", "Public WiFi", "Free WiFi"]
+    "bannedNetworks": [
+      "EAIguest",
+      "xfinitywifi",
+      "Guest",
+      "Public WiFi",
+      "Free WiFi"
+    ]
   }
 }
