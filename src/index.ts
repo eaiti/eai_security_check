@@ -31,7 +31,10 @@ function getConfigByProfile(profile: string): SecurityConfig {
           screenSharing: false,
           remoteLogin: false
         },
-        osVersion: { targetVersion: 'latest' }
+        osVersion: { targetVersion: 'latest' },
+        wifiSecurity: {
+          bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi']
+        }
       };
 
     case 'relaxed':
@@ -50,6 +53,9 @@ function getConfigByProfile(profile: string): SecurityConfig {
           fileSharing: false,
           screenSharing: false,
           remoteLogin: false
+        },
+        wifiSecurity: {
+          bannedNetworks: ['EAIguest']
         }
       };
 
@@ -79,7 +85,10 @@ function getConfigByProfile(profile: string): SecurityConfig {
           enabled: true,
           requirePasswordImmediately: true
         },
-        autoLock: { maxTimeoutMinutes: 7 }
+        autoLock: { maxTimeoutMinutes: 7 },
+        wifiSecurity: {
+          bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi']
+        }
       };
 
     default: // 'default' profile
@@ -98,6 +107,9 @@ function getConfigByProfile(profile: string): SecurityConfig {
           fileSharing: false,
           screenSharing: false,
           remoteLogin: false
+        },
+        wifiSecurity: {
+          bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest']
         }
       };
   }

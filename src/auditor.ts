@@ -221,6 +221,47 @@ export class SecurityAuditor {
       });
     }
 
+    // Check WiFi Network Security (only if configured)
+    if (config.wifiSecurity) {
+      const wifiInfo = await this.checker.checkCurrentWifiNetwork();
+      const bannedNetworks = config.wifiSecurity.bannedNetworks || [];
+      
+      if (wifiInfo.connected && wifiInfo.networkName) {
+        const isOnBannedNetwork = bannedNetworks.includes(wifiInfo.networkName);
+        
+        if (bannedNetworks.length === 0) {
+          // If no banned networks configured, just log the current network and pass
+          results.push({
+            setting: 'WiFi Network Security',
+            expected: 'Network monitoring (no restrictions configured)',
+            actual: `Connected to: ${wifiInfo.networkName}`,
+            passed: true,
+            message: `Currently connected to WiFi network: ${wifiInfo.networkName} (no network restrictions configured)`
+          });
+        } else {
+          // Check if current network is in banned list
+          results.push({
+            setting: 'WiFi Network Security',
+            expected: `Not connected to banned networks: ${bannedNetworks.join(', ')}`,
+            actual: `Connected to: ${wifiInfo.networkName}`,
+            passed: !isOnBannedNetwork,
+            message: isOnBannedNetwork
+              ? `❌ Connected to banned network: ${wifiInfo.networkName}`
+              : `✅ Connected to allowed network: ${wifiInfo.networkName}`
+          });
+        }
+      } else {
+        // Not connected to WiFi
+        results.push({
+          setting: 'WiFi Network Security',
+          expected: bannedNetworks.length > 0 ? `Not connected to banned networks: ${bannedNetworks.join(', ')}` : 'Network monitoring',
+          actual: 'Not connected to WiFi',
+          passed: true,
+          message: 'Not currently connected to any WiFi network'
+        });
+      }
+    }
+
     const overallPassed = results.every(result => result.passed);
 
     return {

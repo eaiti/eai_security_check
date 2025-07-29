@@ -8,5 +8,8 @@
   },
   "autoLock": {
     "maxTimeoutMinutes": 7
+  },
+  "wifiSecurity": {
+    "bannedNetworks": ["EAIguest", "xfinitywifi", "Guest", "Public WiFi"]
   }
 }

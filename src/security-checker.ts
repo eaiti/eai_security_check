@@ -242,6 +242,11 @@ export class MacOSSecurityChecker {
         description: 'Ensures your macOS is up-to-date with the latest security patches and features.',
         recommendation: 'Should be current or recent version. Newer versions include important security fixes and improvements.',
         riskLevel: 'Medium'
+      },
+      'WiFi Network Security': {
+        description: 'Monitors current WiFi network connection to ensure you are not connected to banned or insecure networks.',
+        recommendation: 'Avoid connecting to untrusted, guest, or prohibited networks for work purposes. Use secure, company-approved networks.',
+        riskLevel: 'Medium'
       }
     };
   }
@@ -350,6 +355,50 @@ export class MacOSSecurityChecker {
     } catch (error) {
       console.error('Error checking sharing services:', error);
       return { fileSharing: false, screenSharing: false, remoteLogin: false };
+    }
+  }
+
+  async checkCurrentWifiNetwork(): Promise<{ networkName: string | null; connected: boolean }> {
+    try {
+      // Try different WiFi interfaces (en0, en1, etc.) and methods
+      const interfaces = ['en0', 'en1', 'en2'];
+      
+      for (const iface of interfaces) {
+        try {
+          const { stdout } = await execAsync(`networksetup -getairportnetwork ${iface} 2>/dev/null`);
+          
+          if (stdout.includes('Current Wi-Fi Network:')) {
+            // Extract network name from "Current Wi-Fi Network: NetworkName"
+            const networkName = stdout.replace('Current Wi-Fi Network:', '').trim();
+            if (networkName && networkName !== 'You are not associated with an AirPort network.') {
+              return { networkName, connected: true };
+            }
+          }
+        } catch {
+          // Continue to next interface
+        }
+      }
+
+      // Fallback method using airport command if available
+      try {
+        const { stdout: airportOutput } = await execAsync('/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I 2>/dev/null');
+        
+        // Look for SSID line in airport output
+        const ssidMatch = airportOutput.match(/^\s*SSID:\s*(.+)$/m);
+        if (ssidMatch && ssidMatch[1].trim()) {
+          const networkName = ssidMatch[1].trim();
+          return { networkName, connected: true };
+        }
+      } catch {
+        // Airport command not available or failed
+      }
+
+      // If all methods fail, assume not connected to WiFi
+      return { networkName: null, connected: false };
+      
+    } catch (error) {
+      console.warn('Error checking WiFi network:', error);
+      return { networkName: null, connected: false };
     }
   }
 }
