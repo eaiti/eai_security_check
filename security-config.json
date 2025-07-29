@@ -27,7 +27,8 @@
   },
   "automaticUpdates": {
     "enabled": true,
-    "securityUpdatesOnly": true
+    "downloadOnly": true,
+    "automaticSecurityInstall": true
   },
   "sharingServices": {
     "fileSharing": false,

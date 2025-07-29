@@ -33,8 +33,24 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     return Promise.resolve(false);
   }
 
-  async checkAutomaticUpdates(): Promise<{ enabled: boolean; securityUpdatesOnly: boolean }> {
-    return Promise.resolve({ enabled: true, securityUpdatesOnly: true });
+  async checkAutomaticUpdates(): Promise<{ 
+    enabled: boolean; 
+    securityUpdatesOnly: boolean;
+    automaticDownload: boolean;
+    automaticInstall: boolean;
+    automaticSecurityInstall: boolean;
+    configDataInstall: boolean;
+    updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
+  }> {
+    return Promise.resolve({ 
+      enabled: true, 
+      securityUpdatesOnly: true,
+      automaticDownload: true,
+      automaticInstall: false,
+      automaticSecurityInstall: true,
+      configDataInstall: true,
+      updateMode: 'download-only'
+    });
   }
 
   async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean }> {
@@ -94,6 +110,21 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
       'FileVault': {
         description: 'Test description for FileVault.',
         recommendation: 'Test recommendation for FileVault.',
+        riskLevel: 'High'
+      },
+      'Automatic Updates': {
+        description: 'Test description for Automatic Updates.',
+        recommendation: 'Test recommendation for Automatic Updates.',
+        riskLevel: 'High'
+      },
+      'Automatic Update Mode': {
+        description: 'Test description for Automatic Update Mode.',
+        recommendation: 'Test recommendation for Automatic Update Mode.',
+        riskLevel: 'High'
+      },
+      'Security Updates': {
+        description: 'Test description for Security Updates.',
+        recommendation: 'Test recommendation for Security Updates.',
         riskLevel: 'High'
       },
       'OS Version': {

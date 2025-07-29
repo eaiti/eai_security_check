@@ -51,7 +51,7 @@ eai-security-check init
 - **🛡️ Gatekeeper**: Verifies downloaded applications are checked for malware before execution
 - **🔐 System Integrity Protection (SIP)**: Ensures system files are protected from modification
 - **🌐 Remote Access**: Checks SSH/remote login and management services configuration
-- **🔄 Automatic Updates**: Validates security updates are enabled to protect against known vulnerabilities
+- **🔄 Automatic Updates**: Validates different levels of automatic update configuration from disabled to fully automatic, including security updates and download-only modes
 - **📡 Sharing Services**: Audits file sharing, screen sharing, and remote access services
 - **📱 OS Version Tracking**: Ensures macOS is up-to-date with latest security patches (configurable target version or "latest")
 - **📋 JSON Configuration**: Easy-to-customize security requirements with flexible profiles
@@ -272,8 +272,40 @@ npm run check
 - `enabled`: Boolean - Whether remote management/screen control should be enabled (typically false)
 
 ### 🔄 Automatic Updates
-- `enabled`: Boolean - Whether automatic update checking should be enabled
-- `securityUpdatesOnly`: Boolean (optional) - Whether security updates should auto-install
+- `enabled`: Boolean - Whether automatic update checking should be enabled (required)
+- `securityUpdatesOnly`: Boolean (optional) - Whether only security updates should auto-install (backward compatibility)
+- `downloadOnly`: Boolean (optional) - When true, configures "download-only" mode (check + download, manual install)
+- `automaticInstall`: Boolean (optional) - Whether all updates should be installed automatically
+- `automaticSecurityInstall`: Boolean (optional) - Whether security updates should be installed automatically
+
+**Update Modes Detected:**
+- `disabled`: No automatic checking, downloading, or installing
+- `check-only`: Automatic checking enabled, but manual download and install required
+- `download-only`: Automatic checking and downloading, but manual install required
+- `fully-automatic`: Automatic checking, downloading, and installing
+
+**Examples:**
+```json
+// Download-only mode (recommended for most users)
+"automaticUpdates": {
+  "enabled": true,
+  "downloadOnly": true,
+  "automaticSecurityInstall": true
+}
+
+// Fully automatic mode (maximum security)
+"automaticUpdates": {
+  "enabled": true,
+  "automaticInstall": true,
+  "automaticSecurityInstall": true
+}
+
+// Legacy configuration (still supported)
+"automaticUpdates": {
+  "enabled": true,
+  "securityUpdatesOnly": true
+}
+```
 
 ### 📡 Sharing Services
 - `fileSharing`: Boolean - Whether file sharing should be enabled
@@ -388,7 +420,7 @@ npm run lint
 6. **🔐 System Integrity Protection**: Checks SIP status via `csrutil status`
 7. **🌐 Remote Login**: Examines SSH service status and remote login settings
 8. **📱 Remote Management**: Checks for active remote management services
-9. **🔄 Automatic Updates**: Reads system update preferences
+9. **🔄 Automatic Updates**: Reads comprehensive system update preferences to distinguish between disabled, check-only, download-only, and fully-automatic modes
 10. **📡 Sharing Services**: Monitors file sharing, screen sharing, and remote access services
 
 ## Exit Codes
