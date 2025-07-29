@@ -84,6 +84,11 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     return 0;
   }
 
+  async checkCurrentWifiNetwork(): Promise<{ networkName: string | null; connected: boolean }> {
+    // Mock: Return a test network name for testing
+    return Promise.resolve({ networkName: 'TestNetwork', connected: true });
+  }
+
   getSecurityExplanations(): Record<string, { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }> {
     return {
       'FileVault': {
@@ -94,6 +99,11 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
       'OS Version': {
         description: 'Test description for OS Version.',
         recommendation: 'Test recommendation for OS Version.',
+        riskLevel: 'Medium'
+      },
+      'WiFi Network Security': {
+        description: 'Test description for WiFi Network Security.',
+        recommendation: 'Test recommendation for WiFi Network Security.',
         riskLevel: 'Medium'
       }
     };

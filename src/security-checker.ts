@@ -20,7 +20,7 @@ export class MacOSSecurityChecker {
       // Check if password is required for login (basic login protection)
       const { stdout: loginPasswordCheck } = await execAsync('defaults read com.apple.loginwindow DisableLoginItemSuppression 2>/dev/null || echo "enabled"');
       const passwordEnabled = !loginPasswordCheck.includes('disabled');
-      
+
       // Use AppleScript to check lock screen password requirement (works on macOS 15.5+)
       let passwordRequiredAfterLock = false;
       try {
@@ -29,7 +29,7 @@ export class MacOSSecurityChecker {
         passwordRequiredAfterLock = lockScreenResult.trim().toLowerCase() === 'true';
       } catch (applescriptError) {
         console.warn('AppleScript method failed, falling back to defaults:', applescriptError);
-        
+
         // Fallback to traditional defaults method (may not work on newer macOS versions)
         try {
           const { stdout: screenSaverPassword } = await execAsync('defaults read com.apple.screensaver askForPassword 2>/dev/null || echo "0"');
@@ -43,10 +43,10 @@ export class MacOSSecurityChecker {
 
       // For "immediate" password requirement on macOS 15.5+:
       // - We can detect if password is required (true/false) but not the actual delay time
-      // - Since we cannot determine the exact delay, we'll consider it passing as long as 
+      // - Since we cannot determine the exact delay, we'll consider it passing as long as
       //   password is required after lock, regardless of the delay time
       // - This is a practical approach since any password requirement provides some security
-      
+
       const requirePasswordImmediately = passwordRequiredAfterLock;
 
       return {
@@ -99,7 +99,7 @@ export class MacOSSecurityChecker {
       // This uses softwareupdate command which may require admin privileges
       const { stdout } = await execAsync('softwareupdate --list --all | grep -E "macOS.*[0-9]+\\.[0-9]+" | head -1 | grep -o "[0-9][0-9]*\\.[0-9][0-9]*" | head -1');
       const detectedVersion = stdout.trim();
-      
+
       if (detectedVersion && this.isValidVersion(detectedVersion)) {
         return detectedVersion;
       }
@@ -123,12 +123,12 @@ export class MacOSSecurityChecker {
   private compareVersions(current: string, target: string): number {
     const currentParts = this.parseVersion(current);
     const targetParts = this.parseVersion(target);
-    
+
     // Normalize arrays to same length
     const maxLength = Math.max(currentParts.length, targetParts.length);
     while (currentParts.length < maxLength) currentParts.push(0);
     while (targetParts.length < maxLength) targetParts.push(0);
-    
+
     for (let i = 0; i < maxLength; i++) {
       if (currentParts[i] > targetParts[i]) return 1;
       if (currentParts[i] < targetParts[i]) return -1;
@@ -242,6 +242,11 @@ export class MacOSSecurityChecker {
         description: 'Ensures your macOS is up-to-date with the latest security patches and features.',
         recommendation: 'Should be current or recent version. Newer versions include important security fixes and improvements.',
         riskLevel: 'Medium'
+      },
+      'WiFi Network Security': {
+        description: 'Monitors current WiFi network connection to ensure you are not connected to banned or insecure networks.',
+        recommendation: 'Avoid connecting to untrusted, guest, or prohibited networks for work purposes. Use secure, company-approved networks.',
+        riskLevel: 'Medium'
       }
     };
   }
@@ -350,6 +355,27 @@ export class MacOSSecurityChecker {
     } catch (error) {
       console.error('Error checking sharing services:', error);
       return { fileSharing: false, screenSharing: false, remoteLogin: false };
+    }
+  }
+
+  async checkCurrentWifiNetwork(): Promise<{ networkName: string | null; connected: boolean }> {
+    try {
+      // Primary method: Use system_profiler with awk for clean network name extraction
+      try {
+        const { stdout } = await execAsync(`system_profiler SPAirPortDataType | awk '/Current Network/ {getline;$1=$1;print $0 | "tr -d ':'";exit}' 2>/dev/null`);
+        const networkName = stdout.trim();
+
+        if (networkName && networkName.length > 0) {
+          return { networkName, connected: true };
+        }
+      } catch {
+        // Primary method failed, try fallbacks
+      }
+
+      return { networkName: null, connected: false };
+    } catch (error) {
+      console.warn('Error checking WiFi network:', error);
+      return { networkName: null, connected: false };
     }
   }
 }

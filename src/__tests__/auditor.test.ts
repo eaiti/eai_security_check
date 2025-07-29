@@ -205,4 +205,96 @@ describe('SecurityAuditor', () => {
       expect(osVersionResult).toBeUndefined();
     });
   });
+
+  describe('WiFi Network Security Checks', () => {
+    it('should pass when not connected to banned network', async () => {
+      const config: SecurityConfig = {
+        wifiSecurity: {
+          bannedNetworks: ['EAIguest', 'BadNetwork']
+        }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      const wifiResult = report.results.find(r => r.setting === 'WiFi Network Security');
+
+      expect(wifiResult).toBeDefined();
+      expect(wifiResult?.expected).toBe('Not connected to banned networks: EAIguest, BadNetwork');
+      expect(wifiResult?.actual).toBe('Connected to: TestNetwork');
+      expect(wifiResult?.passed).toBe(true);
+    });
+
+    it('should fail when connected to banned network', async () => {
+      // Modify mock to return a banned network
+      (auditor as any).checker.checkCurrentWifiNetwork = jest.fn().mockResolvedValue({
+        networkName: 'EAIguest',
+        connected: true
+      });
+
+      const config: SecurityConfig = {
+        wifiSecurity: {
+          bannedNetworks: ['EAIguest', 'BadNetwork']
+        }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      const wifiResult = report.results.find(r => r.setting === 'WiFi Network Security');
+
+      expect(wifiResult).toBeDefined();
+      expect(wifiResult?.expected).toBe('Not connected to banned networks: EAIguest, BadNetwork');
+      expect(wifiResult?.actual).toBe('Connected to: EAIguest');
+      expect(wifiResult?.passed).toBe(false);
+      expect(wifiResult?.message).toContain('❌ Connected to banned network: EAIguest');
+    });
+
+    it('should pass and log network when no banned networks configured', async () => {
+      const config: SecurityConfig = {
+        wifiSecurity: {
+          bannedNetworks: []
+        }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      const wifiResult = report.results.find(r => r.setting === 'WiFi Network Security');
+
+      expect(wifiResult).toBeDefined();
+      expect(wifiResult?.expected).toBe('Network monitoring (no restrictions configured)');
+      expect(wifiResult?.actual).toBe('Connected to: TestNetwork');
+      expect(wifiResult?.passed).toBe(true);
+      expect(wifiResult?.message).toContain('Currently connected to WiFi network: TestNetwork');
+    });
+
+    it('should pass when not connected to WiFi', async () => {
+      // Modify mock to return not connected
+      (auditor as any).checker.checkCurrentWifiNetwork = jest.fn().mockResolvedValue({
+        networkName: null,
+        connected: false
+      });
+
+      const config: SecurityConfig = {
+        wifiSecurity: {
+          bannedNetworks: ['EAIguest']
+        }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      const wifiResult = report.results.find(r => r.setting === 'WiFi Network Security');
+
+      expect(wifiResult).toBeDefined();
+      expect(wifiResult?.expected).toBe('Not connected to banned networks: EAIguest');
+      expect(wifiResult?.actual).toBe('Not connected to WiFi');
+      expect(wifiResult?.passed).toBe(true);
+      expect(wifiResult?.message).toBe('Not currently connected to any WiFi network');
+    });
+
+    it('should skip WiFi check when not configured', async () => {
+      const config: SecurityConfig = {
+        filevault: { enabled: true }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      const wifiResult = report.results.find(r => r.setting === 'WiFi Network Security');
+
+      expect(wifiResult).toBeUndefined();
+    });
+  });
 });
