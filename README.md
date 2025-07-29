@@ -53,6 +53,7 @@ eai-security-check init
 - **🌐 Remote Access**: Checks SSH/remote login and management services configuration
 - **🔄 Automatic Updates**: Validates security updates are enabled to protect against known vulnerabilities
 - **📡 Sharing Services**: Audits file sharing, screen sharing, and remote access services
+- **📱 OS Version Tracking**: Ensures macOS is up-to-date with latest security patches (configurable target version or "latest")
 - **📋 JSON Configuration**: Easy-to-customize security requirements with flexible profiles
 - **📊 Detailed Reports**: Clear pass/fail status with actionable security advice and risk levels
 - **🎯 Risk Prioritization**: Groups security issues by High/Medium/Low priority for efficient remediation
@@ -278,6 +279,9 @@ npm run check
 - `fileSharing`: Boolean - Whether file sharing should be enabled
 - `screenSharing`: Boolean - Whether screen sharing should be enabled
 - `remoteLogin`: Boolean - Whether remote login sharing should be enabled
+
+### 📱 OS Version
+- `targetVersion`: String - Minimum required macOS version (e.g., "14.0") or "latest" to check against Apple's current release
 
 ## Security Profiles
 
