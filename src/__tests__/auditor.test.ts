@@ -150,4 +150,59 @@ describe('SecurityAuditor', () => {
       expect(resultSettings).not.toContain('System Integrity Protection');
     });
   });
+
+  describe('OS Version Checks', () => {
+    it('should check OS version with specific target version', async () => {
+      const config: SecurityConfig = {
+        osVersion: { targetVersion: '14.0' }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      const osVersionResult = report.results.find(r => r.setting === 'OS Version');
+
+      expect(osVersionResult).toBeDefined();
+      expect(osVersionResult?.expected).toBe('≥ 14.0');
+      expect(osVersionResult?.actual).toBe('14.5');
+      expect(osVersionResult?.passed).toBe(true);
+    });
+
+    it('should check OS version with "latest" target version', async () => {
+      const config: SecurityConfig = {
+        osVersion: { targetVersion: 'latest' }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      const osVersionResult = report.results.find(r => r.setting === 'OS Version');
+
+      expect(osVersionResult).toBeDefined();
+      expect(osVersionResult?.expected).toBe('latest macOS version');
+      expect(osVersionResult?.actual).toBe('14.5');
+      expect(osVersionResult?.passed).toBe(false); // Mock returns 14.5 which is less than latest 15.1
+    });
+
+    it('should fail OS version check when current version is below target', async () => {
+      const config: SecurityConfig = {
+        osVersion: { targetVersion: '15.0' }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      const osVersionResult = report.results.find(r => r.setting === 'OS Version');
+
+      expect(osVersionResult).toBeDefined();
+      expect(osVersionResult?.expected).toBe('≥ 15.0');
+      expect(osVersionResult?.actual).toBe('14.5');
+      expect(osVersionResult?.passed).toBe(false);
+    });
+
+    it('should skip OS version check when not configured', async () => {
+      const config: SecurityConfig = {
+        filevault: { enabled: true }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      const osVersionResult = report.results.find(r => r.setting === 'OS Version');
+
+      expect(osVersionResult).toBeUndefined();
+    });
+  });
 });

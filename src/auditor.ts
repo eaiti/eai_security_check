@@ -205,6 +205,22 @@ export class SecurityAuditor {
       }
     }
 
+    // Check OS Version (only if configured)
+    if (config.osVersion) {
+      const versionInfo = await this.checker.checkOSVersion(config.osVersion.targetVersion);
+      const expectedMessage = versionInfo.isLatest ? 'latest macOS version' : `≥ ${versionInfo.target}`;
+      
+      results.push({
+        setting: 'OS Version',
+        expected: expectedMessage,
+        actual: versionInfo.current,
+        passed: versionInfo.passed,
+        message: versionInfo.passed
+          ? `macOS ${versionInfo.current} meets requirements (${versionInfo.isLatest ? 'checking against latest' : `target: ${versionInfo.target}`})`
+          : `macOS ${versionInfo.current} is outdated (${versionInfo.isLatest ? 'latest available' : 'target'}: ${versionInfo.target})`
+      });
+    }
+
     const overallPassed = results.every(result => result.passed);
 
     return {
