@@ -30,7 +30,8 @@ function getConfigByProfile(profile: string): SecurityConfig {
           fileSharing: false,
           screenSharing: false,
           remoteLogin: false
-        }
+        },
+        osVersion: { targetVersion: 'latest' }
       };
 
     case 'relaxed':

@@ -83,6 +83,89 @@ export class MacOSSecurityChecker {
     }
   }
 
+  async getCurrentMacOSVersion(): Promise<string> {
+    try {
+      const { stdout } = await execAsync('sw_vers -productVersion');
+      return stdout.trim();
+    } catch (error) {
+      console.error('Error getting macOS version:', error);
+      return '0.0.0'; // Return minimum version on error
+    }
+  }
+
+  async getLatestMacOSVersion(): Promise<string> {
+    try {
+      // Try to get latest version from Apple's software update catalog
+      // This uses softwareupdate command which may require admin privileges
+      const { stdout } = await execAsync('softwareupdate --list --all | grep -E "macOS.*[0-9]+\\.[0-9]+" | head -1 | grep -o "[0-9][0-9]*\\.[0-9][0-9]*" | head -1');
+      const detectedVersion = stdout.trim();
+      
+      if (detectedVersion && this.isValidVersion(detectedVersion)) {
+        return detectedVersion;
+      }
+    } catch (error) {
+      // Fallback if Apple query fails
+    }
+
+    // Fallback to known latest version as of implementation time
+    // This should be updated periodically or made configurable
+    return '15.1'; // macOS Sequoia 15.1 as of late 2024
+  }
+
+  private isValidVersion(version: string): boolean {
+    return /^\d+\.\d+(\.\d+)?$/.test(version);
+  }
+
+  private parseVersion(version: string): number[] {
+    return version.split('.').map(n => parseInt(n, 10));
+  }
+
+  private compareVersions(current: string, target: string): number {
+    const currentParts = this.parseVersion(current);
+    const targetParts = this.parseVersion(target);
+    
+    // Normalize arrays to same length
+    const maxLength = Math.max(currentParts.length, targetParts.length);
+    while (currentParts.length < maxLength) currentParts.push(0);
+    while (targetParts.length < maxLength) targetParts.push(0);
+    
+    for (let i = 0; i < maxLength; i++) {
+      if (currentParts[i] > targetParts[i]) return 1;
+      if (currentParts[i] < targetParts[i]) return -1;
+    }
+    return 0; // Equal
+  }
+
+  async checkOSVersion(targetVersion: string): Promise<{ current: string; target: string; isLatest: boolean; passed: boolean }> {
+    try {
+      const current = await this.getCurrentMacOSVersion();
+      let target = targetVersion;
+      const isLatest = targetVersion.toLowerCase() === 'latest';
+
+      if (isLatest) {
+        target = await this.getLatestMacOSVersion();
+      }
+
+      const comparison = this.compareVersions(current, target);
+      const passed = comparison >= 0; // Current >= Target
+
+      return {
+        current,
+        target,
+        isLatest,
+        passed
+      };
+    } catch (error) {
+      console.error('Error checking OS version:', error);
+      return {
+        current: '0.0.0',
+        target: targetVersion,
+        isLatest: targetVersion.toLowerCase() === 'latest',
+        passed: false
+      };
+    }
+  }
+
   getSecurityExplanations(): Record<string, { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }> {
     return {
       'FileVault': {
@@ -154,6 +237,11 @@ export class MacOSSecurityChecker {
         description: 'Allows remote users to view and control your Mac\'s screen over the network.',
         recommendation: 'Should be DISABLED unless required for remote support. Provides full remote access to your desktop.',
         riskLevel: 'High'
+      },
+      'OS Version': {
+        description: 'Ensures your macOS is up-to-date with the latest security patches and features.',
+        recommendation: 'Should be current or recent version. Newer versions include important security fixes and improvements.',
+        riskLevel: 'Medium'
       }
     };
   }

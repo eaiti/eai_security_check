@@ -34,6 +34,9 @@ export interface SecurityConfig {
     screenSharing?: boolean;
     remoteLogin?: boolean;
   };
+  osVersion?: {
+    targetVersion: string; // Version number like "14.0" or "latest" for Apple's current release
+  };
 }
 
 export interface SecurityCheckResult {
