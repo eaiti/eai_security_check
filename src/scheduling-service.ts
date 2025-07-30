@@ -6,6 +6,7 @@ import { SecurityAuditor } from './auditor';
 import { SecurityConfig, SchedulingConfig, DaemonState } from './types';
 import { OutputUtils, OutputFormat } from './output-utils';
 import { PlatformDetector } from './platform-detector';
+import { VersionUtils } from './version-utils';
 
 /**
  * SchedulingService handles the daemon mode for automated security checks
@@ -13,11 +14,14 @@ import { PlatformDetector } from './platform-detector';
 export class SchedulingService {
   private config: SchedulingConfig;
   private stateFilePath: string;
+  private lockFilePath: string;
   private isShuttingDown = false;
   private currentJob?: cron.ScheduledTask;
+  private versionCheckInterval?: NodeJS.Timeout;
 
   constructor(configPath?: string, stateFilePath?: string) {
     this.stateFilePath = stateFilePath || path.resolve('./daemon-state.json');
+    this.lockFilePath = path.resolve('./daemon.lock');
     this.config = this.loadSchedulingConfig(configPath);
   }
 
@@ -56,7 +60,9 @@ export class SchedulingService {
       const initialState: DaemonState = {
         lastReportSent: '',
         totalReportsGenerated: 0,
-        daemonStarted: new Date().toISOString()
+        daemonStarted: new Date().toISOString(),
+        currentVersion: VersionUtils.getCurrentVersion(),
+        lastVersionCheck: new Date().toISOString()
       };
       this.saveDaemonState(initialState);
       return initialState;
@@ -64,13 +70,25 @@ export class SchedulingService {
 
     try {
       const content = fs.readFileSync(this.stateFilePath, 'utf-8');
-      return JSON.parse(content) as DaemonState;
+      const state = JSON.parse(content) as DaemonState;
+      
+      // Update version info if not present or different
+      const currentVersion = VersionUtils.getCurrentVersion();
+      if (!state.currentVersion || state.currentVersion !== currentVersion) {
+        state.currentVersion = currentVersion;
+        state.lastVersionCheck = new Date().toISOString();
+        this.saveDaemonState(state);
+      }
+      
+      return state;
     } catch (error) {
       console.error('Failed to load daemon state, creating new:', error);
       const newState: DaemonState = {
         lastReportSent: '',
         totalReportsGenerated: 0,
-        daemonStarted: new Date().toISOString()
+        daemonStarted: new Date().toISOString(),
+        currentVersion: VersionUtils.getCurrentVersion(),
+        lastVersionCheck: new Date().toISOString()
       };
       this.saveDaemonState(newState);
       return newState;
@@ -317,7 +335,14 @@ export class SchedulingService {
       return;
     }
 
-    console.log(`Starting EAI Security Check daemon...`);
+    // Check for and create daemon lock to prevent multiple instances
+    if (!VersionUtils.createDaemonLock(this.lockFilePath)) {
+      console.error('❌ Another daemon instance is already running or failed to create lock file');
+      console.log('💡 Use "eai-security-check daemon --status" to check daemon status');
+      process.exit(1);
+    }
+
+    console.log(`Starting EAI Security Check daemon v${VersionUtils.getCurrentVersion()}...`);
     console.log(`Check interval: every ${this.config.intervalDays} days`);
     console.log(`Email recipients: ${this.config.email.to.join(', ')}`);
     console.log(`Security profile: ${this.config.securityProfile}`);
@@ -325,9 +350,16 @@ export class SchedulingService {
     const state = this.loadDaemonState();
     console.log(`Daemon state: ${state.totalReportsGenerated} reports sent, last report: ${state.lastReportSent || 'never'}`);
 
+    // Check for newer versions on startup
+    console.log('🔍 Checking for newer versions...');
+    await this.checkForNewerVersions();
+
     // Set up graceful shutdown
-    process.on('SIGINT', () => this.shutdown('SIGINT'));
-    process.on('SIGTERM', () => this.shutdown('SIGTERM'));
+    process.on('SIGINT', async () => await this.shutdown('SIGINT'));
+    process.on('SIGTERM', async () => await this.shutdown('SIGTERM'));
+    process.on('exit', () => {
+      VersionUtils.removeDaemonLock(this.lockFilePath);
+    });
 
     // Check immediately on startup if report is due
     if (this.shouldSendReport(state)) {
@@ -342,11 +374,50 @@ export class SchedulingService {
       }
     });
 
+    // Check for newer versions every hour
+    this.versionCheckInterval = setInterval(async () => {
+      if (!this.isShuttingDown) {
+        await this.checkForNewerVersions();
+      }
+    }, 60 * 60 * 1000); // Every hour
+
     console.log('Daemon started successfully. Scheduled to check daily at 9:00 AM.');
+    console.log('🔄 Version checks will run hourly to detect newer versions.');
     console.log('Press Ctrl+C to stop the daemon.');
 
     // Keep the process running
     this.keepAlive();
+  }
+
+  /**
+   * Check for newer versions and potentially yield control
+   */
+  private async checkForNewerVersions(): Promise<void> {
+    try {
+      const yieldCheck = await VersionUtils.shouldYieldToNewerVersion();
+      
+      if (yieldCheck.shouldYield) {
+        console.log(`⬆️  ${yieldCheck.reason}`);
+        console.log('🔄 Gracefully shutting down to allow newer version to take over...');
+        
+        // Update state with version check timestamp
+        const state = this.loadDaemonState();
+        state.lastVersionCheck = new Date().toISOString();
+        this.saveDaemonState(state);
+        
+        // Shutdown gracefully
+        await this.shutdown('VERSION_UPGRADE');
+        return;
+      }
+      
+      // Update version check timestamp
+      const state = this.loadDaemonState();
+      state.lastVersionCheck = new Date().toISOString();
+      this.saveDaemonState(state);
+      
+    } catch (error) {
+      console.warn('Warning: Version check failed:', error);
+    }
   }
 
   /**
@@ -363,7 +434,7 @@ export class SchedulingService {
   /**
    * Graceful shutdown
    */
-  private shutdown(signal: string): void {
+  private async shutdown(signal: string): Promise<void> {
     console.log(`\n[${new Date().toISOString()}] Received ${signal}, shutting down gracefully...`);
     this.isShuttingDown = true;
 
@@ -372,8 +443,17 @@ export class SchedulingService {
       console.log('Stopped scheduled tasks');
     }
 
+    if (this.versionCheckInterval) {
+      clearInterval(this.versionCheckInterval);
+      console.log('Stopped version checking');
+    }
+
+    // Clean up daemon lock
+    VersionUtils.removeDaemonLock(this.lockFilePath);
+    console.log('Removed daemon lock');
+
     console.log('Daemon stopped');
-    process.exit(0);
+    process.exit(signal === 'VERSION_UPGRADE' ? 0 : 0);
   }
 
   /**
@@ -386,5 +466,224 @@ export class SchedulingService {
       state,
       config: this.config
     };
+  }
+
+  /**
+   * Stop a running daemon by sending SIGTERM to the process
+   */
+  static async stopDaemon(lockFilePath?: string): Promise<{ success: boolean; message: string }> {
+    const resolvedLockPath = lockFilePath || path.resolve('./daemon.lock');
+    
+    try {
+      if (!fs.existsSync(resolvedLockPath)) {
+        return {
+          success: false,
+          message: 'No daemon lock file found. Daemon may not be running.'
+        };
+      }
+
+      const lockContent = fs.readFileSync(resolvedLockPath, 'utf-8');
+      const lockInfo = JSON.parse(lockContent);
+      
+      // Check if process is still running first
+      try {
+        process.kill(lockInfo.pid, 0);
+      } catch (error) {
+        // Process doesn't exist, clean up stale lock file
+        fs.unlinkSync(resolvedLockPath);
+        return {
+          success: false,
+          message: 'Daemon process not found. Cleaned up stale lock file.'
+        };
+      }
+
+      // Send SIGTERM to gracefully shutdown the daemon
+      console.log(`Sending shutdown signal to daemon process ${lockInfo.pid}...`);
+      process.kill(lockInfo.pid, 'SIGTERM');
+      
+      // Wait for the process to shutdown and lock file to be removed
+      let attempts = 0;
+      const maxAttempts = 30; // Wait up to 30 seconds
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        attempts++;
+        
+        try {
+          // Check if process is still running
+          process.kill(lockInfo.pid, 0);
+          
+          // Process still running, continue waiting
+          if (attempts % 5 === 0) {
+            console.log(`Waiting for daemon to shutdown... (${attempts}s)`);
+          }
+        } catch (error) {
+          // Process has stopped
+          // Clean up lock file if it still exists
+          if (fs.existsSync(resolvedLockPath)) {
+            fs.unlinkSync(resolvedLockPath);
+          }
+          
+          return {
+            success: true,
+            message: `Daemon stopped successfully after ${attempts} seconds.`
+          };
+        }
+      }
+      
+      // If we get here, the process didn't shutdown gracefully
+      console.log('Daemon did not respond to graceful shutdown, forcing termination...');
+      try {
+        process.kill(lockInfo.pid, 'SIGKILL');
+        
+        // Clean up lock file
+        if (fs.existsSync(resolvedLockPath)) {
+          fs.unlinkSync(resolvedLockPath);
+        }
+        
+        return {
+          success: true,
+          message: 'Daemon forcefully terminated after timeout.'
+        };
+      } catch (killError) {
+        return {
+          success: false,
+          message: `Failed to stop daemon: ${killError}`
+        };
+      }
+      
+    } catch (error) {
+      return {
+        success: false,
+        message: `Error stopping daemon: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Restart the daemon (stop current instance and start a new one)
+   */
+  static async restartDaemon(configPath?: string, stateFilePath?: string): Promise<{ success: boolean; message: string }> {
+    console.log('🔄 Restarting daemon...');
+    
+    // First, stop the current daemon
+    const stopResult = await this.stopDaemon();
+    if (!stopResult.success && !stopResult.message.includes('not running')) {
+      return {
+        success: false,
+        message: `Failed to stop current daemon: ${stopResult.message}`
+      };
+    }
+    
+    console.log('✅ Current daemon stopped');
+    
+    // Wait a moment to ensure cleanup is complete
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    try {
+      // Start a new daemon instance
+      console.log('🚀 Starting new daemon instance...');
+      const newService = new SchedulingService(configPath, stateFilePath);
+      await newService.startDaemon();
+      
+      return {
+        success: true,
+        message: 'Daemon restarted successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to start new daemon: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Uninstall daemon and clean up all related files
+   */
+  static async uninstallDaemon(options: {
+    configPath?: string;
+    stateFilePath?: string;
+    removeExecutable?: boolean;
+    force?: boolean;
+  } = {}): Promise<{ success: boolean; message: string; removedFiles: string[] }> {
+    const removedFiles: string[] = [];
+    const messages: string[] = [];
+    
+    try {
+      // Stop daemon if running
+      console.log('🛑 Stopping daemon...');
+      const stopResult = await this.stopDaemon();
+      if (stopResult.success) {
+        messages.push('Daemon stopped successfully');
+      } else if (!stopResult.message.includes('not running') && !stopResult.message.includes('not found') && !stopResult.message.includes('may not be running')) {
+        if (!options.force) {
+          return {
+            success: false,
+            message: `Cannot uninstall: ${stopResult.message}. Use --force to override.`,
+            removedFiles
+          };
+        } else {
+          messages.push(`Warning: ${stopResult.message}`);
+        }
+      }
+
+      // Remove daemon state file
+      const stateFile = options.stateFilePath || path.resolve('./daemon-state.json');
+      if (fs.existsSync(stateFile)) {
+        fs.unlinkSync(stateFile);
+        removedFiles.push(stateFile);
+        messages.push('Removed daemon state file');
+      }
+
+      // Remove scheduling config file
+      const configFile = options.configPath || path.resolve('./scheduling-config.json');
+      if (fs.existsSync(configFile)) {
+        if (options.force) {
+          fs.unlinkSync(configFile);
+          removedFiles.push(configFile);
+          messages.push('Removed scheduling configuration file');
+        } else {
+          messages.push(`Scheduling config preserved: ${configFile} (use --force to remove)`);
+        }
+      }
+
+      // Remove lock file if it exists
+      const lockFile = path.resolve('./daemon.lock');
+      if (fs.existsSync(lockFile)) {
+        fs.unlinkSync(lockFile);
+        removedFiles.push(lockFile);
+        messages.push('Removed daemon lock file');
+      }
+
+      // Remove executable if requested
+      if (options.removeExecutable && options.force) {
+        try {
+          const executablePath = process.argv[0];
+          if (fs.existsSync(executablePath) && path.basename(executablePath).includes('eai-security-check')) {
+            fs.unlinkSync(executablePath);
+            removedFiles.push(executablePath);
+            messages.push('Removed executable file');
+          }
+        } catch (error) {
+          messages.push(`Warning: Could not remove executable: ${error}`);
+        }
+      } else if (options.removeExecutable) {
+        messages.push('Use --force with --remove-executable to actually remove the executable');
+      }
+
+      return {
+        success: true,
+        message: messages.join('\n'),
+        removedFiles
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        message: `Error during uninstall: ${error}`,
+        removedFiles
+      };
+    }
   }
 }

@@ -721,6 +721,11 @@ program
   .option('--status', 'Show current daemon status and exit')
   .option('--test-email', 'Send a test email and exit')
   .option('--check-now', 'Force an immediate security check and email (regardless of schedule)')
+  .option('--stop', 'Stop the running daemon')
+  .option('--restart', 'Restart the daemon (stop current instance and start a new one)')
+  .option('--uninstall', 'Remove daemon files and configurations')
+  .option('--remove-executable', 'Also remove the executable when uninstalling (requires --force)')
+  .option('--force', 'Force operations that normally require confirmation')
   .addHelpText('after', `
 Examples:
   $ eai-security-check daemon                              # Start daemon with default config
@@ -729,6 +734,13 @@ Examples:
   $ eai-security-check daemon --status                    # Check daemon status
   $ eai-security-check daemon --test-email                # Send test email
   $ eai-security-check daemon --check-now                 # Force immediate check
+
+Daemon Control:
+  $ eai-security-check daemon --stop                      # Stop running daemon
+  $ eai-security-check daemon --restart                   # Restart daemon service
+  $ eai-security-check daemon --uninstall                 # Remove daemon files
+  $ eai-security-check daemon --uninstall --force         # Remove daemon files and config
+  $ eai-security-check daemon --uninstall --remove-executable --force  # Full uninstall
 
 Daemon Features:
   - Runs security checks on a configurable schedule (default: weekly)
@@ -789,6 +801,65 @@ Service Setup:
         return;
       }
 
+      // Handle stop option
+      if (options.stop) {
+        console.log('🛑 Stopping daemon...');
+        const result = await SchedulingService.stopDaemon();
+        if (result.success) {
+          console.log(`✅ ${result.message}`);
+        } else {
+          console.error(`❌ ${result.message}`);
+          process.exit(1);
+        }
+        return;
+      }
+
+      // Handle restart option
+      if (options.restart) {
+        const result = await SchedulingService.restartDaemon(options.config, options.state);
+        if (result.success) {
+          console.log(`✅ ${result.message}`);
+        } else {
+          console.error(`❌ ${result.message}`);
+          process.exit(1);
+        }
+        return;
+      }
+
+      // Handle uninstall option
+      if (options.uninstall) {
+        if (!options.force) {
+          console.log('⚠️  This will remove daemon state and lock files.');
+          console.log('💡 Use --force to also remove configuration files.');
+          console.log('💡 Use --remove-executable --force to also remove the executable.');
+          console.log('');
+        }
+
+        const result = await SchedulingService.uninstallDaemon({
+          configPath: options.config,
+          stateFilePath: options.state,
+          removeExecutable: options.removeExecutable,
+          force: options.force
+        });
+
+        if (result.success) {
+          console.log('✅ Daemon uninstalled successfully');
+          console.log('');
+          console.log('📁 Removed files:');
+          result.removedFiles.forEach(file => console.log(`  - ${file}`));
+          console.log('');
+          console.log(result.message);
+        } else {
+          console.error(`❌ ${result.message}`);
+          if (result.removedFiles.length > 0) {
+            console.log('📁 Partially removed files:');
+            result.removedFiles.forEach(file => console.log(`  - ${file}`));
+          }
+          process.exit(1);
+        }
+        return;
+      }
+
       // Create scheduling service
       const schedulingService = new SchedulingService(options.config, options.state);
 
@@ -800,6 +871,7 @@ Service Setup:
         console.log(`  Last Report: ${status.state.lastReportSent || 'Never'}`);
         console.log(`  Total Reports: ${status.state.totalReportsGenerated}`);
         console.log(`  Started: ${status.state.daemonStarted}`);
+        console.log(`  Version: ${status.state.currentVersion}`);
         console.log(`  Check Interval: ${status.config.intervalDays} days`);
         console.log(`  Email Recipients: ${status.config.email.to.join(', ')}`);
         console.log(`  Security Profile: ${status.config.securityProfile}`);
