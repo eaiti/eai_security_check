@@ -9,7 +9,53 @@
   "autoLock": {
     "maxTimeoutMinutes": 7
   },
+  "firewall": {
+    "enabled": false,
+    "stealthMode": false
+  },
+  "gatekeeper": {
+    "enabled": true
+  },
+  "systemIntegrityProtection": {
+    "enabled": true
+  },
+  "remoteLogin": {
+    "enabled": false
+  },
+  "remoteManagement": {
+    "enabled": false
+  },
+  "automaticUpdates": {
+    "enabled": true,
+    "automaticInstall": true,
+    "automaticSecurityInstall": true
+  },
+  "sharingServices": {
+    "fileSharing": false,
+    "screenSharing": false,
+    "remoteLogin": false,
+    "mediaSharing": false
+  },
+  "osVersion": {
+    "targetVersion": "latest"
+  },
+  "installedApps": {
+    "bannedApplications": [
+      "BitTorrent",
+      "uTorrent",
+      "Limewire",
+      "TeamViewer",
+      "AnyDesk",
+      "Skype",
+      "Steam"
+    ]
+  },
   "wifiSecurity": {
-    "bannedNetworks": ["EAIguest", "xfinitywifi", "Guest", "Public WiFi"]
+    "bannedNetworks": [
+      "EAIguest",
+      "xfinitywifi",
+      "Guest",
+      "Public WiFi"
+    ]
   }
 }
