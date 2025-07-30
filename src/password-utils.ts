@@ -172,7 +172,8 @@ export function promptForPassword(prompt: string = 'Enter password: '): Promise<
   return new Promise((resolve) => {
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
+      terminal: false // Disable echoing
     });
 
     let password = '';
@@ -211,9 +212,8 @@ export function promptForPassword(prompt: string = 'Enter password: '): Promise<
           // Backspace pressed
           if (password.length > 0) {
             password = password.slice(0, -1);
-            process.stdout.clearLine(0);
-            process.stdout.cursorTo(0);
-            process.stdout.write(prompt + '*'.repeat(password.length));
+            // Move cursor back one position, write space to clear, then back again
+            process.stdout.write('\b \b');
           }
           break;
         }
@@ -221,6 +221,7 @@ export function promptForPassword(prompt: string = 'Enter password: '): Promise<
           // Regular character
           if (char.charCodeAt(0) >= 32) { // Printable characters only
             password += char;
+            // Just write asterisk - terminal echo is disabled
             process.stdout.write('*');
           }
           break;
