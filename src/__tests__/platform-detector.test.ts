@@ -7,10 +7,13 @@ jest.mock('child_process', () => ({
 }));
 
 import * as os from 'os';
-import { exec, ChildProcess, ExecException } from 'child_process';
+import { exec, ChildProcess } from 'child_process';
 
 const mockOs = os as jest.Mocked<typeof os>;
 const mockExec = exec as jest.MockedFunction<typeof exec>;
+
+// Mock callback type for exec
+type MockExecCallback = (error: Error | null, result?: { stdout: string; stderr: string }) => void;
 
 describe('PlatformDetector', () => {
   beforeEach(() => {
@@ -24,7 +27,7 @@ describe('PlatformDetector', () => {
       // Mock sw_vers command
       mockExec.mockImplementation((command, callback) => {
         if (command === 'sw_vers -productVersion') {
-          (callback as unknown as (error: any, result?: any) => void)(null, {
+          (callback as unknown as MockExecCallback)(null, {
             stdout: '15.5',
             stderr: ''
           });
@@ -47,7 +50,7 @@ describe('PlatformDetector', () => {
       mockExec.mockImplementation((command, callback) => {
         if (command === 'cat /etc/os-release') {
           if (callback) {
-            (callback as unknown as (error: any, result?: any) => void)(null, {
+            (callback as unknown as MockExecCallback)(null, {
               stdout: 'ID=fedora\nVERSION_ID=38',
               stderr: ''
             } as any);
@@ -81,7 +84,7 @@ describe('PlatformDetector', () => {
       mockExec.mockImplementation((command, callback) => {
         if (command === 'sw_vers -productVersion') {
           if (callback) {
-            (callback as unknown as (error: any, result?: any) => void)(null, {
+            (callback as unknown as MockExecCallback)(null, {
               stdout: '14.5',
               stderr: ''
             } as any);
@@ -104,7 +107,7 @@ describe('PlatformDetector', () => {
       mockExec.mockImplementation((command, callback) => {
         if (command === 'sw_vers -productVersion') {
           if (callback) {
-            (callback as unknown as (error: any, result?: any) => void)(null, {
+            (callback as unknown as MockExecCallback)(null, {
               stdout: '16.0',
               stderr: ''
             } as any);
@@ -128,7 +131,7 @@ describe('PlatformDetector', () => {
       mockExec.mockImplementation((command, callback) => {
         if (command === 'cat /etc/os-release') {
           if (callback) {
-            (callback as unknown as (error: any, result?: any) => void)(null, {
+            (callback as unknown as MockExecCallback)(null, {
               stdout: 'ID=arch\nVERSION_ID=rolling',
               stderr: ''
             } as any);
@@ -150,7 +153,7 @@ describe('PlatformDetector', () => {
       mockOs.platform.mockReturnValue('darwin');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as unknown as (error: any, result?: any) => void)(null, {
+          (callback as unknown as MockExecCallback)(null, {
             stdout: '15.5',
             stderr: ''
           } as any);
@@ -166,7 +169,7 @@ describe('PlatformDetector', () => {
       mockOs.platform.mockReturnValue('linux');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as unknown as (error: any, result?: any) => void)(null, {
+          (callback as unknown as MockExecCallback)(null, {
             stdout: 'ID=fedora\nVERSION_ID=38',
             stderr: ''
           } as any);
@@ -182,7 +185,7 @@ describe('PlatformDetector', () => {
       mockOs.platform.mockReturnValue('darwin');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as unknown as (error: any, result?: any) => void)(null, {
+          (callback as unknown as MockExecCallback)(null, {
             stdout: '15.5',
             stderr: ''
           } as any);

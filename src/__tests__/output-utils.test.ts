@@ -5,10 +5,13 @@ jest.mock('os');
 jest.mock('child_process');
 
 import * as os from 'os';
-import { exec, ChildProcess, ExecException } from 'child_process';
+import { exec, ChildProcess } from 'child_process';
 
 const mockOs = os as jest.Mocked<typeof os>;
 const mockExec = exec as jest.MockedFunction<typeof exec>;
+
+// Mock callback type for exec
+type MockExecCallback = (error: Error | null, result?: { stdout: string; stderr: string }) => void;
 
 describe('OutputUtils', () => {
   beforeEach(() => {
@@ -91,7 +94,7 @@ describe('OutputUtils', () => {
       mockOs.platform.mockReturnValue('darwin');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as unknown as (error: any, result?: any) => void)(null, {
+          (callback as unknown as MockExecCallback)(null, {
             stdout: '',
             stderr: ''
           });
@@ -112,15 +115,15 @@ describe('OutputUtils', () => {
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
           if (command.includes('xclip')) {
-            (callback as unknown as (error: any, result?: any) => void)(null, {
+            (callback as unknown as MockExecCallback)(null, {
               stdout: '',
               stderr: ''
             } as any);
           } else {
-            (callback as unknown as (error: any, result?: any) => void)(
-              new Error('Command not found'),
-              { stdout: '', stderr: '' } as any
-            );
+            (callback as unknown as MockExecCallback)(new Error('Command not found'), {
+              stdout: '',
+              stderr: ''
+            } as any);
           }
         }
         return {} as unknown as ChildProcess;
@@ -134,10 +137,10 @@ describe('OutputUtils', () => {
       mockOs.platform.mockReturnValue('linux');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as unknown as (error: any, result?: any) => void)(
-            new Error('Command not found'),
-            { stdout: '', stderr: '' } as any
-          );
+          (callback as unknown as MockExecCallback)(new Error('Command not found'), {
+            stdout: '',
+            stderr: ''
+          } as any);
         }
         return {} as unknown as ChildProcess;
       });
@@ -224,17 +227,17 @@ describe('OutputUtils', () => {
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
           if (command === 'which xclip') {
-            (callback as unknown as (error: any, result?: any) => void)(null, {
+            (callback as unknown as MockExecCallback)(null, {
               stdout: '/usr/bin/xclip',
               stderr: ''
             } as any);
           } else if (command === 'which xsel') {
-            (callback as unknown as (error: any, result?: any) => void)(new Error('not found'), {
+            (callback as unknown as MockExecCallback)(new Error('not found'), {
               stdout: '',
               stderr: ''
             } as any);
           } else if (command === 'which wl-copy') {
-            (callback as unknown as (error: any, result?: any) => void)(null, {
+            (callback as unknown as MockExecCallback)(null, {
               stdout: '/usr/bin/wl-copy',
               stderr: ''
             } as any);
@@ -262,7 +265,7 @@ describe('OutputUtils', () => {
       mockOs.platform.mockReturnValue('linux');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as unknown as (error: any, result?: any) => void)(new Error('not found'), {
+          (callback as unknown as MockExecCallback)(new Error('not found'), {
             stdout: '',
             stderr: ''
           } as any);
