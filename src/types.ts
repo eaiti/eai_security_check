@@ -44,6 +44,9 @@ export interface SecurityConfig {
   wifiSecurity?: {
     bannedNetworks: string[]; // List of WiFi network names that should not be used
   };
+  installedApps?: {
+    bannedApplications: string[]; // List of application names that should not be installed
+  };
 }
 
 export interface SecurityCheckResult {

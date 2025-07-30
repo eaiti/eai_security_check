@@ -324,6 +324,47 @@ export class SecurityAuditor {
       }
     }
 
+    // Check Installed Applications (only if configured)
+    if (config.installedApps) {
+      const appInfo = await this.checker.checkInstalledApplications();
+      const bannedApps = config.installedApps.bannedApplications || [];
+      
+      // Find any banned apps that are currently installed
+      const bannedAppsFound = appInfo.installedApps.filter(app => 
+        bannedApps.some(banned => 
+          app.toLowerCase().includes(banned.toLowerCase()) || 
+          banned.toLowerCase().includes(app.toLowerCase())
+        )
+      );
+
+      const totalAppsCount = appInfo.installedApps.length;
+      const appSummary = `${totalAppsCount} total apps: ${appInfo.sources.applications.length} in Applications, ${appInfo.sources.homebrew.length} via Homebrew, ${appInfo.sources.npm.length} via npm`;
+      
+      if (bannedApps.length === 0) {
+        // If no banned apps configured, just report the installed apps and pass
+        results.push({
+          setting: 'Installed Applications',
+          expected: 'Application monitoring (no restrictions configured)',
+          actual: appSummary,
+          passed: true,
+          message: `Detected applications: ${appInfo.installedApps.join(', ')}`
+        });
+      } else {
+        // Check if any banned apps are installed
+        const hasBannedApps = bannedAppsFound.length > 0;
+        
+        results.push({
+          setting: 'Installed Applications',
+          expected: `No banned applications: ${bannedApps.join(', ')}`,
+          actual: appSummary,
+          passed: !hasBannedApps,
+          message: hasBannedApps
+            ? `❌ Banned applications found: ${bannedAppsFound.join(', ')} | All apps: ${appInfo.installedApps.join(', ')}`
+            : `✅ No banned applications detected | All apps: ${appInfo.installedApps.join(', ')}`
+        });
+      }
+    }
+
     const overallPassed = results.every(result => result.passed);
 
     return {

@@ -34,6 +34,9 @@ function getConfigByProfile(profile: string): SecurityConfig {
         osVersion: { targetVersion: 'latest' },
         wifiSecurity: {
           bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi']
+        },
+        installedApps: {
+          bannedApplications: ['BitTorrent', 'uTorrent', 'Limewire', 'TeamViewer', 'AnyDesk']
         }
       };
 
@@ -56,6 +59,9 @@ function getConfigByProfile(profile: string): SecurityConfig {
         },
         wifiSecurity: {
           bannedNetworks: ['EAIguest']
+        },
+        installedApps: {
+          bannedApplications: ['BitTorrent', 'uTorrent']
         }
       };
 
@@ -75,6 +81,9 @@ function getConfigByProfile(profile: string): SecurityConfig {
           fileSharing: true,
           screenSharing: true,
           remoteLogin: true
+        },
+        installedApps: {
+          bannedApplications: []
         }
       };
 

@@ -46,5 +46,15 @@
       "Public WiFi",
       "Free WiFi"
     ]
+  },
+  "installedApps": {
+    "bannedApplications": [
+      "BitTorrent",
+      "uTorrent",
+      "Limewire",
+      "TeamViewer",
+      "AnyDesk",
+      "Skype"
+    ]
   }
 }
