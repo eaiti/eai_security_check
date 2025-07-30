@@ -78,3 +78,33 @@ export interface SecurityReport {
   overallPassed: boolean;
   results: SecurityCheckResult[];
 }
+
+export interface EmailConfig {
+  smtp: {
+    host: string;
+    port: number;
+    secure: boolean;
+    auth: {
+      user: string;
+      pass: string;
+    };
+  };
+  from: string;
+  to: string[];
+  subject?: string;
+}
+
+export interface SchedulingConfig {
+  enabled: boolean;
+  intervalDays: number;  // How often to run checks (default: 7 days)
+  email: EmailConfig;
+  reportFormat: 'email' | 'plain' | 'markdown' | 'json';
+  securityProfile: string;  // Which security profile to use for checks
+  customConfigPath?: string;  // Optional path to custom security config
+}
+
+export interface DaemonState {
+  lastReportSent: string;  // ISO timestamp
+  totalReportsGenerated: number;
+  daemonStarted: string;  // ISO timestamp
+}

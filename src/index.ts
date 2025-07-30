@@ -8,6 +8,7 @@ import { SecurityConfig } from './types';
 import { OutputUtils, OutputFormat } from './output-utils';
 import { CryptoUtils } from './crypto-utils';
 import { PlatformDetector, Platform } from './platform-detector';
+import { SchedulingService } from './scheduling-service';
 
 /**
  * Determines if password is needed based on configuration
@@ -712,6 +713,125 @@ Exit codes: 0 = verification passed, 1 = verification failed or file error
   });
 
 program
+  .command('daemon')
+  .description('🔄 Run security checks on a schedule and send email reports')
+  .option('-c, --config <path>', 'Path to scheduling configuration file', './scheduling-config.json')
+  .option('-s, --state <path>', 'Path to daemon state file', './daemon-state.json')
+  .option('--init', 'Create a sample scheduling configuration file')
+  .option('--status', 'Show current daemon status and exit')
+  .option('--test-email', 'Send a test email and exit')
+  .option('--check-now', 'Force an immediate security check and email (regardless of schedule)')
+  .addHelpText('after', `
+Examples:
+  $ eai-security-check daemon                              # Start daemon with default config
+  $ eai-security-check daemon -c my-schedule.json         # Use custom scheduling config
+  $ eai-security-check daemon --init                      # Create sample scheduling config
+  $ eai-security-check daemon --status                    # Check daemon status
+  $ eai-security-check daemon --test-email                # Send test email
+  $ eai-security-check daemon --check-now                 # Force immediate check
+
+Daemon Features:
+  - Runs security checks on a configurable schedule (default: weekly)
+  - Sends email reports to configured recipients
+  - Tracks when last report was sent to avoid duplicates
+  - Automatically restarts checks after system reboot (when configured as service)
+  - Graceful shutdown on SIGINT/SIGTERM
+
+Configuration:
+  The daemon uses a separate configuration file (scheduling-config.json) that includes:
+  - Email SMTP settings and recipients
+  - Check interval (in days)
+  - Security profile to use for checks
+  - Report format preferences
+
+Service Setup:
+  To run as a system service that restarts automatically:
+  - Linux: Create systemd service unit file
+  - macOS: Create launchd plist file
+  - See documentation for platform-specific setup instructions
+`)
+  .action(async (options) => {
+    try {
+      // Handle init option
+      if (options.init) {
+        const configPath = path.resolve(options.config);
+        
+        if (fs.existsSync(configPath)) {
+          console.error(`❌ Scheduling configuration already exists: ${configPath}`);
+          process.exit(1);
+        }
+
+        const sampleConfig = {
+          enabled: true,
+          intervalDays: 7,
+          email: {
+            smtp: {
+              host: 'smtp.gmail.com',
+              port: 587,
+              secure: false,
+              auth: {
+                user: 'your-email@gmail.com',
+                pass: 'your-app-specific-password'
+              }
+            },
+            from: 'EAI Security Check <your-email@gmail.com>',
+            to: ['admin@company.com'],
+            subject: 'Weekly Security Audit Report'
+          },
+          reportFormat: 'email',
+          securityProfile: 'default'
+        };
+
+        fs.writeFileSync(configPath, JSON.stringify(sampleConfig, null, 2));
+        console.log(`✅ Sample scheduling configuration created: ${configPath}`);
+        console.log('💡 Edit this file to configure your email settings and preferences.');
+        console.log('📧 Make sure to update the SMTP credentials and recipient email addresses.');
+        return;
+      }
+
+      // Create scheduling service
+      const schedulingService = new SchedulingService(options.config, options.state);
+
+      // Handle status option
+      if (options.status) {
+        const status = schedulingService.getDaemonStatus();
+        console.log('📊 Daemon Status:');
+        console.log(`  Running: ${status.running}`);
+        console.log(`  Last Report: ${status.state.lastReportSent || 'Never'}`);
+        console.log(`  Total Reports: ${status.state.totalReportsGenerated}`);
+        console.log(`  Started: ${status.state.daemonStarted}`);
+        console.log(`  Check Interval: ${status.config.intervalDays} days`);
+        console.log(`  Email Recipients: ${status.config.email.to.join(', ')}`);
+        console.log(`  Security Profile: ${status.config.securityProfile}`);
+        return;
+      }
+
+      // Handle test email option
+      if (options.testEmail) {
+        console.log('📧 Sending test email...');
+        await schedulingService.runScheduledCheck();
+        console.log('✅ Test email sent successfully');
+        return;
+      }
+
+      // Handle check now option
+      if (options.checkNow) {
+        console.log('🔍 Running immediate security check...');
+        await schedulingService.runScheduledCheck();
+        console.log('✅ Security check completed and email sent');
+        return;
+      }
+
+      // Start daemon
+      await schedulingService.startDaemon();
+
+    } catch (error) {
+      console.error('❌ Error running daemon:', error);
+      process.exit(1);
+    }
+  });
+
+program
   .command('help')
   .alias('h')
   .description('📚 Show detailed help information')
@@ -723,7 +843,7 @@ program
         cmd.help();
       } else {
         console.error(`❌ Unknown command: ${command}`);
-        console.log('Available commands: check, init, help');
+        console.log('Available commands: check, init, daemon, verify, help');
       }
     } else {
       console.log(`

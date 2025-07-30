@@ -36,6 +36,8 @@ A cross-platform Node.js + TypeScript tool for auditing security settings on mac
 - **Summary Mode**: One-line status for quick sharing
 - **Password Management**: Secure password input with platform-aware prompts
 - **Multiple Profiles**: Predefined security configurations (default, strict, relaxed, developer, EAI)
+- **Scheduled Audits**: Automated daemon mode with email notifications and configurable intervals
+- **System Service Integration**: Easy setup as system service with auto-restart capabilities
 
 ## 🚀 Installation
 
@@ -154,6 +156,94 @@ Create a sample security configuration file.
 **Options:**
 - `--profile <name>` - Use predefined profile (default, strict, relaxed, developer, eai)
 - `--file <path>` - Custom output filename
+
+### Daemon Command
+
+```bash
+./eai-security-check daemon [options]
+```
+
+Run security checks on a schedule and automatically send email reports. This command starts a long-running daemon that performs scheduled security audits and sends email notifications.
+
+**Options:**
+- `-c, --config <path>` - Path to scheduling configuration file (default: `scheduling-config.json`)
+- `-s, --state <path>` - Path to daemon state file (default: `daemon-state.json`)
+- `--init` - Create a sample scheduling configuration file
+- `--status` - Show current daemon status and exit
+- `--test-email` - Send a test email and exit
+- `--check-now` - Force an immediate security check and email (regardless of schedule)
+
+**Examples:**
+```bash
+# Initialize daemon configuration
+./eai-security-check daemon --init
+
+# Start daemon with default weekly schedule
+./eai-security-check daemon
+
+# Check daemon status
+./eai-security-check daemon --status
+
+# Force immediate check
+./eai-security-check daemon --check-now
+
+# Use custom configuration
+./eai-security-check daemon -c /path/to/my-schedule.json
+```
+
+**Daemon Features:**
+- Runs security checks on a configurable schedule (default: weekly)
+- Sends email reports to configured recipients using SMTP
+- Tracks when last report was sent to avoid duplicates
+- Automatically restarts checks after system reboot (when configured as service)
+- Graceful shutdown on SIGINT/SIGTERM signals
+- Supports all existing security profiles and output formats
+
+**Setting up as System Service:**
+
+For automatic startup on system reboot, use the provided setup script:
+
+```bash
+# Linux (systemd)
+sudo ./examples/setup-daemon.sh install
+
+# macOS (launchd)
+./examples/setup-daemon.sh install
+
+# Check service status
+./examples/setup-daemon.sh status
+
+# Uninstall service
+sudo ./examples/setup-daemon.sh uninstall  # Linux
+./examples/setup-daemon.sh uninstall       # macOS
+```
+
+**Scheduling Configuration:**
+
+The daemon uses a separate configuration file (`scheduling-config.json`) that includes:
+
+```json
+{
+  "enabled": true,
+  "intervalDays": 7,
+  "email": {
+    "smtp": {
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "secure": false,
+      "auth": {
+        "user": "your-email@gmail.com",
+        "pass": "your-app-specific-password"
+      }
+    },
+    "from": "EAI Security Check <your-email@gmail.com>",
+    "to": ["admin@company.com", "security@company.com"],
+    "subject": "Weekly Security Audit Report"
+  },
+  "reportFormat": "email",
+  "securityProfile": "default"
+}
+```
 
 ## 🖥️ Platform-Specific Examples
 
