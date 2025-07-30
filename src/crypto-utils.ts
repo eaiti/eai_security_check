@@ -256,21 +256,12 @@ export class CryptoUtils {
   /**
    * Create a tamper-evident report with multiple verification methods
    */
-  static createTamperEvidentReport(content: string, metadata?: any): string {
+  static createTamperEvidentReport(content: string, metadata?: any): { signedContent: string; hashedReport: HashedReport } {
     const hashedReport = this.createHashedReport(content, metadata);
     const signedContent = this.signReport(hashedReport);
     
-    // Add human-readable verification info at the top
-    const shortHash = this.createShortHash(hashedReport.hash);
-    const verificationHeader = `
-🔒 TAMPER-EVIDENT SECURITY REPORT
-Hash: ${shortHash} | Generated: ${new Date(hashedReport.timestamp).toLocaleString()}
-Verify with: eai-security-check verify <filename>
-${'='.repeat(80)}
-
-`;
-    
-    return verificationHeader + signedContent;
+    // Return both the signed content and the hashed report info
+    return { signedContent, hashedReport };
   }
 
   /**

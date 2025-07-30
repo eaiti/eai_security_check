@@ -313,20 +313,31 @@ Examples:
   $ eai-security-check check developer             # Use developer profile
   $ eai-security-check check eai                   # Use EAI profile (10+ char passwords)
   $ eai-security-check check -c my-config.json     # Use custom config file
-  $ eai-security-check check -o report.txt         # Save report to file
+  $ eai-security-check check -o ~/Documents/report.txt  # Save report to Documents folder
   $ eai-security-check check -q                    # Quiet mode (summary only)
-  $ eai-security-check check --password mypass     # Provide password directly
+  $ eai-security-check check --password mypass     # Provide admin password directly
   $ eai-security-check check --clipboard           # Copy summary to clipboard
   $ eai-security-check check --format markdown     # Markdown format output
-  $ eai-security-check check --hash -o report.txt  # Generate tamper-evident report
+  $ eai-security-check check --hash -o report.txt  # Generate tamper-evident report file
+  $ eai-security-check check --hash --format json  # Generate tamper-evident JSON to console
   $ eai-security-check check --summary             # Just show summary line
 
-Output Formats:
+Password Input:
+  --password    - Provide admin/sudo password directly (avoid interactive prompt)
+  Interactive   - If password needed, will prompt: "Enter your macOS/sudo password:"
+  Platform      - macOS users enter their user password, Linux users enter sudo password
+
+Output Formats (all support --hash for tamper detection):
   console     - Colorized console output (default)
   plain       - Plain text without colors
   markdown    - Markdown format for documentation
   json        - Structured JSON format
   email       - Email-friendly format with headers
+
+Tamper Detection:
+  --hash        - Generate cryptographic signature for report integrity
+  Available in all formats (console, file, markdown, json, email)
+  Verify with:  eai-security-check verify <filename>
 
 Security Profiles:
   default     - Recommended security settings (7-min auto-lock)
@@ -496,26 +507,33 @@ Security Profiles:
 
       // Handle hashing if requested
       if (options.hash) {
-        if (!outputFilename) {
-          outputFilename = 'security-report.txt';
-        }
-        
-        const hashedReport = CryptoUtils.createTamperEvidentReport(finalReport, {
+        const { signedContent, hashedReport } = CryptoUtils.createTamperEvidentReport(finalReport, {
           platform: platformInfo.platform,
           distribution: platformInfo.distribution,
           configSource
         });
         
-        const outputPath = path.resolve(outputFilename);
-        fs.writeFileSync(outputPath, hashedReport);
+        const hashShort = CryptoUtils.createShortHash(hashedReport.hash);
         
-        const hashShort = CryptoUtils.createShortHash(CryptoUtils.generateHash(finalReport));
-        console.log(`📄 Tamper-evident report saved to: ${outputPath}`);
-        console.log(`🔐 Report hash: ${hashShort}`);
-        console.log(`🔍 Verify with: eai-security-check verify "${outputFilename}"`);
+        if (outputFilename) {
+          // Save to file
+          const outputPath = path.resolve(outputFilename);
+          fs.writeFileSync(outputPath, signedContent);
+          console.log(`📄 Tamper-evident report saved to: ${outputPath}`);
+          console.log(`🔐 Report hash: ${hashShort}`);
+          console.log(`🔍 Verify with: eai-security-check verify "${outputFilename}"`);
+        } else {
+          // Output to console with hash header
+          console.log(`\n🔒 TAMPER-EVIDENT SECURITY REPORT`);
+          console.log(`🔐 Hash: ${hashShort} | Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`);
+          console.log(`${'='.repeat(80)}\n`);
+          console.log(signedContent);
+        }
         
         if (options.clipboard) {
-          const clipboardContent = `Security audit completed. Hash: ${hashShort}. Verify: eai-security-check verify "${outputFilename}"`;
+          const clipboardContent = outputFilename ? 
+            `Security audit completed. Hash: ${hashShort}. Verify: eai-security-check verify "${outputFilename}"` :
+            `Security audit completed. Hash: ${hashShort}. Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`;
           const clipboardAvailable = await OutputUtils.isClipboardAvailable();
           if (clipboardAvailable) {
             const success = await OutputUtils.copyToClipboard(clipboardContent);
@@ -615,10 +633,14 @@ program
 Examples:
   $ eai-security-check verify security-report.txt     # Verify report integrity
   $ eai-security-check verify --verbose report.txt    # Show detailed verification info
+  $ eai-security-check verify report.json             # Works with all formats (JSON, markdown, etc.)
 
 This command verifies that a report has not been tampered with by checking
 its cryptographic signature. Reports generated with --hash option include
 verification signatures.
+
+Supported formats: All output formats support verification (plain, markdown, json, email)
+Exit codes: 0 = verification passed, 1 = verification failed or file error
 `)
   .action(async (filepath, options) => {
     try {
