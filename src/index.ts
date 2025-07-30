@@ -9,6 +9,7 @@ import { OutputUtils, OutputFormat } from './output-utils';
 import { CryptoUtils } from './crypto-utils';
 import { PlatformDetector, Platform } from './platform-detector';
 import { SchedulingService } from './scheduling-service';
+import { getConfigByProfile, isValidProfile, VALID_PROFILES } from './config-profiles';
 
 /**
  * Determines if password is needed based on configuration
@@ -23,204 +24,11 @@ function requiresPassword(config: SecurityConfig): boolean {
   return !!(config.remoteLogin || config.remoteManagement);
 }
 
-function getConfigByProfile(profile: string): SecurityConfig {
-  const baseConfig = {
-    diskEncryption: { enabled: true },
-    packageVerification: { enabled: true },
-    systemIntegrityProtection: { enabled: true }
-  };
-
-  console.warn('Using dynamic configuration generation for profile:', profile);
-
-  switch (profile) {
-    case 'strict':
-      return {
-        ...baseConfig,
-        passwordProtection: {
-          enabled: true,
-          requirePasswordImmediately: true
-        },
-        password: {
-          required: false,
-          minLength: 8,
-          requireUppercase: false,
-          requireLowercase: false,
-          requireNumber: false,
-          requireSpecialChar: false,
-          maxAgeDays: 180
-        },
-        autoLock: { maxTimeoutMinutes: 3 },
-        firewall: { enabled: true, stealthMode: true },
-        remoteLogin: { enabled: false },
-        remoteManagement: { enabled: false },
-        automaticUpdates: {
-          enabled: true,
-          automaticInstall: true,
-          automaticSecurityInstall: true
-        },
-        sharingServices: {
-          fileSharing: false,
-          screenSharing: false,
-          remoteLogin: false
-        },
-        osVersion: { targetVersion: 'latest' },
-        wifiSecurity: {
-          bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi', 'Free WiFi']
-        },
-        installedApps: {
-          bannedApplications: ['BitTorrent', 'uTorrent', 'Limewire', 'TeamViewer', 'AnyDesk', 'Skype']
-        }
-      };
-
-    case 'relaxed':
-      return {
-        ...baseConfig,
-        passwordProtection: {
-          enabled: true,
-          requirePasswordImmediately: false
-        },
-        password: {
-          required: false,
-          minLength: 8,
-          requireUppercase: false,
-          requireLowercase: false,
-          requireNumber: false,
-          requireSpecialChar: false,
-          maxAgeDays: 180
-        },
-        autoLock: { maxTimeoutMinutes: 15 },
-        firewall: { enabled: true, stealthMode: false },
-        remoteLogin: { enabled: false },
-        remoteManagement: { enabled: false },
-        automaticUpdates: {
-          enabled: true,
-          downloadOnly: false,
-          automaticSecurityInstall: false
-        },
-        sharingServices: {
-          fileSharing: false,
-          screenSharing: false,
-          remoteLogin: false
-        }
-      };
-
-    case 'developer':
-      return {
-        ...baseConfig,
-        passwordProtection: {
-          enabled: true,
-          requirePasswordImmediately: true
-        },
-        password: {
-          required: true,
-          minLength: 8,
-          requireUppercase: true,
-          requireLowercase: true,
-          requireNumber: true,
-          requireSpecialChar: true,
-          maxAgeDays: 180
-        },
-        autoLock: { maxTimeoutMinutes: 10 },
-        firewall: { enabled: true, stealthMode: false },
-        remoteLogin: { enabled: true },
-        remoteManagement: { enabled: false },
-        automaticUpdates: {
-          enabled: true,
-          downloadOnly: true,
-          automaticSecurityInstall: true
-        },
-        sharingServices: {
-          fileSharing: true,
-          screenSharing: true,
-          remoteLogin: true
-        }
-      };
-
-    case 'eai':
-      return {
-        diskEncryption: { enabled: true },
-        passwordProtection: {
-          enabled: true,
-          requirePasswordImmediately: true
-        },
-        password: {
-          required: true,
-          minLength: 10,
-          requireUppercase: false,
-          requireLowercase: false,
-          requireNumber: false,
-          requireSpecialChar: false,
-          maxAgeDays: 180
-        },
-        autoLock: { maxTimeoutMinutes: 7 },
-        firewall: { enabled: false, stealthMode: false },
-        packageVerification: { enabled: true },
-        systemIntegrityProtection: { enabled: true },
-        remoteLogin: { enabled: false },
-        remoteManagement: { enabled: false },
-        automaticUpdates: {
-          enabled: true,
-          automaticInstall: true,
-          automaticSecurityInstall: true
-        },
-        sharingServices: {
-          fileSharing: false,
-          screenSharing: false,
-          remoteLogin: false
-        },
-        osVersion: { targetVersion: 'latest' },
-        installedApps: {
-          bannedApplications: ['BitTorrent', 'uTorrent', 'Limewire', 'TeamViewer', 'AnyDesk', 'Skype', 'Steam']
-        },
-        wifiSecurity: {
-          bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi']
-        }
-      };
-
-    default: // 'default' profile
-      return {
-        ...baseConfig,
-        passwordProtection: {
-          enabled: true,
-          requirePasswordImmediately: true
-        },
-        password: {
-          required: false,
-          minLength: 8,
-          requireUppercase: false,
-          requireLowercase: false,
-          requireNumber: false,
-          requireSpecialChar: false,
-          maxAgeDays: 180
-        },
-        autoLock: { maxTimeoutMinutes: 7 },
-        firewall: { enabled: true, stealthMode: true },
-        remoteLogin: { enabled: false },
-        remoteManagement: { enabled: false },
-        automaticUpdates: {
-          enabled: true,
-          automaticInstall: true,
-          automaticSecurityInstall: true
-        },
-        sharingServices: {
-          fileSharing: false,
-          screenSharing: false,
-          remoteLogin: false
-        },
-        wifiSecurity: {
-          bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest']
-        }
-      };
-  }
-}
-
 /**
  * Gets configuration by profile name, either from file or generated dynamically
  */
 function getConfigForProfile(profile: string): SecurityConfig | null {
-  const validProfiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
-
-  if (!validProfiles.includes(profile)) {
+  if (!isValidProfile(profile)) {
     return null;
   }
 
@@ -239,9 +47,7 @@ function getConfigForProfile(profile: string): SecurityConfig | null {
   return getConfigByProfile(profile);
 }
 function resolveProfileConfigPath(profile: string): string | null {
-  const validProfiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
-
-  if (!validProfiles.includes(profile)) {
+  if (!isValidProfile(profile)) {
     return null;
   }
 
@@ -299,20 +105,24 @@ const program = new Command();
 
 program
   .name('eai-security-check')
-  .description('🔒 macOS Security Audit Tool - Check your Mac\'s security settings against configurable requirements')
+  .description('🔒 Cross-Platform Security Audit Tool - Check your system\'s security settings against configurable requirements')
   .version('1.0.0')
   .addHelpText('before', `
-🔒 EAI Security Check - macOS Security Audit Tool
+🔒 EAI Security Check - Cross-Platform Security Audit Tool
 
-This tool audits your macOS system against security best practices and generates
+This tool audits your macOS or Linux system against security best practices and generates
 detailed reports with actionable recommendations.
 
 SECURITY CHECKS PERFORMED:
-  🔒 FileVault (disk encryption)        🔥 Application Firewall
-  🔑 Password Protection                 🛡️  Gatekeeper (app verification)
-  ⏰ Auto-lock Timeout                   🔐 System Integrity Protection (SIP)
-  🌐 Remote Login/SSH                    📱 Remote Management
-  🔄 Automatic Updates                   📡 Sharing Services (File/Screen)
+  🔒 Disk Encryption (FileVault/LUKS)    🔥 Firewall (App Firewall/ufw/firewalld)
+  🔑 Password Protection                  🛡️  Package Verification (Gatekeeper/GPG)
+  ⏰ Auto-lock Timeout                    🔐 System Integrity Protection (SIP/SELinux)
+  🌐 Remote Login/SSH                     📱 Remote Management/VNC
+  🔄 Automatic Updates                    📡 Sharing Services (File/Screen/Network)
+
+PLATFORMS SUPPORTED:
+  🍎 macOS: Complete support for all security features
+  🐧 Linux: Full support (Fedora primary, Ubuntu/Debian limited testing)
 
 RISK LEVELS:
   🚨 HIGH: Critical security vulnerabilities
@@ -352,7 +162,7 @@ Examples:
 
 Password Input:
   --password    - Provide admin/sudo password directly (avoid interactive prompt)
-  Interactive   - If password needed, will prompt: "Enter your macOS/sudo password:"
+  Interactive   - Platform-aware prompts: "Enter your macOS password:" or "Enter your sudo password:"
   Platform      - macOS users enter their user password, Linux users enter sudo password
 
 Output Formats (all support --hash for tamper detection):
@@ -400,7 +210,7 @@ Security Profiles:
 
         if (!profileConfig) {
           console.error(`❌ Invalid profile: ${profile}`);
-          console.log('💡 Valid profiles: default, strict, relaxed, developer, eai');
+          console.log(`💡 Valid profiles: ${VALID_PROFILES.join(', ')}`);
           console.log('💡 Use "eai-security-check check --help" for examples');
           process.exit(1);
         }
@@ -921,10 +731,10 @@ program
       }
     } else {
       console.log(`
-🔒 EAI Security Check - macOS Security Audit Tool v1.0.0
+🔒 EAI Security Check - Cross-Platform Security Audit Tool v1.0.0
 
 OVERVIEW:
-This tool performs comprehensive security audits of macOS systems against
+This tool performs comprehensive security audits of macOS and Linux systems against
 configurable requirements and generates detailed reports with actionable
 recommendations.
 
@@ -949,11 +759,15 @@ COMMON WORKFLOWS:
     $ eai-security-check check --quiet
 
 SECURITY AREAS CHECKED:
-  🔒 Disk Encryption (FileVault)      🔥 Network Firewall
-  🔑 Login Security                   🛡️  Code Signing (Gatekeeper)
-  ⏰ Session Timeouts                 🔐 System Protection (SIP)
-  🌐 Remote Access Controls           📱 Management Services
-  🔄 Update Policies                  📡 Network Sharing
+  🔒 Disk Encryption (FileVault/LUKS)   🔥 Network Firewall (App/ufw/firewalld)
+  🔑 Login Security                      🛡️  Package Verification (Gatekeeper/GPG)
+  ⏰ Session Timeouts                    🔐 System Protection (SIP/SELinux)
+  🌐 Remote Access Controls              📱 Management Services
+  🔄 Update Policies                     📡 Network Sharing
+
+SUPPORTED PLATFORMS:
+  🍎 macOS: Complete support for all security features
+  🐧 Linux: Full support (Fedora primary, Ubuntu/Debian limited testing)
 
 EXIT CODES:
   0 = All security checks passed
