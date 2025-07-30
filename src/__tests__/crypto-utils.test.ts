@@ -10,9 +10,20 @@ const mockFs = fs as jest.Mocked<typeof fs>;
 const mockOs = os as jest.Mocked<typeof os>;
 
 describe('CryptoUtils', () => {
+  const originalSecret = process.env.EAI_BUILD_SECRET;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockOs.hostname.mockReturnValue('test-host');
+  });
+
+  afterEach(() => {
+    // Restore original secret
+    if (originalSecret) {
+      process.env.EAI_BUILD_SECRET = originalSecret;
+    } else {
+      delete process.env.EAI_BUILD_SECRET;
+    }
   });
 
   describe('generateHash', () => {
@@ -52,8 +63,9 @@ describe('CryptoUtils', () => {
 
       expect(hashedReport.content).toBe(content);
       expect(hashedReport.hash).toBeDefined();
-      expect(hashedReport.algorithm).toBe('sha256');
+      expect(hashedReport.algorithm).toBeDefined();
       expect(hashedReport.timestamp).toBeDefined();
+      expect(hashedReport.salt).toBeDefined();
       expect(hashedReport.metadata).toMatchObject(metadata);
       expect(hashedReport.metadata.platform).toBeDefined();
       expect(hashedReport.metadata.hostname).toBeDefined();
@@ -79,6 +91,7 @@ describe('CryptoUtils', () => {
         hash: 'testhash',
         algorithm: 'sha256',
         timestamp: '2024-01-01T00:00:00.000Z',
+        salt: 'testsalt',
         metadata: { platform: 'linux', hostname: 'test', version: '1.0.0' }
       };
 
@@ -88,6 +101,7 @@ describe('CryptoUtils', () => {
       expect(signedContent).toContain('--- SECURITY SIGNATURE ---');
       expect(signedContent).toContain('"hash": "testhash"');
       expect(signedContent).toContain('"algorithm": "sha256"');
+      expect(signedContent).toContain('"salt": "testsalt"');
     });
   });
 
@@ -309,11 +323,115 @@ describe('CryptoUtils', () => {
       expect(CryptoUtils.isValidHashAlgorithm('sha512')).toBe(true);
       expect(CryptoUtils.isValidHashAlgorithm('sha1')).toBe(true);
       expect(CryptoUtils.isValidHashAlgorithm('md5')).toBe(true);
+      expect(CryptoUtils.isValidHashAlgorithm('hmac-sha256')).toBe(true);
     });
 
     it('should reject unsupported algorithms', () => {
       expect(CryptoUtils.isValidHashAlgorithm('invalid')).toBe(false);
       expect(CryptoUtils.isValidHashAlgorithm('sha3-256')).toBe(false);
+    });
+  });
+
+  describe('enhanced security features', () => {
+    it('should use enhanced security when build secret is set', () => {
+      // Set a test build secret
+      process.env.EAI_BUILD_SECRET = 'test-secret-key-123';
+      
+      const content = 'test content for enhanced security';
+      const hashedReport = CryptoUtils.createHashedReport(content);
+      
+      expect(hashedReport.algorithm).toBe('hmac-sha256');
+      expect(hashedReport.salt).toBeDefined();
+      expect(hashedReport.salt).toHaveLength(32); // 16 bytes hex = 32 chars
+    });
+
+    it('should use fallback mode when no build secret is set', () => {
+      // Ensure no build secret is set
+      delete process.env.EAI_BUILD_SECRET;
+      
+      const content = 'test content for fallback mode';
+      const hashedReport = CryptoUtils.createHashedReport(content);
+      
+      expect(hashedReport.algorithm).toBe('sha256');
+      expect(hashedReport.salt).toBeDefined(); // Salt is still generated for consistency
+    });
+
+    it('should verify enhanced security reports', () => {
+      // Set a test build secret
+      process.env.EAI_BUILD_SECRET = 'test-secret-key-456';
+      
+      const content = 'test content for enhanced verification';
+      const hashedReport = CryptoUtils.createHashedReport(content);
+      const signedContent = CryptoUtils.signReport(hashedReport);
+      
+      const verification = CryptoUtils.verifyReport(signedContent);
+      
+      expect(verification.isValid).toBe(true);
+      expect(verification.tampered).toBe(false);
+    });
+
+    it('should fail to verify enhanced reports without proper secret', () => {
+      // Set a build secret for creation
+      process.env.EAI_BUILD_SECRET = 'creation-secret';
+      
+      const content = 'test content';
+      const hashedReport = CryptoUtils.createHashedReport(content);
+      const signedContent = CryptoUtils.signReport(hashedReport);
+      
+      // Change secret for verification
+      process.env.EAI_BUILD_SECRET = 'different-secret';
+      
+      const verification = CryptoUtils.verifyReport(signedContent);
+      
+      expect(verification.isValid).toBe(false);
+      expect(verification.tampered).toBe(true);
+    });
+
+    it('should detect tampering in enhanced mode', () => {
+      // Set a test build secret
+      process.env.EAI_BUILD_SECRET = 'tamper-test-secret';
+      
+      const content = 'original content';
+      const hashedReport = CryptoUtils.createHashedReport(content);
+      const signedContent = CryptoUtils.signReport(hashedReport);
+      
+      // Tamper with content
+      const tamperedContent = signedContent.replace('original content', 'tampered content');
+      
+      const verification = CryptoUtils.verifyReport(tamperedContent);
+      
+      expect(verification.isValid).toBe(false);
+      expect(verification.tampered).toBe(true);
+    });
+  });
+
+  describe('security info', () => {
+    it('should report enhanced security when build secret is available', () => {
+      process.env.EAI_BUILD_SECRET = 'test-secret';
+      
+      const securityInfo = CryptoUtils.getSecurityInfo();
+      
+      expect(securityInfo.level).toBe('Enhanced');
+      expect(securityInfo.algorithm).toBe('HMAC-SHA256');
+      expect(securityInfo.message).toContain('cryptographically secure');
+    });
+
+    it('should report basic security when using fallback', () => {
+      delete process.env.EAI_BUILD_SECRET;
+      
+      const securityInfo = CryptoUtils.getSecurityInfo();
+      
+      expect(securityInfo.level).toBe('Basic');
+      expect(securityInfo.algorithm).toBe('SHA256');
+      expect(securityInfo.message).toContain('basic hashing');
+    });
+
+    it('should correctly identify enhanced security availability', () => {
+      process.env.EAI_BUILD_SECRET = 'available-secret';
+      expect(CryptoUtils.isEnhancedSecurityAvailable()).toBe(true);
+      
+      delete process.env.EAI_BUILD_SECRET;
+      expect(CryptoUtils.isEnhancedSecurityAvailable()).toBe(false);
     });
   });
 });

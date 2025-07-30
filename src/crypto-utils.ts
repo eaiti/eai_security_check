@@ -7,6 +7,7 @@ export interface HashedReport {
   hash: string;
   algorithm: string;
   timestamp: string;
+  salt?: string;
   metadata: {
     platform: string;
     hostname: string;
@@ -25,9 +26,50 @@ export interface VerificationResult {
 export class CryptoUtils {
   private static readonly HASH_ALGORITHM = 'sha256';
   private static readonly SIGNATURE_SEPARATOR = '\n--- SECURITY SIGNATURE ---\n';
+  private static readonly HMAC_ALGORITHM = 'sha256';
+  
+  /**
+   * Get the current build secret (dynamic check)
+   */
+  private static getBuildSecret(): string {
+    return process.env.EAI_BUILD_SECRET || this.getFallbackSecret();
+  }
+  
+  /**
+   * Get a fallback secret for development/testing when no build secret is provided
+   * This is intentionally visible in source code and should not be relied upon for security
+   */
+  private static getFallbackSecret(): string {
+    // This fallback is intentionally weak and visible - it's only for dev/test
+    return 'dev-fallback-key-not-secure-replace-with-build-secret';
+  }
 
   /**
-   * Generate a hash for the report content
+   * Generate a cryptographically secure random salt
+   */
+  private static generateSalt(): string {
+    return crypto.randomBytes(16).toString('hex');
+  }
+
+  /**
+   * Derive a key from the build secret using PBKDF2
+   */
+  private static deriveKey(salt: string): Buffer {
+    return crypto.pbkdf2Sync(this.getBuildSecret(), salt, 10000, 32, 'sha256');
+  }
+
+  /**
+   * Generate HMAC for tamper detection (enhanced security)
+   */
+  static generateSecureHash(content: string, salt: string): string {
+    const derivedKey = this.deriveKey(salt);
+    const hmac = crypto.createHmac(this.HMAC_ALGORITHM, derivedKey);
+    hmac.update(content);
+    return hmac.digest('hex');
+  }
+
+  /**
+   * Generate a hash for the report content (legacy compatibility)
    */
   static generateHash(content: string, algorithm: string = this.HASH_ALGORITHM): string {
     const hash = crypto.createHash(algorithm);
@@ -36,7 +78,7 @@ export class CryptoUtils {
   }
 
   /**
-   * Create a hashed report with verification signature
+   * Create a hashed report with verification signature (enhanced security)
    */
   static createHashedReport(content: string, metadata?: any): HashedReport {
     const timestamp = new Date().toISOString();
@@ -54,15 +96,28 @@ export class CryptoUtils {
     // Create content without signature for hashing
     const cleanContent = this.stripExistingSignature(content);
     
-    // Generate hash of the clean content + metadata
-    const hashInput = cleanContent + JSON.stringify(reportMetadata) + timestamp;
-    const hash = this.generateHash(hashInput);
+    // Generate salt for enhanced security
+    const salt = this.generateSalt();
+    
+    // Create hash input with additional entropy
+    const hashInput = cleanContent + JSON.stringify(reportMetadata) + timestamp + salt;
+    
+    // Use HMAC for enhanced security if build secret is available (not the fallback)
+    let hash: string;
+    if (this.getBuildSecret() !== this.getFallbackSecret()) {
+      hash = this.generateSecureHash(hashInput, salt);
+    } else {
+      // Fallback to plain hash for development (with warning)
+      hash = this.generateHash(hashInput);
+      console.warn('⚠️  Using fallback hash - set EAI_BUILD_SECRET for enhanced security');
+    }
 
     return {
       content: cleanContent,
       hash,
-      algorithm: this.HASH_ALGORITHM,
+      algorithm: this.getBuildSecret() !== this.getFallbackSecret() ? 'hmac-sha256' : this.HASH_ALGORITHM,
       timestamp,
+      salt,
       metadata: reportMetadata
     };
   }
@@ -75,6 +130,7 @@ export class CryptoUtils {
       hash: hashedReport.hash,
       algorithm: hashedReport.algorithm,
       timestamp: hashedReport.timestamp,
+      salt: hashedReport.salt,
       metadata: hashedReport.metadata
     };
 
@@ -85,7 +141,7 @@ export class CryptoUtils {
   }
 
   /**
-   * Verify the integrity of a signed report
+   * Verify the integrity of a signed report (enhanced security)
    */
   static verifyReport(signedContent: string): VerificationResult {
     try {
@@ -129,9 +185,26 @@ export class CryptoUtils {
         };
       }
 
-      // Recalculate hash
-      const hashInput = content + JSON.stringify(signature.metadata) + signature.timestamp;
-      const calculatedHash = this.generateHash(hashInput, signature.algorithm);
+      // Recalculate hash with enhanced security support
+      const hashInput = content + JSON.stringify(signature.metadata) + signature.timestamp + (signature.salt || '');
+      let calculatedHash: string;
+
+      if (signature.algorithm === 'hmac-sha256' && signature.salt) {
+        // Enhanced security verification with HMAC
+        if (this.getBuildSecret() === this.getFallbackSecret()) {
+          return {
+            isValid: false,
+            originalHash: signature.hash,
+            calculatedHash: '',
+            message: 'Cannot verify HMAC signature: EAI_BUILD_SECRET not set',
+            tampered: true
+          };
+        }
+        calculatedHash = this.generateSecureHash(hashInput, signature.salt);
+      } else {
+        // Legacy verification with plain hash
+        calculatedHash = this.generateHash(hashInput, signature.algorithm);
+      }
 
       const isValid = calculatedHash === signature.hash;
       
@@ -265,17 +338,45 @@ export class CryptoUtils {
   }
 
   /**
-   * Validate hash algorithm
+   * Validate hash algorithm (enhanced)
    */
   static isValidHashAlgorithm(algorithm: string): boolean {
-    const validAlgorithms = ['sha256', 'sha512', 'sha1', 'md5'];
+    const validAlgorithms = ['sha256', 'sha512', 'sha1', 'md5', 'hmac-sha256'];
     return validAlgorithms.includes(algorithm.toLowerCase());
   }
 
   /**
-   * Get available hash algorithms
+   * Get available hash algorithms (enhanced)
    */
   static getAvailableHashAlgorithms(): string[] {
-    return crypto.getHashes().filter(this.isValidHashAlgorithm);
+    const cryptoHashes = crypto.getHashes().filter(this.isValidHashAlgorithm);
+    // Add our HMAC algorithm
+    return [...cryptoHashes, 'hmac-sha256'];
+  }
+
+  /**
+   * Check if enhanced security is available
+   */
+  static isEnhancedSecurityAvailable(): boolean {
+    return this.getBuildSecret() !== this.getFallbackSecret();
+  }
+
+  /**
+   * Get security level information
+   */
+  static getSecurityInfo(): { level: string; algorithm: string; message: string } {
+    if (this.isEnhancedSecurityAvailable()) {
+      return {
+        level: 'Enhanced',
+        algorithm: 'HMAC-SHA256',
+        message: 'Using cryptographically secure HMAC with build-time secret'
+      };
+    } else {
+      return {
+        level: 'Basic',
+        algorithm: 'SHA256',
+        message: 'Using basic hashing - set EAI_BUILD_SECRET for enhanced security'
+      };
+    }
   }
 }
