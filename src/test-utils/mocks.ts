@@ -6,8 +6,16 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     return Promise.resolve(true);
   }
 
-  async checkPasswordProtection(): Promise<{ enabled: boolean; requirePasswordImmediately: boolean; passwordRequiredAfterLock: boolean }> {
-    return Promise.resolve({ enabled: true, requirePasswordImmediately: true, passwordRequiredAfterLock: true });
+  async checkPasswordProtection(): Promise<{
+    enabled: boolean;
+    requirePasswordImmediately: boolean;
+    passwordRequiredAfterLock: boolean;
+  }> {
+    return Promise.resolve({
+      enabled: true,
+      requirePasswordImmediately: true,
+      passwordRequiredAfterLock: true
+    });
   }
 
   async checkAutoLockTimeout(): Promise<number> {
@@ -34,8 +42,8 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     return Promise.resolve(false);
   }
 
-  async checkAutomaticUpdates(): Promise<{ 
-    enabled: boolean; 
+  async checkAutomaticUpdates(): Promise<{
+    enabled: boolean;
     securityUpdatesOnly: boolean;
     automaticDownload: boolean;
     automaticInstall: boolean;
@@ -43,8 +51,8 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     configDataInstall: boolean;
     updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
   }> {
-    return Promise.resolve({ 
-      enabled: true, 
+    return Promise.resolve({
+      enabled: true,
       securityUpdatesOnly: true,
       automaticDownload: true,
       automaticInstall: false,
@@ -54,8 +62,18 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     });
   }
 
-  async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean; mediaSharing: boolean }> {
-    return Promise.resolve({ fileSharing: false, screenSharing: false, remoteLogin: false, mediaSharing: false });
+  async checkSharingServices(): Promise<{
+    fileSharing: boolean;
+    screenSharing: boolean;
+    remoteLogin: boolean;
+    mediaSharing: boolean;
+  }> {
+    return Promise.resolve({
+      fileSharing: false,
+      screenSharing: false,
+      remoteLogin: false,
+      mediaSharing: false
+    });
   }
 
   async getSystemInfo(): Promise<string> {
@@ -70,14 +88,16 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     return Promise.resolve('15.1');
   }
 
-  async checkOSVersion(targetVersion: string): Promise<{ current: string; target: string; isLatest: boolean; passed: boolean }> {
+  async checkOSVersion(
+    targetVersion: string
+  ): Promise<{ current: string; target: string; isLatest: boolean; passed: boolean }> {
     const current = '14.5';
     const isLatest = targetVersion.toLowerCase() === 'latest';
     const target = isLatest ? '15.1' : targetVersion;
-    
+
     // Mock logic: 14.5 passes for targets 14.5 and below, fails for higher versions
     const passed = isLatest ? false : this.mockCompareVersions(current, target) >= 0;
-    
+
     return Promise.resolve({
       current,
       target,
@@ -89,11 +109,11 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
   private mockCompareVersions(current: string, target: string): number {
     const currentParts = current.split('.').map(n => parseInt(n, 10));
     const targetParts = target.split('.').map(n => parseInt(n, 10));
-    
+
     const maxLength = Math.max(currentParts.length, targetParts.length);
     while (currentParts.length < maxLength) currentParts.push(0);
     while (targetParts.length < maxLength) targetParts.push(0);
-    
+
     for (let i = 0; i < maxLength; i++) {
       if (currentParts[i] > targetParts[i]) return 1;
       if (currentParts[i] < targetParts[i]) return -1;
@@ -106,10 +126,10 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     return Promise.resolve({ networkName: 'TestNetwork', connected: true });
   }
 
-  async checkInstalledApplications(): Promise<{ 
-    installedApps: string[]; 
-    bannedAppsFound: string[]; 
-    sources: { applications: string[]; homebrew: string[]; npm: string[] }; 
+  async checkInstalledApplications(): Promise<{
+    installedApps: string[];
+    bannedAppsFound: string[];
+    sources: { applications: string[]; homebrew: string[]; npm: string[] };
   }> {
     // Mock: Return a test set of installed applications
     const sources = {
@@ -117,19 +137,22 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
       homebrew: ['git', 'node', 'wget'],
       npm: ['typescript', 'jest', 'eslint']
     };
-    
+
     const installedApps = [...sources.applications, ...sources.homebrew, ...sources.npm];
-    
-    return Promise.resolve({ 
-      installedApps, 
-      bannedAppsFound: [], 
-      sources 
+
+    return Promise.resolve({
+      installedApps,
+      bannedAppsFound: [],
+      sources
     });
   }
 
-  getSecurityExplanations(): Record<string, { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }> {
+  getSecurityExplanations(): Record<
+    string,
+    { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }
+  > {
     return {
-      'FileVault': {
+      FileVault: {
         description: 'Test description for FileVault.',
         recommendation: 'Test recommendation for FileVault.',
         riskLevel: 'High'

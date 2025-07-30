@@ -142,7 +142,7 @@ describe('SecurityAuditor', () => {
       expect(report).toHaveProperty('overallPassed');
       expect(report).toHaveProperty('results');
       expect(Array.isArray(report.results)).toBe(true);
-      
+
       // Should only have results for the configured sections (3-4 checks)
       expect(report.results.length).toBeLessThan(10);
       expect(report.results.length).toBeGreaterThanOrEqual(3);
@@ -152,7 +152,7 @@ describe('SecurityAuditor', () => {
       expect(resultSettings).toContain('FileVault');
       expect(resultSettings).toContain('Password Protection');
       expect(resultSettings).toContain('Auto-lock Timeout');
-      
+
       // Should NOT contain unconfigured checks
       expect(resultSettings).not.toContain('Firewall');
       expect(resultSettings).not.toContain('Gatekeeper');
@@ -319,15 +319,17 @@ describe('SecurityAuditor', () => {
         expect(automaticUpdatesResult).toBeDefined();
         expect(automaticUpdatesResult?.passed).toBe(true);
         expect(automaticUpdatesResult?.actual).toBe(true);
-        
+
         expect(updateModeResult).toBeDefined();
         expect(updateModeResult?.actual).toBe('download-only');
-        expect(updateModeResult?.message).toContain('automatic checking and downloading, but manual install required');
+        expect(updateModeResult?.message).toContain(
+          'automatic checking and downloading, but manual install required'
+        );
       });
 
       it('should check granular automatic update settings with downloadOnly', async () => {
         const config: SecurityConfig = {
-          automaticUpdates: { 
+          automaticUpdates: {
             enabled: true,
             downloadOnly: true
           }
@@ -344,14 +346,16 @@ describe('SecurityAuditor', () => {
 
       it('should check granular automatic update settings with automaticInstall', async () => {
         const config: SecurityConfig = {
-          automaticUpdates: { 
+          automaticUpdates: {
             enabled: true,
             automaticInstall: false
           }
         };
 
         const report = await auditor.auditSecurity(config);
-        const automaticInstallResult = report.results.find(r => r.setting === 'Automatic Installation');
+        const automaticInstallResult = report.results.find(
+          r => r.setting === 'Automatic Installation'
+        );
 
         expect(automaticInstallResult).toBeDefined();
         expect(automaticInstallResult?.passed).toBe(true);
@@ -361,7 +365,7 @@ describe('SecurityAuditor', () => {
 
       it('should check granular security updates setting with automaticSecurityInstall', async () => {
         const config: SecurityConfig = {
-          automaticUpdates: { 
+          automaticUpdates: {
             enabled: true,
             automaticSecurityInstall: true
           }
@@ -378,7 +382,7 @@ describe('SecurityAuditor', () => {
 
       it('should maintain backward compatibility with securityUpdatesOnly', async () => {
         const config: SecurityConfig = {
-          automaticUpdates: { 
+          automaticUpdates: {
             enabled: true,
             securityUpdatesOnly: true
           }
@@ -424,7 +428,9 @@ describe('SecurityAuditor', () => {
         const updateModeResult = report.results.find(r => r.setting === 'Automatic Update Mode');
 
         expect(updateModeResult?.actual).toBe('disabled');
-        expect(updateModeResult?.message).toContain('no automatic checking, downloading, or installing');
+        expect(updateModeResult?.message).toContain(
+          'no automatic checking, downloading, or installing'
+        );
       });
 
       it('should handle fully-automatic mode', async () => {
@@ -440,9 +446,9 @@ describe('SecurityAuditor', () => {
         });
 
         const config: SecurityConfig = {
-          automaticUpdates: { 
+          automaticUpdates: {
             enabled: true,
-            automaticInstall: true 
+            automaticInstall: true
           }
         };
 
@@ -638,7 +644,7 @@ describe('SecurityAuditor', () => {
       };
 
       const report = await auditor.auditSecurity(config);
-      
+
       const versionResult = report.results.find(r => r.setting === 'macOS Version Compatibility');
       expect(versionResult).toBeDefined();
       expect(versionResult?.passed).toBe(false);
@@ -656,7 +662,7 @@ describe('SecurityAuditor', () => {
       };
 
       const report = await auditor.auditSecurity(config);
-      
+
       const versionResult = report.results.find(r => r.setting === 'macOS Version Compatibility');
       expect(versionResult).toBeDefined();
       expect(versionResult?.passed).toBe(false);
@@ -674,7 +680,7 @@ describe('SecurityAuditor', () => {
       };
 
       const report = await auditor.auditSecurity(config);
-      
+
       const versionResult = report.results.find(r => r.setting === 'macOS Version Compatibility');
       expect(versionResult).toBeUndefined();
     });
@@ -682,7 +688,9 @@ describe('SecurityAuditor', () => {
     it('should cache version compatibility info', async () => {
       // Reset versionInfo cache to test caching behavior
       (auditor as any).versionInfo = null;
-      const getCurrentVersionSpy = jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('15.5');
+      const getCurrentVersionSpy = jest
+        .spyOn((auditor as any).checker, 'getCurrentMacOSVersion')
+        .mockResolvedValue('15.5');
 
       // Call twice
       await auditor.checkVersionCompatibility();

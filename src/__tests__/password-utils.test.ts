@@ -1,4 +1,8 @@
-import { validatePassword, PasswordValidationResult, getPasswordRequirements } from '../password-utils';
+import {
+  validatePassword,
+  PasswordValidationResult,
+  getPasswordRequirements
+} from '../password-utils';
 
 describe('Password Validation', () => {
   describe('getPasswordRequirements', () => {
@@ -69,12 +73,45 @@ describe('Password Validation', () => {
     it('should fail with password missing multiple requirements', () => {
       const result: PasswordValidationResult = validatePassword('password', 'default');
       expect(result.isValid).toBe(false);
-      expect(result.message).toBe('Password must contain at least one: uppercase letter, number, special character');
+      expect(result.message).toBe(
+        'Password must contain at least one: uppercase letter, number, special character'
+      );
     });
 
     it('should pass with different special characters', () => {
-      const specialChars = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '-', '=', '[', ']', '{', '}', ';', "'", ':', '"', '\\', '|', ',', '.', '<', '>', '/', '?'];
-      
+      const specialChars = [
+        '!',
+        '@',
+        '#',
+        '$',
+        '%',
+        '^',
+        '&',
+        '*',
+        '(',
+        ')',
+        '_',
+        '+',
+        '-',
+        '=',
+        '[',
+        ']',
+        '{',
+        '}',
+        ';',
+        "'",
+        ':',
+        '"',
+        '\\',
+        '|',
+        ',',
+        '.',
+        '<',
+        '>',
+        '/',
+        '?'
+      ];
+
       specialChars.forEach(char => {
         const password = `MyPassword123${char}`;
         const result: PasswordValidationResult = validatePassword(password, 'default');
