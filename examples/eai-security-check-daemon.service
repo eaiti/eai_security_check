@@ -1,0 +1,26 @@
+[Unit]
+Description=EAI Security Check Daemon
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=eai-security
+Group=eai-security
+WorkingDirectory=/opt/eai-security-check
+ExecStart=/usr/local/bin/node /opt/eai-security-check/dist/index.js daemon
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=NODE_ENV=production
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/eai-security-check
+
+[Install]
+WantedBy=multi-user.target
