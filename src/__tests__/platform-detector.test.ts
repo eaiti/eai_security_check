@@ -43,10 +43,12 @@ describe('PlatformDetector', () => {
       // Mock /etc/os-release
       mockExec.mockImplementation((command, callback) => {
         if (command === 'cat /etc/os-release') {
-          callback!(null, {
-            stdout: 'ID=fedora\nVERSION_ID=38',
-            stderr: ''
-          } as any);
+          if (callback) {
+            (callback as any)(null, {
+              stdout: 'ID=fedora\nVERSION_ID=38',
+              stderr: ''
+            } as any);
+          }
         }
         return {} as any;
       });
@@ -75,7 +77,9 @@ describe('PlatformDetector', () => {
       // Mock older macOS version
       mockExec.mockImplementation((command, callback) => {
         if (command === 'sw_vers -productVersion') {
-          callback!(null, { stdout: '14.5', stderr: '' } as any);
+          if (callback) {
+            (callback as any)(null, { stdout: '14.5', stderr: '' } as any);
+          }
         }
         return {} as any;
       });
@@ -93,7 +97,9 @@ describe('PlatformDetector', () => {
       // Mock newer macOS version
       mockExec.mockImplementation((command, callback) => {
         if (command === 'sw_vers -productVersion') {
-          callback!(null, { stdout: '16.0', stderr: '' } as any);
+          if (callback) {
+            (callback as any)(null, { stdout: '16.0', stderr: '' } as any);
+          }
         }
         return {} as any;
       });
@@ -112,10 +118,12 @@ describe('PlatformDetector', () => {
       // Mock unsupported distribution
       mockExec.mockImplementation((command, callback) => {
         if (command === 'cat /etc/os-release') {
-          callback!(null, {
-            stdout: 'ID=arch\nVERSION_ID=rolling',
-            stderr: ''
-          } as any);
+          if (callback) {
+            (callback as any)(null, {
+              stdout: 'ID=arch\nVERSION_ID=rolling',
+              stderr: ''
+            } as any);
+          }
         }
         return {} as any;
       });
@@ -132,7 +140,9 @@ describe('PlatformDetector', () => {
     it('should detect macOS correctly', async () => {
       mockOs.platform.mockReturnValue('darwin');
       mockExec.mockImplementation((command, callback) => {
-        callback!(null, { stdout: '15.5', stderr: '' } as any);
+        if (callback) {
+          (callback as any)(null, { stdout: '15.5', stderr: '' } as any);
+        }
         return {} as any;
       });
 
@@ -143,7 +153,9 @@ describe('PlatformDetector', () => {
     it('should detect Linux correctly', async () => {
       mockOs.platform.mockReturnValue('linux');
       mockExec.mockImplementation((command, callback) => {
-        callback!(null, { stdout: 'ID=fedora\nVERSION_ID=38', stderr: '' } as any);
+        if (callback) {
+          (callback as any)(null, { stdout: 'ID=fedora\nVERSION_ID=38', stderr: '' } as any);
+        }
         return {} as any;
       });
 
@@ -154,7 +166,9 @@ describe('PlatformDetector', () => {
     it('should detect supported platform correctly', async () => {
       mockOs.platform.mockReturnValue('darwin');
       mockExec.mockImplementation((command, callback) => {
-        callback!(null, { stdout: '15.5', stderr: '' } as any);
+        if (callback) {
+          (callback as any)(null, { stdout: '15.5', stderr: '' } as any);
+        }
         return {} as any;
       });
 

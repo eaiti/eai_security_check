@@ -1,6 +1,5 @@
 import { SchedulingService } from '../scheduling-service';
 import * as fs from 'fs';
-import * as path from 'path';
 
 describe('Daemon Controls', () => {
   const testLockFile = '/tmp/test-daemon.lock';

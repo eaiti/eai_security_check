@@ -1,7 +1,6 @@
 import { SchedulingService } from '../scheduling-service';
 import { SchedulingConfig, DaemonState } from '../types';
 import * as fs from 'fs';
-import * as path from 'path';
 
 // Mock dependencies
 jest.mock('node-cron');
