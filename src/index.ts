@@ -7,7 +7,7 @@ import { SecurityAuditor } from './auditor';
 import { SecurityConfig } from './types';
 import { OutputUtils, OutputFormat } from './output-utils';
 import { CryptoUtils } from './crypto-utils';
-import { PlatformDetector } from './platform-detector';
+import { PlatformDetector, Platform } from './platform-detector';
 
 /**
  * Determines if password is needed based on configuration
@@ -384,7 +384,14 @@ Security Profiles:
         }
       }
 
-      // Prompt for password if needed for sudo operations
+      // Check platform compatibility first
+      const platformInfo = await PlatformDetector.detectPlatform();
+      if (!platformInfo.isSupported) {
+        console.error(platformInfo.warningMessage);
+        process.exit(1);
+      }
+
+      // Prompt for password if needed for sudo operations (platform-aware)
       let password: string | undefined;
       
       if (requiresPassword(config)) {
@@ -400,9 +407,12 @@ Security Profiles:
             console.log('🔐 Some security checks require administrator privileges.');
           }
           try {
-            // Simple password prompt without validation (validation happens in audit)
+            // Platform-aware password prompt
             const { promptForPassword } = await import('./password-utils');
-            password = await promptForPassword('🔐 Enter your macOS password: ');
+            const promptText = platformInfo.platform === Platform.MACOS ? 
+              '🔐 Enter your macOS password: ' : 
+              '🔐 Enter your sudo password: ';
+            password = await promptForPassword(promptText);
             if (!options.quiet) {
               console.log('✅ Password collected.\n');
             }
@@ -425,13 +435,6 @@ Security Profiles:
 
       if (!options.quiet) {
         console.log(`🔧 Using ${configSource}`);
-      }
-
-      // Check platform compatibility
-      const platformInfo = await PlatformDetector.detectPlatform();
-      if (!platformInfo.isSupported) {
-        console.error(platformInfo.warningMessage);
-        process.exit(1);
       }
 
       // Run audit

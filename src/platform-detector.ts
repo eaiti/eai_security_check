@@ -115,10 +115,13 @@ export class PlatformDetector {
       const supportedDistributions = ['fedora', 'ubuntu', 'debian', 'centos', 'rhel'];
       const isSupported = supportedDistributions.includes(distribution.toLowerCase());
       
+      // Primary support is for Fedora
+      const isApproved = distribution.toLowerCase() === 'fedora';
+      
       let warningMessage: string | undefined;
       if (!isSupported) {
         warningMessage = `⚠️  Linux distribution '${distribution}' is not officially supported. Supported: ${supportedDistributions.join(', ')}. Security checks may not work correctly.`;
-      } else if (distribution.toLowerCase() !== 'fedora') {
+      } else if (!isApproved) {
         warningMessage = `⚠️  Linux distribution '${distribution}' has limited testing. Primary support is for Fedora. Some checks may not work correctly.`;
       }
       
