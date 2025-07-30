@@ -1,6 +1,7 @@
 import { MacOSSecurityChecker } from './security-checker';
 import { LegacyMacOSSecurityChecker } from './legacy-security-checker';
 import { SecurityConfig, SecurityCheckResult, SecurityReport } from './types';
+import { validatePasswordConfiguration } from './password-utils';
 
 export interface VersionCompatibilityInfo {
   currentVersion: string;
@@ -13,9 +14,11 @@ export interface VersionCompatibilityInfo {
 export class SecurityAuditor {
   private checker: MacOSSecurityChecker;
   private versionInfo: VersionCompatibilityInfo | null = null;
+  private initialPassword?: string;
 
-  constructor() {
-    this.checker = new MacOSSecurityChecker();
+  constructor(password?: string) {
+    this.initialPassword = password;
+    this.checker = new MacOSSecurityChecker(password);
   }
 
   /**
@@ -56,7 +59,7 @@ export class SecurityAuditor {
 
     // Switch to legacy checker if needed
     if (isLegacy) {
-      this.checker = new LegacyMacOSSecurityChecker();
+      this.checker = new LegacyMacOSSecurityChecker(this.initialPassword);
     }
 
     return this.versionInfo;
@@ -111,6 +114,63 @@ export class SecurityAuditor {
         actual: versionInfo.currentVersion,
         passed: versionInfo.isApproved,
         message: versionInfo.warningMessage
+      });
+    }
+
+    // Check password configuration (only if configured)
+    if (config.password) {
+      const currentPassword = this.checker.getPassword();
+      const passwordValidation = await validatePasswordConfiguration(currentPassword, config.password);
+      
+      // Generate description of requirements
+      const requirements = [];
+      if (config.password.minLength > 0) {
+        requirements.push(`${config.password.minLength}+ characters`);
+      }
+      
+      const charTypes = [];
+      if (config.password.requireUppercase) charTypes.push('uppercase');
+      if (config.password.requireLowercase) charTypes.push('lowercase');
+      if (config.password.requireNumber) charTypes.push('number');
+      if (config.password.requireSpecialChar) charTypes.push('special character');
+      
+      if (charTypes.length > 0) {
+        requirements.push(`with ${charTypes.join(', ')}`);
+      } else if (config.password.minLength > 0) {
+        requirements.push('(any characters allowed)');
+      }
+      
+      const requirementsText = requirements.join(' ');
+      const expectedText = config.password.required 
+        ? `Required: Yes, Requirements: ${requirementsText}, Max Age: ${config.password.maxAgeDays} days`
+        : 'Required: No';
+      
+      const actualText = config.password.required 
+        ? (passwordValidation.overallValid ? 'Configuration loaded' : 'Validation failed')
+        : 'Configuration loaded';
+      
+      let statusMessage = '';
+      if (!config.password.required) {
+        statusMessage = 'Password validation is disabled';
+      } else if (passwordValidation.overallValid) {
+        statusMessage = `Password validation is enabled with ${requirementsText} and ${config.password.maxAgeDays}-day expiration`;
+      } else {
+        const issues = [];
+        if (!passwordValidation.requirementsValid) {
+          issues.push(`Requirements: ${passwordValidation.requirementsMessage}`);
+        }
+        if (!passwordValidation.expirationValid) {
+          issues.push(`Expiration: ${passwordValidation.expirationMessage}`);
+        }
+        statusMessage = issues.join('; ');
+      }
+      
+      results.push({
+        setting: 'Password Configuration',
+        expected: expectedText,
+        actual: actualText,
+        passed: !config.password.required || passwordValidation.overallValid,
+        message: statusMessage
       });
     }
 

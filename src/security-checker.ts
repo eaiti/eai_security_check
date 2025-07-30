@@ -4,6 +4,25 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 export class MacOSSecurityChecker {
+  private password?: string;
+
+  constructor(password?: string) {
+    this.password = password;
+  }
+
+  /**
+   * Execute command with sudo using stored password if available
+   */
+  private async execWithSudo(command: string): Promise<{ stdout: string; stderr: string }> {
+    if (this.password) {
+      // Use non-interactive sudo with password
+      const sudoCommand = `echo "${this.password}" | sudo -S ${command}`;
+      return execAsync(sudoCommand);
+    } else {
+      // Fallback to regular sudo (will prompt for password)
+      return execAsync(`sudo ${command}`);
+    }
+  }
 
   async checkFileVault(): Promise<boolean> {
     try {
@@ -305,17 +324,38 @@ export class MacOSSecurityChecker {
 
   async checkRemoteLogin(): Promise<boolean> {
     try {
-      const { stdout } = await execAsync('sudo systemsetup -getremotelogin 2>/dev/null || echo "On"');
-      return stdout.includes('On');
-    } catch (error) {
-      // Fallback method without sudo
+      // Primary method: Check if SSH daemon is enabled via launchd (no sudo required)
+      const { stdout: sshEnabled, stderr: sshErr } = await execAsync('defaults read /System/Library/LaunchDaemons/ssh Disabled 2>&1 || echo "1"');
+      const sshOutput = sshEnabled + sshErr;
+      const sshEnabledViaPlist = !sshOutput.includes('does not exist') && sshOutput.trim() === '0';
+
+      if (sshEnabledViaPlist) {
+        return true;
+      }
+
+      // Secondary method: Check if SSH daemon (sshd) is currently loaded, not ssh-agent
       try {
-        const { stdout: fallback } = await execAsync('launchctl list | grep ssh 2>/dev/null');
-        return fallback.length > 0;
+        const { stdout: launchctlCheck } = await execAsync('launchctl list | grep "com.openssh.sshd" 2>/dev/null');
+        const sshRunning = launchctlCheck.length > 0;
+
+        if (sshRunning) {
+          return true;
+        }
       } catch {
-        console.error('Error checking remote login status:', error);
+        // Ignore launchctl errors and continue
+      }
+
+      // Tertiary method: Check if SSH is listening on port 22
+      try {
+        const { stdout: netstatCheck } = await execAsync('netstat -an | grep "*.22" | grep LISTEN 2>/dev/null');
+        return netstatCheck.length > 0;
+      } catch {
+        // If all methods fail, assume SSH is disabled
         return false;
       }
+    } catch (error) {
+      console.error('Error checking remote login status:', error);
+      return false;
     }
   }
 
@@ -340,8 +380,8 @@ export class MacOSSecurityChecker {
     }
   }
 
-  async checkAutomaticUpdates(): Promise<{ 
-    enabled: boolean; 
+  async checkAutomaticUpdates(): Promise<{
+    enabled: boolean;
     securityUpdatesOnly: boolean;
     automaticDownload: boolean;
     automaticInstall: boolean;
@@ -376,7 +416,7 @@ export class MacOSSecurityChecker {
 
       // Determine update mode based on settings
       let updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
-      
+
       if (!enabled) {
         updateMode = 'disabled';
       } else if (!automaticDownload) {
@@ -390,8 +430,8 @@ export class MacOSSecurityChecker {
       // Legacy securityUpdatesOnly for backward compatibility
       const securityUpdatesOnly = automaticSecurityInstall && !automaticInstall;
 
-      return { 
-        enabled, 
+      return {
+        enabled,
         securityUpdatesOnly,
         automaticDownload,
         automaticInstall,
@@ -401,8 +441,8 @@ export class MacOSSecurityChecker {
       };
     } catch (error) {
       console.error('Error checking automatic updates status:', error);
-      return { 
-        enabled: false, 
+      return {
+        enabled: false,
         securityUpdatesOnly: false,
         automaticDownload: false,
         automaticInstall: false,
@@ -422,17 +462,17 @@ export class MacOSSecurityChecker {
         const { stdout: smbEnabled, stderr: smbErr } = await execAsync('defaults read /System/Library/LaunchDaemons/com.apple.smbd Disabled 2>&1 || echo "1"');
         const smbOutput = smbEnabled + smbErr;
         fileSharing = !smbOutput.includes('does not exist') && smbOutput.trim() === '0';
-        
+
         // If launchd check indicates disabled, double-check with sharing command output content
         if (!fileSharing) {
-          const { stdout: sharingCheck } = await execAsync('sharing -l 2>/dev/null');
+          const { stdout: sharingCheck } = await this.execWithSudo('sharing -l 2>/dev/null');
           // Only consider it enabled if there are actual share records (not just "No share point records")
           fileSharing = sharingCheck.includes('name:') || (!sharingCheck.includes('No share point records') && sharingCheck.trim().length > 0);
         }
       } catch {
         // Fallback to checking if SMB daemon is loaded and not disabled
         try {
-          const { stdout: smbLoaded } = await execAsync('sudo launchctl print system/com.apple.smbd 2>/dev/null');
+          const { stdout: smbLoaded } = await this.execWithSudo('launchctl print system/com.apple.smbd 2>/dev/null');
           fileSharing = !smbLoaded.includes('Could not find service') && !smbLoaded.includes('state = not running');
         } catch {
           fileSharing = false;
@@ -446,7 +486,7 @@ export class MacOSSecurityChecker {
         const { stdout: screenEnabled, stderr: screenErr } = await execAsync('defaults read /System/Library/LaunchDaemons/com.apple.screensharing Disabled 2>&1 || echo "1"');
         const screenOutput = screenEnabled + screenErr;
         screenSharing = !screenOutput.includes('does not exist') && screenOutput.trim() === '0';
-        
+
         // Additional check for VNC/screen sharing preference
         if (!screenSharing) {
           const { stdout: vncEnabled, stderr: vncErr } = await execAsync('defaults read /Library/Preferences/com.apple.RemoteDesktop ARD_AllLocalUsers 2>&1 || echo "0"');
@@ -456,7 +496,7 @@ export class MacOSSecurityChecker {
       } catch {
         // Fallback to checking if screen sharing daemon is loaded
         try {
-          const { stdout: screenLoaded } = await execAsync('sudo launchctl print system/com.apple.screensharing 2>/dev/null');
+          const { stdout: screenLoaded } = await this.execWithSudo('launchctl print system/com.apple.screensharing 2>/dev/null');
           screenSharing = !screenLoaded.includes('Could not find service');
         } catch {
           screenSharing = false;
@@ -470,18 +510,18 @@ export class MacOSSecurityChecker {
         const { stdout: musicSharing, stderr: musicErr } = await execAsync('defaults read ~/Library/Preferences/com.apple.Music sharingEnabled 2>&1 || echo "0"');
         const musicOutput = musicSharing + musicErr;
         const musicEnabled = !musicOutput.includes('does not exist') && musicOutput.trim() === '1';
-        
+
         const { stdout: photosSharing, stderr: photosErr } = await execAsync('defaults read ~/Library/Preferences/com.apple.Photos sharingEnabled 2>&1 || echo "0"');
         const photosOutput = photosSharing + photosErr;
         const photosEnabled = !photosOutput.includes('does not exist') && photosOutput.trim() === '1';
-        
+
         // Check for AirPlay receiver capability
         const { stdout: airplayReceiver, stderr: airplayErr } = await execAsync('defaults read ~/Library/Preferences/com.apple.controlcenter AirplayRecieverEnabled 2>&1 || echo "0"');
         const airplayOutput = airplayReceiver + airplayErr;
         const airplayEnabled = !airplayOutput.includes('does not exist') && airplayOutput.trim() === '1';
-        
+
         mediaSharing = musicEnabled || photosEnabled || airplayEnabled;
-        
+
         // Additional check for Media Sharing preference in System Preferences
         if (!mediaSharing) {
           const { stdout: mediaEnabled, stderr: mediaErr } = await execAsync('defaults read ~/Library/Preferences/com.apple.amp.mediasharingd media-sharing-enabled 2>&1 || echo "0"');
@@ -495,7 +535,7 @@ export class MacOSSecurityChecker {
       // Check remote login capability (SSH enabled in System Preferences)
       let remoteLogin = false;
       try {
-        const { stdout: sshStatus } = await execAsync('sudo systemsetup -getremotelogin 2>/dev/null || echo "Off"');
+        const { stdout: sshStatus } = await this.execWithSudo('systemsetup -getremotelogin 2>/dev/null || echo "Off"');
         remoteLogin = sshStatus.includes('On');
       } catch {
         // Fallback to checking SSH daemon capability via launchd
@@ -536,10 +576,10 @@ export class MacOSSecurityChecker {
     }
   }
 
-  async checkInstalledApplications(): Promise<{ 
-    installedApps: string[]; 
-    bannedAppsFound: string[]; 
-    sources: { applications: string[]; homebrew: string[]; npm: string[] }; 
+  async checkInstalledApplications(): Promise<{
+    installedApps: string[];
+    bannedAppsFound: string[];
+    sources: { applications: string[]; homebrew: string[]; npm: string[] };
   }> {
     try {
       const sources = {
@@ -552,7 +592,7 @@ export class MacOSSecurityChecker {
       try {
         const { stdout: appsList } = await execAsync('ls /Applications/ 2>/dev/null || echo ""');
         const allApps = appsList.split('\n').filter(app => app.trim().length > 0);
-        
+
         // Filter out common system apps
         const systemApps = [
           'App Store.app', 'Automator.app', 'Calculator.app', 'Calendar.app',
@@ -565,7 +605,7 @@ export class MacOSSecurityChecker {
           'System Settings.app', 'Finder.app', 'Music.app', 'TV.app', 'Podcasts.app',
           'Books.app', 'News.app', 'Stocks.app', 'Home.app', 'Shortcuts.app'
         ];
-        
+
         const thirdPartyApps = allApps.filter(app => !systemApps.includes(app));
         sources.applications = thirdPartyApps.map(app => app.replace('.app', ''));
       } catch (error) {
@@ -600,18 +640,25 @@ export class MacOSSecurityChecker {
         ...sources.npm
       ].filter((app, index, array) => array.indexOf(app) === index); // Remove duplicates
 
-      return { 
-        installedApps, 
+      return {
+        installedApps,
         bannedAppsFound: [], // Will be populated by the auditor
-        sources 
+        sources
       };
     } catch (error) {
       console.error('Error checking installed applications:', error);
-      return { 
-        installedApps: [], 
-        bannedAppsFound: [], 
-        sources: { applications: [], homebrew: [], npm: [] } 
+      return {
+        installedApps: [],
+        bannedAppsFound: [],
+        sources: { applications: [], homebrew: [], npm: [] }
       };
     }
+  }
+
+  /**
+   * Get the stored password for validation purposes
+   */
+  getPassword(): string | undefined {
+    return this.password;
   }
 }
