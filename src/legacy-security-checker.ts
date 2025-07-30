@@ -59,8 +59,8 @@ export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
     };
   }
 
-  async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean }> {
-    return { fileSharing: false, screenSharing: false, remoteLogin: false };
+  async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean; mediaSharing: boolean }> {
+    return { fileSharing: false, screenSharing: false, remoteLogin: false, mediaSharing: false };
   }
 
   async checkCurrentWifiNetwork(): Promise<{ networkName: string | null; connected: boolean }> {

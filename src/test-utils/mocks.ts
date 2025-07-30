@@ -54,8 +54,8 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     });
   }
 
-  async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean }> {
-    return Promise.resolve({ fileSharing: false, screenSharing: false, remoteLogin: false });
+  async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean; mediaSharing: boolean }> {
+    return Promise.resolve({ fileSharing: false, screenSharing: false, remoteLogin: false, mediaSharing: false });
   }
 
   async getSystemInfo(): Promise<string> {

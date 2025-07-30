@@ -243,6 +243,11 @@ export class MacOSSecurityChecker {
         recommendation: 'Should be DISABLED unless required for remote support. Provides full remote access to your desktop.',
         riskLevel: 'High'
       },
+      'Media Sharing': {
+        description: 'Allows sharing of media content (music, photos, videos) to other devices on the network via iTunes/Music sharing or AirPlay.',
+        recommendation: 'Should be DISABLED unless actively sharing media. Media sharing can expose personal content and consume network bandwidth.',
+        riskLevel: 'Medium'
+      },
       'OS Version': {
         description: 'Ensures your macOS is up-to-date with the latest security patches and features.',
         recommendation: 'Should be current or recent version. Newer versions include important security fixes and improvements.',
@@ -316,17 +321,22 @@ export class MacOSSecurityChecker {
 
   async checkRemoteManagement(): Promise<boolean> {
     try {
-      const { stdout } = await execAsync('sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -query -settings 2>/dev/null || echo "not active"');
-      return !stdout.includes('not active');
+      // Check if Remote Management functionality is actually enabled (not just menu bar visibility)
+      // ScreenSharingReqPermEnabled indicates if remote management/screen sharing is enabled
+      const { stdout: screenSharingPerm, stderr: screenErr } = await execAsync('defaults read /Library/Preferences/com.apple.RemoteManagement ScreenSharingReqPermEnabled 2>&1 || echo "0"');
+      const screenOutput = screenSharingPerm + screenErr;
+      const screenSharingEnabled = !screenOutput.includes('does not exist') && screenOutput.trim() === '1';
+
+      // DOCAllowRemoteConnections indicates if remote desktop connections are allowed
+      const { stdout: remoteConnections, stderr: remoteErr } = await execAsync('defaults read /Library/Preferences/com.apple.RemoteDesktop DOCAllowRemoteConnections 2>&1 || echo "0"');
+      const remoteOutput = remoteConnections + remoteErr;
+      const remoteConnectionsEnabled = !remoteOutput.includes('does not exist') && remoteOutput.trim() === '1';
+
+      // Remote Management is enabled if either screen sharing permissions or remote connections are enabled
+      return screenSharingEnabled || remoteConnectionsEnabled;
     } catch (error) {
-      // Fallback check
-      try {
-        const { stdout: fallback } = await execAsync('ps aux | grep -i "remote" | grep -v grep 2>/dev/null || echo ""');
-        return fallback.includes('RemoteDesktop') || fallback.includes('ARDAgent');
-      } catch {
-        console.error('Error checking remote management status:', error);
-        return false;
-      }
+      console.error('Error checking remote management status:', error);
+      return false;
     }
   }
 
@@ -340,25 +350,29 @@ export class MacOSSecurityChecker {
     updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
   }> {
     try {
-      // Check if automatic checking for updates is enabled
-      const { stdout: autoCheck } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled 2>/dev/null || echo "0"');
-      const enabled = autoCheck.trim() === '1';
+      // Use softwareupdate command to check if automatic checking is enabled
+      const { stdout: scheduleCheck } = await execAsync('softwareupdate --schedule 2>/dev/null || echo "off"');
+      const enabled = scheduleCheck.includes('Automatic checking for updates is turned on');
 
-      // Check if automatic downloading is enabled
-      const { stdout: autoDownload } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload 2>/dev/null || echo "0"');
-      const automaticDownload = autoDownload.trim() === '1';
+      // Check if automatic downloading is enabled using system preferences
+      const { stdout: autoDownload, stderr: autoDownloadErr } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload 2>&1 || echo "0"');
+      const autoDownloadOutput = autoDownload + autoDownloadErr;
+      const automaticDownload = autoDownloadOutput.includes('does not exist') ? true : autoDownloadOutput.trim() === '1';
 
       // Check if automatic installation of macOS updates is enabled
-      const { stdout: autoInstallOS } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates 2>/dev/null || echo "0"');
-      const automaticInstall = autoInstallOS.trim() === '1';
+      const { stdout: autoInstallOS, stderr: autoInstallOSErr } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates 2>&1 || echo "1"');
+      const autoInstallOSOutput = autoInstallOS + autoInstallOSErr;
+      const automaticInstall = autoInstallOSOutput.includes('does not exist') ? true : autoInstallOSOutput.trim() === '1';
 
       // Check if critical/security updates are automatically installed
-      const { stdout: securityUpdates } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall 2>/dev/null || echo "0"');
-      const automaticSecurityInstall = securityUpdates.trim() === '1';
+      const { stdout: securityUpdates, stderr: securityUpdatesErr } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall 2>&1 || echo "1"');
+      const securityUpdatesOutput = securityUpdates + securityUpdatesErr;
+      const automaticSecurityInstall = securityUpdatesOutput.includes('does not exist') ? true : securityUpdatesOutput.trim() === '1';
 
       // Check if system data files and security updates are automatically installed
-      const { stdout: configData } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall 2>/dev/null || echo "0"');
-      const configDataInstall = configData.trim() === '1';
+      const { stdout: configData, stderr: configDataErr } = await execAsync('defaults read /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall 2>&1 || echo "1"');
+      const configDataOutput = configData + configDataErr;
+      const configDataInstall = configDataOutput.includes('does not exist') ? true : configDataOutput.trim() === '1';
 
       // Determine update mode based on settings
       let updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
@@ -399,24 +413,105 @@ export class MacOSSecurityChecker {
     }
   }
 
-  async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean }> {
+  async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean; mediaSharing: boolean }> {
     try {
-      // Check file sharing
-      const { stdout: fileSharingStatus } = await execAsync('launchctl list | grep com.apple.smbd 2>/dev/null || echo ""');
-      const fileSharing = fileSharingStatus.length > 0;
+      // Check file sharing capability (enabled in System Preferences, regardless of actual shares)
+      let fileSharing = false;
+      try {
+        // Check if file sharing is enabled in System Preferences (capability check)
+        const { stdout: smbEnabled, stderr: smbErr } = await execAsync('defaults read /System/Library/LaunchDaemons/com.apple.smbd Disabled 2>&1 || echo "1"');
+        const smbOutput = smbEnabled + smbErr;
+        fileSharing = !smbOutput.includes('does not exist') && smbOutput.trim() === '0';
+        
+        // If launchd check indicates disabled, double-check with sharing command output content
+        if (!fileSharing) {
+          const { stdout: sharingCheck } = await execAsync('sharing -l 2>/dev/null');
+          // Only consider it enabled if there are actual share records (not just "No share point records")
+          fileSharing = sharingCheck.includes('name:') || (!sharingCheck.includes('No share point records') && sharingCheck.trim().length > 0);
+        }
+      } catch {
+        // Fallback to checking if SMB daemon is loaded and not disabled
+        try {
+          const { stdout: smbLoaded } = await execAsync('sudo launchctl print system/com.apple.smbd 2>/dev/null');
+          fileSharing = !smbLoaded.includes('Could not find service') && !smbLoaded.includes('state = not running');
+        } catch {
+          fileSharing = false;
+        }
+      }
 
-      // Check screen sharing
-      const { stdout: screenSharingStatus } = await execAsync('launchctl list | grep com.apple.screensharing 2>/dev/null || echo ""');
-      const screenSharing = screenSharingStatus.length > 0;
+      // Check screen sharing capability (enabled in System Preferences)
+      let screenSharing = false;
+      try {
+        // Check if screen sharing is enabled as a capability in System Preferences
+        const { stdout: screenEnabled, stderr: screenErr } = await execAsync('defaults read /System/Library/LaunchDaemons/com.apple.screensharing Disabled 2>&1 || echo "1"');
+        const screenOutput = screenEnabled + screenErr;
+        screenSharing = !screenOutput.includes('does not exist') && screenOutput.trim() === '0';
+        
+        // Additional check for VNC/screen sharing preference
+        if (!screenSharing) {
+          const { stdout: vncEnabled, stderr: vncErr } = await execAsync('defaults read /Library/Preferences/com.apple.RemoteDesktop ARD_AllLocalUsers 2>&1 || echo "0"');
+          const vncOutput = vncEnabled + vncErr;
+          screenSharing = !vncOutput.includes('does not exist') && vncOutput.trim() === '1';
+        }
+      } catch {
+        // Fallback to checking if screen sharing daemon is loaded
+        try {
+          const { stdout: screenLoaded } = await execAsync('sudo launchctl print system/com.apple.screensharing 2>/dev/null');
+          screenSharing = !screenLoaded.includes('Could not find service');
+        } catch {
+          screenSharing = false;
+        }
+      }
 
-      // Check remote login (SSH)
-      const { stdout: remoteLoginStatus } = await execAsync('launchctl list | grep com.openssh.sshd 2>/dev/null || echo ""');
-      const remoteLogin = remoteLoginStatus.length > 0;
+      // Check media sharing capability (enabled in preferences)
+      let mediaSharing = false;
+      try {
+        // Check iTunes/Music sharing preferences
+        const { stdout: musicSharing, stderr: musicErr } = await execAsync('defaults read ~/Library/Preferences/com.apple.Music sharingEnabled 2>&1 || echo "0"');
+        const musicOutput = musicSharing + musicErr;
+        const musicEnabled = !musicOutput.includes('does not exist') && musicOutput.trim() === '1';
+        
+        const { stdout: photosSharing, stderr: photosErr } = await execAsync('defaults read ~/Library/Preferences/com.apple.Photos sharingEnabled 2>&1 || echo "0"');
+        const photosOutput = photosSharing + photosErr;
+        const photosEnabled = !photosOutput.includes('does not exist') && photosOutput.trim() === '1';
+        
+        // Check for AirPlay receiver capability
+        const { stdout: airplayReceiver, stderr: airplayErr } = await execAsync('defaults read ~/Library/Preferences/com.apple.controlcenter AirplayRecieverEnabled 2>&1 || echo "0"');
+        const airplayOutput = airplayReceiver + airplayErr;
+        const airplayEnabled = !airplayOutput.includes('does not exist') && airplayOutput.trim() === '1';
+        
+        mediaSharing = musicEnabled || photosEnabled || airplayEnabled;
+        
+        // Additional check for Media Sharing preference in System Preferences
+        if (!mediaSharing) {
+          const { stdout: mediaEnabled, stderr: mediaErr } = await execAsync('defaults read ~/Library/Preferences/com.apple.amp.mediasharingd media-sharing-enabled 2>&1 || echo "0"');
+          const mediaOutput = mediaEnabled + mediaErr;
+          mediaSharing = !mediaOutput.includes('does not exist') && mediaOutput.trim() === '1';
+        }
+      } catch {
+        mediaSharing = false;
+      }
 
-      return { fileSharing, screenSharing, remoteLogin };
+      // Check remote login capability (SSH enabled in System Preferences)
+      let remoteLogin = false;
+      try {
+        const { stdout: sshStatus } = await execAsync('sudo systemsetup -getremotelogin 2>/dev/null || echo "Off"');
+        remoteLogin = sshStatus.includes('On');
+      } catch {
+        // Fallback to checking SSH daemon capability via launchd
+        try {
+          const { stdout: sshEnabled, stderr: sshErr } = await execAsync('defaults read /System/Library/LaunchDaemons/ssh Disabled 2>&1 || echo "1"');
+          const sshOutput = sshEnabled + sshErr;
+          remoteLogin = !sshOutput.includes('does not exist') && sshOutput.trim() === '0';
+        } catch {
+          remoteLogin = false;
+        }
+      }
+
+      return { fileSharing, screenSharing, remoteLogin, mediaSharing };
     } catch (error) {
       console.error('Error checking sharing services:', error);
-      return { fileSharing: false, screenSharing: false, remoteLogin: false };
+      return { fileSharing: false, screenSharing: false, remoteLogin: false, mediaSharing: false };
     }
   }
 
