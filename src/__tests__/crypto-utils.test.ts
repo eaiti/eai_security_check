@@ -1,6 +1,5 @@
 import { CryptoUtils } from '../crypto-utils';
 import * as fs from 'fs';
-import * as path from 'path';
 
 // Mock fs and os
 jest.mock('fs');
@@ -18,7 +17,7 @@ describe('CryptoUtils', () => {
       const content = 'test content';
       const hash1 = CryptoUtils.generateHash(content);
       const hash2 = CryptoUtils.generateHash(content);
-      
+
       expect(hash1).toBe(hash2);
       expect(hash1).toMatch(/^[a-f0-9]{64}$/); // SHA256 hex format
     });
@@ -26,7 +25,7 @@ describe('CryptoUtils', () => {
     it('should generate different hashes for different content', () => {
       const hash1 = CryptoUtils.generateHash('content1');
       const hash2 = CryptoUtils.generateHash('content2');
-      
+
       expect(hash1).not.toBe(hash2);
     });
 
@@ -34,7 +33,7 @@ describe('CryptoUtils', () => {
       const content = 'test content';
       const sha256Hash = CryptoUtils.generateHash(content, 'sha256');
       const sha512Hash = CryptoUtils.generateHash(content, 'sha512');
-      
+
       expect(sha256Hash).toMatch(/^[a-f0-9]{64}$/);
       expect(sha512Hash).toMatch(/^[a-f0-9]{128}$/);
       expect(sha256Hash).not.toBe(sha512Hash);
@@ -45,9 +44,9 @@ describe('CryptoUtils', () => {
     it('should create hashed report with metadata', () => {
       const content = 'Security report content';
       const metadata = { platform: 'linux', version: '1.0.0' };
-      
+
       const hashedReport = CryptoUtils.createHashedReport(content, metadata);
-      
+
       expect(hashedReport.content).toBe(content);
       expect(hashedReport.hash).toBeDefined();
       expect(hashedReport.algorithm).toBe('sha256');
@@ -62,9 +61,9 @@ describe('CryptoUtils', () => {
 --- SECURITY SIGNATURE ---
 {"hash": "old", "timestamp": "old"}
 --- SECURITY SIGNATURE ---`;
-      
+
       const hashedReport = CryptoUtils.createHashedReport(content);
-      
+
       expect(hashedReport.content).toBe('Report content\n');
       expect(hashedReport.content).not.toContain('SECURITY SIGNATURE');
     });
@@ -79,9 +78,9 @@ describe('CryptoUtils', () => {
         timestamp: '2024-01-01T00:00:00.000Z',
         metadata: { platform: 'linux', hostname: 'test', version: '1.0.0' }
       };
-      
+
       const signedContent = CryptoUtils.signReport(hashedReport);
-      
+
       expect(signedContent).toContain('test content');
       expect(signedContent).toContain('--- SECURITY SIGNATURE ---');
       expect(signedContent).toContain('"hash": "testhash"');
@@ -94,9 +93,9 @@ describe('CryptoUtils', () => {
       const content = 'test report content';
       const hashedReport = CryptoUtils.createHashedReport(content);
       const signedContent = CryptoUtils.signReport(hashedReport);
-      
+
       const verification = CryptoUtils.verifyReport(signedContent);
-      
+
       expect(verification.isValid).toBe(true);
       expect(verification.tampered).toBe(false);
       expect(verification.originalHash).toBe(hashedReport.hash);
@@ -108,12 +107,12 @@ describe('CryptoUtils', () => {
       const content = 'test report content';
       const hashedReport = CryptoUtils.createHashedReport(content);
       const signedContent = CryptoUtils.signReport(hashedReport);
-      
+
       // Tamper with the content
       const tamperedContent = signedContent.replace('test report content', 'tampered content');
-      
+
       const verification = CryptoUtils.verifyReport(tamperedContent);
-      
+
       expect(verification.isValid).toBe(false);
       expect(verification.tampered).toBe(true);
       expect(verification.message).toContain('tampered');
@@ -121,9 +120,9 @@ describe('CryptoUtils', () => {
 
     it('should handle invalid format', () => {
       const invalidContent = 'just plain text without signature';
-      
+
       const verification = CryptoUtils.verifyReport(invalidContent);
-      
+
       expect(verification.isValid).toBe(false);
       expect(verification.tampered).toBe(true);
       expect(verification.message).toContain('signature not found');
@@ -134,9 +133,9 @@ describe('CryptoUtils', () => {
 --- SECURITY SIGNATURE ---
 invalid json
 --- SECURITY SIGNATURE ---`;
-      
+
       const verification = CryptoUtils.verifyReport(content);
-      
+
       expect(verification.isValid).toBe(false);
       expect(verification.tampered).toBe(true);
       expect(verification.message).toContain('unable to parse JSON');
@@ -147,9 +146,9 @@ invalid json
 --- SECURITY SIGNATURE ---
 {"hash": "testhash"}
 --- SECURITY SIGNATURE ---`;
-      
+
       const verification = CryptoUtils.verifyReport(content);
-      
+
       expect(verification.isValid).toBe(false);
       expect(verification.tampered).toBe(true);
       expect(verification.message).toContain('missing required fields');
@@ -161,9 +160,9 @@ invalid json
       const content = 'test content';
       const hashedReport = CryptoUtils.createHashedReport(content);
       const signedContent = CryptoUtils.signReport(hashedReport);
-      
+
       const signature = CryptoUtils.extractSignature(signedContent);
-      
+
       expect(signature).toBeDefined();
       expect(signature.hash).toBe(hashedReport.hash);
       expect(signature.algorithm).toBe(hashedReport.algorithm);
@@ -182,9 +181,9 @@ invalid json
 --- SECURITY SIGNATURE ---
 {"hash": "test"}
 --- SECURITY SIGNATURE ---`;
-      
+
       const stripped = CryptoUtils.stripExistingSignature(content);
-      
+
       expect(stripped).toBe('Report content\n');
       expect(stripped).not.toContain('SECURITY SIGNATURE');
     });
@@ -192,7 +191,7 @@ invalid json
     it('should return content unchanged if no signature', () => {
       const content = 'Plain report content';
       const stripped = CryptoUtils.stripExistingSignature(content);
-      
+
       expect(stripped).toBe(content);
     });
   });
@@ -201,7 +200,7 @@ invalid json
     it('should create 8-character uppercase hash', () => {
       const hash = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
       const shortHash = CryptoUtils.createShortHash(hash);
-      
+
       expect(shortHash).toBe('ABCDEF12');
       expect(shortHash).toHaveLength(8);
     });
@@ -210,7 +209,7 @@ invalid json
   describe('generateVerificationCommand', () => {
     it('should generate proper verification command', () => {
       const command = CryptoUtils.generateVerificationCommand('report.txt');
-      
+
       expect(command).toBe('eai-security-check verify "report.txt"');
     });
   });
@@ -219,7 +218,7 @@ invalid json
     it('should create tamper-evident report with header', () => {
       const content = 'test report';
       const tamperEvident = CryptoUtils.createTamperEvidentReport(content);
-      
+
       expect(tamperEvident).toContain('TAMPER-EVIDENT SECURITY REPORT');
       expect(tamperEvident).toContain('Hash:');
       expect(tamperEvident).toContain('Generated:');
@@ -238,14 +237,14 @@ invalid json
         message: 'Report integrity verified successfully',
         tampered: false
       };
-      
+
       const signature = {
         timestamp: '2024-01-01T00:00:00.000Z',
         metadata: { platform: 'linux', hostname: 'test', version: '1.0.0' }
       };
-      
+
       const summary = CryptoUtils.createVerificationSummary(verification, signature);
-      
+
       expect(summary).toContain('Report Verification');
       expect(summary).toContain('VERIFIED');
       expect(summary).toContain('ABCDEF12');
@@ -261,9 +260,9 @@ invalid json
         message: 'Report has been tampered with',
         tampered: true
       };
-      
+
       const summary = CryptoUtils.createVerificationSummary(verification);
-      
+
       expect(summary).toContain('FAILED');
       expect(summary).toContain('tampered with');
       expect(summary).toContain('Original hash');
@@ -276,7 +275,7 @@ invalid json
       const content = 'test report';
       const hashedReport = CryptoUtils.createHashedReport(content);
       const filepath = '/tmp/test-report.txt';
-      
+
       // Mock file operations
       let savedContent = '';
       mockFs.writeFileSync.mockImplementation((path, data) => {
@@ -284,11 +283,11 @@ invalid json
       });
       mockFs.readFileSync.mockReturnValue(savedContent);
       mockFs.existsSync.mockReturnValue(true);
-      
+
       // Save report
       CryptoUtils.saveHashedReport(hashedReport, filepath);
       expect(mockFs.writeFileSync).toHaveBeenCalledWith(filepath, expect.stringContaining(content));
-      
+
       // Load and verify
       const { verification } = CryptoUtils.loadAndVerifyReport(filepath);
       expect(verification.isValid).toBe(true);
@@ -296,7 +295,7 @@ invalid json
 
     it('should handle missing file', () => {
       mockFs.existsSync.mockReturnValue(false);
-      
+
       expect(() => {
         CryptoUtils.loadAndVerifyReport('/nonexistent/file.txt');
       }).toThrow('File not found');

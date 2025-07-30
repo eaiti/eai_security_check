@@ -1,5 +1,4 @@
 import { PlatformDetector, Platform } from '../platform-detector';
-import { promisify } from 'util';
 
 // Mock os and exec
 jest.mock('os');
@@ -21,7 +20,7 @@ describe('PlatformDetector', () => {
   describe('detectPlatform', () => {
     it('should detect macOS platform', async () => {
       mockOs.platform.mockReturnValue('darwin');
-      
+
       // Mock sw_vers command
       mockExec.mockImplementation((command, callback) => {
         if (command === 'sw_vers -productVersion') {
@@ -31,7 +30,7 @@ describe('PlatformDetector', () => {
       });
 
       const platformInfo = await PlatformDetector.detectPlatform();
-      
+
       expect(platformInfo.platform).toBe(Platform.MACOS);
       expect(platformInfo.version).toBe('15.5');
       expect(platformInfo.isSupported).toBe(true);
@@ -40,20 +39,20 @@ describe('PlatformDetector', () => {
 
     it('should detect Linux platform', async () => {
       mockOs.platform.mockReturnValue('linux');
-      
+
       // Mock /etc/os-release
       mockExec.mockImplementation((command, callback) => {
         if (command === 'cat /etc/os-release') {
-          callback!(null, { 
-            stdout: 'ID=fedora\nVERSION_ID=38', 
-            stderr: '' 
+          callback!(null, {
+            stdout: 'ID=fedora\nVERSION_ID=38',
+            stderr: ''
           } as any);
         }
         return {} as any;
       });
 
       const platformInfo = await PlatformDetector.detectPlatform();
-      
+
       expect(platformInfo.platform).toBe(Platform.LINUX);
       expect(platformInfo.version).toBe('38');
       expect(platformInfo.distribution).toBe('fedora');
@@ -64,7 +63,7 @@ describe('PlatformDetector', () => {
       mockOs.platform.mockReturnValue('win32');
 
       const platformInfo = await PlatformDetector.detectPlatform();
-      
+
       expect(platformInfo.platform).toBe(Platform.UNSUPPORTED);
       expect(platformInfo.isSupported).toBe(false);
       expect(platformInfo.warningMessage).toContain('not supported');
@@ -72,7 +71,7 @@ describe('PlatformDetector', () => {
 
     it('should handle macOS version warnings', async () => {
       mockOs.platform.mockReturnValue('darwin');
-      
+
       // Mock older macOS version
       mockExec.mockImplementation((command, callback) => {
         if (command === 'sw_vers -productVersion') {
@@ -82,7 +81,7 @@ describe('PlatformDetector', () => {
       });
 
       const platformInfo = await PlatformDetector.detectPlatform();
-      
+
       expect(platformInfo.platform).toBe(Platform.MACOS);
       expect(platformInfo.isSupported).toBe(false);
       expect(platformInfo.warningMessage).toContain('below version 15.0');
@@ -90,7 +89,7 @@ describe('PlatformDetector', () => {
 
     it('should handle untested macOS versions', async () => {
       mockOs.platform.mockReturnValue('darwin');
-      
+
       // Mock newer macOS version
       mockExec.mockImplementation((command, callback) => {
         if (command === 'sw_vers -productVersion') {
@@ -100,7 +99,7 @@ describe('PlatformDetector', () => {
       });
 
       const platformInfo = await PlatformDetector.detectPlatform();
-      
+
       expect(platformInfo.platform).toBe(Platform.MACOS);
       expect(platformInfo.isSupported).toBe(true);
       expect(platformInfo.isApproved).toBe(false);
@@ -109,20 +108,20 @@ describe('PlatformDetector', () => {
 
     it('should handle Linux distribution warnings', async () => {
       mockOs.platform.mockReturnValue('linux');
-      
+
       // Mock unsupported distribution
       mockExec.mockImplementation((command, callback) => {
         if (command === 'cat /etc/os-release') {
-          callback!(null, { 
-            stdout: 'ID=arch\nVERSION_ID=rolling', 
-            stderr: '' 
+          callback!(null, {
+            stdout: 'ID=arch\nVERSION_ID=rolling',
+            stderr: ''
           } as any);
         }
         return {} as any;
       });
 
       const platformInfo = await PlatformDetector.detectPlatform();
-      
+
       expect(platformInfo.platform).toBe(Platform.LINUX);
       expect(platformInfo.isSupported).toBe(false);
       expect(platformInfo.warningMessage).toContain('not officially supported');

@@ -1,7 +1,6 @@
 import { SecurityAuditor } from '../auditor';
 import { SecurityConfig } from '../types';
 import { MockMacOSSecurityChecker } from '../test-utils/mocks';
-import { LegacyMacOSSecurityChecker } from '../legacy-security-checker';
 
 describe('SecurityAuditor', () => {
   let auditor: SecurityAuditor;

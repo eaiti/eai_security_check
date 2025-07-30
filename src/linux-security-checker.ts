@@ -1,10 +1,11 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
+import { ISecurityChecker } from './security-checker-interface';
 
 const execAsync = promisify(exec);
 
-export class LinuxSecurityChecker {
+export class LinuxSecurityChecker implements ISecurityChecker {
   private password?: string;
 
   constructor(password?: string) {
@@ -339,7 +340,16 @@ export class LinuxSecurityChecker {
    * Check automatic updates configuration
    * Linux equivalent of automatic updates
    */
-  async checkAutomaticUpdates(): Promise<{ enabled: boolean; securityUpdatesOnly: boolean; downloadOnly: boolean; automaticInstall: boolean; automaticSecurityInstall: boolean }> {
+  async checkAutomaticUpdates(): Promise<{
+    enabled: boolean;
+    securityUpdatesOnly: boolean;
+    automaticDownload?: boolean;
+    automaticInstall?: boolean;
+    automaticSecurityInstall?: boolean;
+    configDataInstall?: boolean;
+    updateMode?: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
+    downloadOnly?: boolean;
+  }> {
     try {
       let enabled = false;
       let securityUpdatesOnly = false;
@@ -389,18 +399,20 @@ export class LinuxSecurityChecker {
       return {
         enabled,
         securityUpdatesOnly,
-        downloadOnly,
+        automaticDownload: downloadOnly, // Use downloadOnly for automaticDownload
         automaticInstall,
-        automaticSecurityInstall
+        automaticSecurityInstall,
+        downloadOnly
       };
     } catch (error) {
       console.error('Error checking automatic updates:', error);
       return {
         enabled: false,
         securityUpdatesOnly: false,
-        downloadOnly: false,
+        automaticDownload: false,
         automaticInstall: false,
-        automaticSecurityInstall: false
+        automaticSecurityInstall: false,
+        downloadOnly: false
       };
     }
   }
@@ -409,7 +421,7 @@ export class LinuxSecurityChecker {
    * Check file and screen sharing services
    * Linux equivalent of sharing services
    */
-  async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean }> {
+  async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean; mediaSharing: boolean }> {
     try {
       // File sharing - check Samba, NFS
       let fileSharing = false;
@@ -446,14 +458,16 @@ export class LinuxSecurityChecker {
       return {
         fileSharing,
         screenSharing,
-        remoteLogin
+        remoteLogin,
+        mediaSharing: false // Linux doesn't typically have equivalent to macOS media sharing
       };
     } catch (error) {
       console.error('Error checking sharing services:', error);
       return {
         fileSharing: false,
         screenSharing: false,
-        remoteLogin: false
+        remoteLogin: false,
+        mediaSharing: false
       };
     }
   }

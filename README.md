@@ -1,179 +1,220 @@
 # EAI Security Check
 
-A Node.js + TypeScript tool for auditing macOS security settings against ### Initialize Configuration
+A cross-platform Node.js + TypeScript tool for auditing security settings on macOS and Linux systems against configurable security profiles. The tool provides detailed reports with educational explanations and actionable recommendations.
 
-Create a sample security configuration file:
+## 🌟 Key Features
 
-```bash```bash
-# Using standalone executable - Basic usage
-./eai-security-check check
+### 🖥️ Cross-Platform Support
+- **macOS**: Complete support for FileVault, Gatekeeper, SIP, and all macOS security features
+- **Linux**: Comprehensive support for LUKS encryption, firewall (ufw/firewalld), SELinux/AppArmor, and package verification
+- **Auto-Detection**: Automatically detects the operating system and uses appropriate security checks
 
-# Using globally installed version
-eai-security-check check
+### 🔒 Security Checks Performed
 
-# Using predefined security profiles (works from any directory)
-./eai-security-check check default             # Recommended security settings
-./eai-security-check check strict              # Maximum security (3-min auto-lock)
-./eai-security-check check relaxed             # Balanced security (15-min auto-lock)
-./eai-security-check check developer           # Developer-friendly (remote access enabled)
-./eai-security-check check eai                 # EAI focused security (essential checks only)
+| Feature | macOS | Linux | Description |
+|---------|-------|-------|-------------|
+| **Disk Encryption** | FileVault | LUKS | Full-disk encryption protection |
+| **Password Protection** | Screen saver lock | PAM/session lock | Login and screen lock security |
+| **Auto-lock Timeout** | Screen saver timeout | GNOME/KDE timeout | Automatic screen locking |
+| **Firewall** | Application Firewall | ufw/firewalld/iptables | Network traffic filtering |
+| **Package Verification** | Gatekeeper | DNF/APT GPG verification | Code signing and package integrity |
+| **System Integrity** | SIP | SELinux/AppArmor | System file protection |
+| **Remote Access** | SSH/Remote Desktop | SSH/VNC services | Remote login monitoring |
+| **Automatic Updates** | Software Update | DNF/APT auto-updates | Security patch management |
+| **Sharing Services** | File/Screen/Media | Samba/NFS/VNC | Network service monitoring |
 
-# Using custom config file
-./eai-security-check check --config ./my-config.json
+### 📊 Multiple Output Formats
+- **Console**: Colorized terminal output with emojis
+- **Plain**: Clean text without colors or formatting
+- **Markdown**: Documentation-ready format for sharing
+- **JSON**: Structured data for automation and integration
+- **Email**: Email-friendly format with proper headers
 
-# Save report to file
-./eai-security-check check strict --output ./security-report.txt
+### 🔐 Advanced Features
+- **Clipboard Integration**: Copy results directly to clipboard
+- **Cryptographic Verification**: Generate SHA-256 hashes for tamper detection
+- **Summary Mode**: One-line status for quick sharing
+- **Password Management**: Secure password input with platform-aware prompts
+- **Multiple Profiles**: Predefined security configurations (default, strict, relaxed, developer, EAI)
 
-# Quiet mode (summary only)
-./eai-security-check check eai --quiet
-
-# Provide administrator password directly (for profiles requiring sudo access)
-./eai-security-check check developer --password 'MySecure123!'
-```
-
-### Initialize Configuration
-
-Create a sample security configuration file:
-
-```bash
-./eai-security-check init
-
-# Using globally installed version
-eai-security-check init
-
-# Create with different security profiles
-./eai-security-check init --profile strict      # Maximum security (3-min auto-lock)
-./eai-security-check init --profile relaxed     # Balanced security (15-min auto-lock)
-./eai-security-check init --profile developer   # Developer-friendly (remote access enabled)
-./eai-security-check init --profile eai         # EAI focused security (essential checks only)
-
-# Custom filename
-./eai-security-check init --file my-config.json
-```ion file.
-
-## Features
-
-- **🔒 FileVault Check**: Verifies disk encryption is enabled to protect data if device is lost/stolen
-- **🔑 Password Protection**: Ensures login password and immediate screen saver password requirements are configured
-- **⏰ Auto-lock Timeout**: Validates screen automatically locks within specified time limit to prevent unauthorized access
-- **🔥 Firewall**: Checks application firewall and stealth mode status to block malicious network traffic
-- **🛡️ Gatekeeper**: Verifies downloaded applications are checked for malware before execution
-- **🔐 System Integrity Protection (SIP)**: Ensures system files are protected from modification
-- **🌐 Remote Access**: Checks SSH/remote login and management services configuration
-- **🔄 Automatic Updates**: Validates different levels of automatic update configuration from disabled to fully automatic, including security updates and download-only modes
-- **📡 Sharing Services**: Audits file sharing, screen sharing, and remote access services
-- **📱 OS Version Tracking**: Ensures macOS is up-to-date with latest security patches (configurable target version or "latest")
-- **📋 JSON Configuration**: Easy-to-customize security requirements with flexible profiles
-- **📊 Detailed Reports**: Clear pass/fail status with actionable security advice and risk levels
-- **🎯 Risk Prioritization**: Groups security issues by High/Medium/Low priority for efficient remediation
-
-## Installation
+## 🚀 Installation
 
 ### For End Users (Standalone Executable - Recommended)
 
-Download the standalone executable for your platform from the [GitHub Releases](https://github.com/your-repo/eai_security_check/releases) page. **No Node.js installation required!**
+Download the standalone executable for your platform from the [GitHub Releases](https://github.com/eaiti/eai_security_check/releases) page. **No Node.js installation required!**
 
 ```bash
 # macOS
-curl -L -o eai-security-check https://github.com/your-repo/eai_security_check/releases/latest/download/eai-security-check-macos
+curl -L -o eai-security-check https://github.com/eaiti/eai_security_check/releases/latest/download/eai-security-check-macos
+chmod +x eai-security-check
+./eai-security-check --help
+
+# Linux
+curl -L -o eai-security-check https://github.com/eaiti/eai_security_check/releases/latest/download/eai-security-check-linux
 chmod +x eai-security-check
 ./eai-security-check --help
 ```
 
 ### For End Users (NPM Global Installation)
 
-Install globally to use the `eai-security-check` command from anywhere:
-
 ```bash
-# Clone the repository
-git clone <repository-url>
+git clone https://github.com/eaiti/eai_security_check.git
 cd eai_security_check
-
-# Install dependencies and build
 npm install
 npm run build
-
-# Install globally (makes eai-security-check available system-wide)
 npm install -g .
-```
-
-After global installation, you can use `eai-security-check` from any directory.
-
-## Quick Start (Standalone Executable)
-
-```bash
-# 1. Download the executable for your platform
-curl -L -o eai-security-check https://github.com/your-repo/eai_security_check/releases/latest/download/eai-security-check-macos
-chmod +x eai-security-check
-
-# 2. Run a quick security check with the EAI profile
-./eai-security-check check eai
-
-# 3. Get detailed report
-./eai-security-check check eai --output security-report.txt
-
-# 4. Try different security profiles
-./eai-security-check check strict    # Maximum security
-./eai-security-check check relaxed   # Balanced approach
 ```
 
 ### For Development
 
 ```bash
-# Clone and setup for development
-git clone <repository-url>
+git clone https://github.com/eaiti/eai_security_check.git
 cd eai_security_check
-
-# Install dependencies
 npm install
-
-# Build the project
 npm run build
 ```
 
-## Usage
+## 🎯 Quick Start
 
-### Get Help
-
-The tool provides comprehensive help information:
+### Basic Security Audit
 
 ```bash
-# Using standalone executable
-./eai-security-check --help
-./eai-security-check help
+# Quick security check with default profile
+./eai-security-check check
 
-# Using globally installed version
-eai-security-check --help
-eai-security-check help
+# Use EAI profile (essential checks only)
+./eai-security-check check eai
 
-# Command-specific help
-./eai-security-check help check
-./eai-security-check help init
+# Save detailed report to Documents folder
+./eai-security-check check eai --output ~/Documents/security-report.txt --password "mypassword"
 ```
 
-### Initialize Configuration
-
-Create a sample security configuration file:
+### Advanced Usage Examples
 
 ```bash
-# Create default configuration
-eai-security-check init
+# Different output formats
+./eai-security-check check --format markdown     # Documentation-ready
+./eai-security-check check --format json         # Structured data
+./eai-security-check check --format email        # Email-friendly
 
-# Create with different security profiles
-eai-security-check init --profile strict      # Maximum security (3-min auto-lock)
-eai-security-check init --profile relaxed     # Balanced security (15-min auto-lock)
-eai-security-check init --profile developer   # Developer-friendly (remote access enabled)
-eai-security-check init --profile eai         # EAI focused security (essential checks only)
+# Clipboard integration
+./eai-security-check check --clipboard           # Copy full report
+./eai-security-check check --summary --clipboard # Copy summary only
 
-# Custom filename
-eai-security-check init --file my-config.json
+# Tamper-evident reports
+./eai-security-check check --hash -o ~/Documents/security-report.txt
+./eai-security-check verify ~/Documents/security-report.txt
+
+# Quick summary sharing
+./eai-security-check check --summary
+# Output: Security Audit: 4/9 passed, 3 failed, 2 warnings (7/30/2025, 6:45:48 PM)
 ```
 
-This creates a `security-config.json` file with default security requirements:
+## 📋 Command Reference
+
+### Check Command
+
+```bash
+./eai-security-check check [options] [profile]
+```
+
+**Profiles:**
+- `default` - Recommended security settings (7-min auto-lock)
+- `strict` - Maximum security (3-min auto-lock, all features enabled)
+- `relaxed` - Balanced security (15-min auto-lock)
+- `developer` - Developer-friendly (remote access enabled)
+- `eai` - EAI focused security (10+ char passwords, essential checks)
+
+**Options:**
+- `-c, --config <path>` - Custom configuration file
+- `-o, --output <path>` - Save report to file
+- `--password <password>` - Administrator password for sudo commands
+- `--format <type>` - Output format: console, plain, markdown, json, email
+- `--clipboard` - Copy report to clipboard
+- `--summary` - Generate summary line only
+- `--hash` - Generate cryptographic hash for verification
+- `-q, --quiet` - Suppress detailed output
+
+### Verify Command
+
+```bash
+./eai-security-check verify <file>
+```
+
+Verify the integrity of a tamper-evident security report generated with `--hash`.
+
+### Init Command
+
+```bash
+./eai-security-check init [options]
+```
+
+Create a sample security configuration file.
+
+**Options:**
+- `--profile <name>` - Use predefined profile (default, strict, relaxed, developer, eai)
+- `--file <path>` - Custom output filename
+
+## 🖥️ Platform-Specific Examples
+
+### macOS Example
+
+```bash
+# Complete macOS security audit with password
+./eai-security-check check eai --password "myMacPassword" --output ~/Documents/macos-security.txt
+
+# Check against strict security requirements
+./eai-security-check check strict --format email --clipboard
+```
+
+### Linux (Fedora) Example
+
+```bash
+# Fedora security audit (primary supported distribution)
+./eai-security-check check default --password "mySudoPassword" --output ~/Documents/fedora-security.txt
+
+# Quick summary for email sharing
+./eai-security-check check eai --summary --clipboard
+```
+
+### Ubuntu/Debian Example
+
+```bash
+# Ubuntu audit (limited testing - may have false positives)
+./eai-security-check check relaxed --format json > ubuntu-security.json
+
+# Verify generated report
+./eai-security-check check --hash -o security-report.txt
+./eai-security-check verify security-report.txt
+```
+
+## 🔧 Configuration
+
+### Generic Configuration Names
+
+The tool uses platform-agnostic configuration names for cross-platform compatibility:
 
 ```json
 {
-  "filevault": {
+  "diskEncryption": {
+    "enabled": true
+  },
+  "packageVerification": {
+    "enabled": true
+  },
+  "systemIntegrityProtection": {
+    "enabled": true
+  }
+}
+```
+
+**Legacy Support:** Old macOS-specific names (`filevault`, `gatekeeper`) are still supported for backward compatibility.
+
+### Complete Configuration Example
+
+```json
+{
+  "diskEncryption": {
     "enabled": true
   },
   "passwordProtection": {
@@ -187,7 +228,7 @@ This creates a `security-config.json` file with default security requirements:
     "enabled": true,
     "stealthMode": true
   },
-  "gatekeeper": {
+  "packageVerification": {
     "enabled": true
   },
   "systemIntegrityProtection": {
@@ -201,264 +242,185 @@ This creates a `security-config.json` file with default security requirements:
   },
   "automaticUpdates": {
     "enabled": true,
-    "securityUpdatesOnly": true
+    "automaticSecurityInstall": true,
+    "updateMode": "download-only"
   },
   "sharingServices": {
     "fileSharing": false,
     "screenSharing": false,
     "remoteLogin": false
+  },
+  "osVersion": {
+    "targetVersion": "latest"
+  },
+  "platform": {
+    "target": "auto"
   }
 }
 ```
 
-### Run Security Audit
+### Security Profiles
 
-Check your system against the configuration:
+Each profile targets different use cases:
 
-```bash
-# Using default config file or profile
-eai-security-check check
+- **EAI Profile**: Essential security checks only (disk encryption, password protection, auto-lock)
+- **Default Profile**: Recommended security settings for most users
+- **Strict Profile**: Maximum security with minimal convenience
+- **Relaxed Profile**: Balanced security with convenience
+- **Developer Profile**: Development-friendly with necessary remote access
 
-# Using predefined security profiles (works from any directory)
-eai-security-check check default             # Recommended security settings
-eai-security-check check strict              # Maximum security (3-min auto-lock)
-eai-security-check check relaxed             # Balanced security (15-min auto-lock)
-eai-security-check check developer           # Developer-friendly (remote access enabled)
-eai-security-check check eai                 # EAI focused security (essential checks only)
+## 📊 Example Output
 
-# Using custom config file
-eai-security-check check --config ./my-config.json
-
-# Save report to file
-eai-security-check check strict --output ./security-report.txt
-
-# Quiet mode (summary only)
-eai-security-check check eai --quiet
-
-# Provide administrator password directly (for profiles requiring sudo access)
-eai-security-check check developer --password 'MySecure123!'
-```
-
-### Development Commands
-
-For development and testing:
-
-```bash
-# Using npm scripts (for development)
-npm run dev -- init
-npm run dev -- check
-npm run dev -- help
-
-# Build and run production version
-npm run check
-```
-
-## Configuration Options
-
-**Note**: All configuration sections are optional. If a section is omitted from your configuration file, that security check will be skipped entirely.
-
-### Password Handling
-
-The tool may require administrator privileges for certain security checks (specifically for `remoteLogin` and `remoteManagement` checks). You can provide the password in two ways:
-
-- **Interactive prompt** (default): The tool will prompt for your password when needed
-- **CLI parameter**: Use `--password 'YourPassword123!'` to provide the password directly
-
-**Password Requirements:**
-- **Default profiles** (default, strict, relaxed): Minimum 8 characters with uppercase letter, lowercase letter, number, and special character
-- **EAI profile**: Minimum 10 characters (any characters allowed - no complexity requirements)
-- **Developer profile**: Minimum 8 characters with uppercase letter, lowercase letter, number, and special character
-- Password age validation (must be less than 180 days old)
-- Up to 3 retry attempts for interactive prompts
-
-**Security Profiles and Password Requirements:**
-- `eai` profile: Password required with relaxed complexity (10+ characters, 180-day expiration)
-- `default`, `strict`, `relaxed`: No password required (remote access disabled)
-- `developer` profile: Password required with full complexity requirements (remote access enabled for development)
-
-### 🔒 FileVault
-- `enabled`: Boolean - Whether disk encryption should be enabled
-
-### 🔑 Password Protection
-- `enabled`: Boolean - Whether login password protection should be enabled
-- `requirePasswordImmediately`: Boolean - Whether password should be required immediately after screen saver activates
-
-### ⏰ Auto-lock
-- `maxTimeoutMinutes`: Number - Maximum minutes before screen should automatically lock (recommended: 7 or less)
-
-### 🔥 Firewall
-- `enabled`: Boolean - Whether application firewall should be enabled
-- `stealthMode`: Boolean (optional) - Whether stealth mode should be enabled (makes system less visible to network scans)
-
-### 🛡️ Gatekeeper
-- `enabled`: Boolean - Whether Gatekeeper should verify downloaded applications
-
-### 🔐 System Integrity Protection
-- `enabled`: Boolean - Whether SIP should be enabled to protect system files
-
-### 🌐 Remote Login
-- `enabled`: Boolean - Whether SSH/remote login should be enabled (typically false for security)
-
-### 📱 Remote Management
-- `enabled`: Boolean - Whether remote management/screen control should be enabled (typically false)
-
-### 🔄 Automatic Updates
-- `enabled`: Boolean - Whether automatic update checking should be enabled (required)
-- `securityUpdatesOnly`: Boolean (optional) - Whether only security updates should auto-install (backward compatibility)
-- `downloadOnly`: Boolean (optional) - When true, configures "download-only" mode (check + download, manual install)
-- `automaticInstall`: Boolean (optional) - Whether all updates should be installed automatically
-- `automaticSecurityInstall`: Boolean (optional) - Whether security updates should be installed automatically
-
-**Update Modes Detected:**
-- `disabled`: No automatic checking, downloading, or installing
-- `check-only`: Automatic checking enabled, but manual download and install required
-- `download-only`: Automatic checking and downloading, but manual install required
-- `fully-automatic`: Automatic checking, downloading, and installing
-
-**Examples:**
-```json
-// Download-only mode (recommended for most users)
-"automaticUpdates": {
-  "enabled": true,
-  "downloadOnly": true,
-  "automaticSecurityInstall": true
-}
-
-// Fully automatic mode (maximum security)
-"automaticUpdates": {
-  "enabled": true,
-  "automaticInstall": true,
-  "automaticSecurityInstall": true
-}
-
-// Legacy configuration (still supported)
-"automaticUpdates": {
-  "enabled": true,
-  "securityUpdatesOnly": true
-}
-```
-
-### 📡 Sharing Services
-- `fileSharing`: Boolean - Whether file sharing should be enabled
-- `screenSharing`: Boolean - Whether screen sharing should be enabled
-- `remoteLogin`: Boolean - Whether remote login sharing should be enabled
-
-### 📱 OS Version
-- `targetVersion`: String - Minimum required macOS version (e.g., "14.0") or "latest" to check against Apple's current release
-
-## Security Profiles
-
-The project includes multiple example configurations:
-
-- **`default`**: Recommended security settings (7-minute auto-lock, all security features enabled)
-- **`strict`**: Maximum security, minimal convenience (3-minute auto-lock, all security features enabled)
-- **`relaxed`**: Balanced security with more convenience (15-minute auto-lock, some relaxed settings)
-- **`developer`**: Developer-friendly with necessary remote access enabled
-- **`eai`**: EAI focused security (7-minute auto-lock, essential security checks only: FileVault, password protection, auto-lock)
-
-### Using Profiles
-
-Profiles can be used as arguments to the check command:
-
-```bash
-# With standalone executable
-./eai-security-check check strict      # Use strict security profile
-./eai-security-check check eai         # Use EAI focused profile
-
-# With globally installed version
-eai-security-check check strict      # Use strict security profile
-eai-security-check check eai         # Use EAI focused profile
-```
-
-### Customizing Security Checks
-
-The EAI profile demonstrates selective security checking - it only includes essential checks (FileVault, password protection, auto-lock) and skips others (firewall, Gatekeeper, SIP, remote services, etc.). You can create custom configurations by omitting sections you don't want to check.
-
-## Example Output
+### Console Format (Default)
 
 ```
-🔒 macOS Security Audit Report
-📅 Generated: 7/22/2025, 10:30:00 AM
-💻 System: macOS 14.5
-✅ Overall Status: FAILED
+🔒 Linux Security Audit Summary
+📅 7/30/2025, 6:46:01 PM
+💻 ubuntu 24.04
+⚠️  Version: ubuntu 24.04 (untested - may have false positives/negatives)
+❌ FAILED - 3/5 checks passed
+
+🚨 Failed Checks:
+   Linux Version Compatibility, Disk Encryption (LUKS)
 
 📋 Security Check Results:
 ============================================================
 
-✅ PASS FileVault [High Risk]
-   Expected: true
-   Actual: true
-   Status: FileVault is enabled - disk encryption is active
-   📝 What it does: FileVault provides full-disk encryption, protecting your data if your Mac is lost or stolen.
-   💡 Security advice: Should be ENABLED. Without FileVault, anyone with physical access can read your files by booting from external media.
-
-❌ FAIL Firewall [High Risk]
+❌ FAIL Disk Encryption (LUKS)
    Expected: true
    Actual: false
-   Status: Firewall is disabled - system is vulnerable to network attacks
-   📝 What it does: Application firewall blocks unauthorized network connections and protects against network-based attacks.
-   💡 Security advice: Should be ENABLED. Protects against malicious network traffic and unauthorized remote access attempts.
+   Status: Disk encryption is disabled - disk is not encrypted
+   📝 What it does: LUKS provides full-disk encryption, protecting your data if your device is lost or stolen.
+   💡 Security advice: Should be ENABLED. Without disk encryption, anyone with physical access can read your files.
 
-✅ PASS Auto-lock Timeout [Medium Risk]
-   Expected: ≤ 7 minutes
-   Actual: 5 minutes
-   Status: Screen locks after 5 minutes (within acceptable limit)
-   📝 What it does: Automatically locks your screen after a period of inactivity to prevent unauthorized access.
-   💡 Security advice: Should be ≤7 minutes for security, ≤15 minutes for convenience. Shorter timeouts provide better security.
-
-⚠️  Security Issues Found!
-The checks marked as FAIL indicate potential security vulnerabilities.
-Review the security advice above and adjust your system settings accordingly.
-
-🚨 HIGH PRIORITY: Firewall, Automatic Updates
-⚠️  MEDIUM PRIORITY: Auto-lock Timeout, File Sharing
+✅ PASS Password Protection
+   Expected: true
+   Actual: true
+   Status: Password protection is enabled
 ```
 
-## Development
+### Summary Format
 
 ```bash
-# Run in development mode
-npm run dev
-
-# Build TypeScript
-npm run build
-
-# Run tests
-npm test
-
-# Lint code
-npm run lint
+./eai-security-check check --summary
+# Output: Security Audit: 4/9 passed, 3 failed, 2 warnings (7/30/2025, 6:45:48 PM)
 ```
 
-## Requirements
+### Verification Example
+
+```bash
+./eai-security-check check --hash -o ~/Documents/security-report.txt
+# 📄 Tamper-evident report saved to: ~/Documents/security-report.txt
+# 🔐 Report hash: AD545088
+# 🔍 Verify with: eai-security-check verify "~/Documents/security-report.txt"
+
+./eai-security-check verify ~/Documents/security-report.txt
+# ✅ Report verification PASSED
+# 🔐 Hash: AD545088
+# 📅 Generated: 7/30/2025, 6:41:58 PM
+# 💻 Platform: linux
+```
+
+## 🔐 Password Management
+
+### Interactive Prompts (Recommended)
+
+The tool will prompt for passwords when needed with platform-aware messages:
+
+```bash
+./eai-security-check check developer
+# 🔐 Enter your macOS password:  (on macOS)
+# 🔐 Enter your sudo password:   (on Linux)
+```
+
+### Direct Password Input
+
+```bash
+# Provide password directly (less secure)
+./eai-security-check check developer --password "MySecure123!"
+```
+
+### Password Requirements by Profile
+
+- **EAI Profile**: 10+ characters, 180-day expiration
+- **Other Profiles**: 8+ characters with complexity requirements
+- **Developer Profile**: Full complexity requirements (remote access needs)
+
+## 🐧 Linux Distribution Support
+
+### Primary Support
+- **Fedora** (latest versions)
+
+### Limited Testing
+- Ubuntu 24.04+
+- Debian 12+
+- CentOS Stream
+- RHEL 9+
+
+⚠️ **Note**: Non-Fedora distributions may have false positives or negatives. The tool will display compatibility warnings.
+
+## 🛠️ Development
+
+```bash
+# Development commands
+npm run dev                # Run in development mode
+npm run build             # Build TypeScript
+npm run test              # Run tests
+npm run lint              # Lint code
+npm run lint:fix          # Fix linting issues
+
+# Package for distribution
+npm run pkg:build         # Build standalone executables
+```
+
+## 📋 Requirements
 
 ### For Standalone Executable Users
-- macOS (tested on macOS 14+)
+- **macOS**: macOS 12+ (tested on macOS 15.5+)
+- **Linux**: Any modern distribution with systemd
 - **No Node.js installation required!**
 
-### For Development or Source Installation
-- macOS (tested on macOS 14+)
+### For Development
 - Node.js 18+
-- TypeScript
+- TypeScript 5+
+- macOS or Linux development environment
 
-## Security Checks Performed
+## 🔍 Security Implementation
 
-1. **🔒 FileVault Status**: Uses `fdesetup status` to check disk encryption
-2. **🔑 Password Requirements**: Checks system preferences for login and screen saver password settings
-3. **⏰ Auto-lock Timeout**: Reads screen saver idle time from system defaults
-4. **🔥 Firewall**: Checks application firewall status and stealth mode via `socketfilterfw`
-5. **🛡️ Gatekeeper**: Verifies Gatekeeper status using `spctl --status`
-6. **🔐 System Integrity Protection**: Checks SIP status via `csrutil status`
-7. **🌐 Remote Login**: Examines SSH service status and remote login settings
-8. **📱 Remote Management**: Checks for active remote management services
-9. **🔄 Automatic Updates**: Reads comprehensive system update preferences to distinguish between disabled, check-only, download-only, and fully-automatic modes
-10. **📡 Sharing Services**: Monitors file sharing, screen sharing, and remote access services
+### Command Execution
+- Uses Node.js `child_process.exec` for system command execution
+- Validates all command outputs and handles failures gracefully
+- Secure password handling with non-interactive sudo when possible
 
-## Exit Codes
+### Platform Detection
+- Automatic OS detection using system APIs
+- Version compatibility checking with warnings
+- Graceful fallbacks for unsupported features
+
+### Cryptographic Features
+- SHA-256 hashing for tamper detection
+- Embedded metadata in reports (platform, hostname, timestamp)
+- Secure random hash generation
+
+## 🚪 Exit Codes
 
 - `0`: All security checks passed
 - `1`: One or more security checks failed or error occurred
 
-## License
+## 📄 License
 
-MIT
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/eaiti/eai_security_check/issues)
+- **Documentation**: See this README and `--help` commands
+- **Security Reports**: Please use responsible disclosure for security issues

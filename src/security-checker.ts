@@ -1,9 +1,10 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { ISecurityChecker } from './security-checker-interface';
 
 const execAsync = promisify(exec);
 
-export class MacOSSecurityChecker {
+export class MacOSSecurityChecker implements ISecurityChecker {
   private password?: string;
 
   constructor(password?: string) {
@@ -32,6 +33,10 @@ export class MacOSSecurityChecker {
       console.error('Error checking FileVault status:', error);
       return false;
     }
+  }
+
+  async checkDiskEncryption(): Promise<boolean> {
+    return this.checkFileVault();
   }
 
   async checkPasswordProtection(): Promise<{ enabled: boolean; requirePasswordImmediately: boolean; passwordRequiredAfterLock: boolean }> {
@@ -310,6 +315,10 @@ export class MacOSSecurityChecker {
       console.error('Error checking Gatekeeper status:', error);
       return false;
     }
+  }
+
+  async checkPackageVerification(): Promise<boolean> {
+    return this.checkGatekeeper();
   }
 
   async checkSystemIntegrityProtection(): Promise<boolean> {
