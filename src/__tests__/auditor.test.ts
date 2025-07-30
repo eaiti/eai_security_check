@@ -1,4 +1,4 @@
-import { SecurityAuditor } from '../auditor';
+import { SecurityAuditor, VersionCompatibilityInfo } from '../auditor';
 import { SecurityConfig } from '../types';
 import { MockMacOSSecurityChecker } from '../test-utils/mocks';
 import { PlatformDetector, Platform } from '../platform-detector';
@@ -22,9 +22,10 @@ describe('SecurityAuditor', () => {
 
     auditor = new SecurityAuditor();
     // Replace the real checker with a mock
-    (auditor as any).checker = new MockMacOSSecurityChecker();
+    (auditor as unknown as { checker: MockMacOSSecurityChecker }).checker =
+      new MockMacOSSecurityChecker();
     // Mock version info to an approved version to avoid switching to legacy checker
-    (auditor as any).versionInfo = {
+    (auditor as unknown as { versionInfo: VersionCompatibilityInfo }).versionInfo = {
       currentVersion: '15.5',
       isSupported: true,
       isApproved: true,
@@ -248,7 +249,9 @@ describe('SecurityAuditor', () => {
 
     it('should fail when connected to banned network', async () => {
       // Modify mock to return a banned network
-      (auditor as any).checker.checkCurrentWifiNetwork = jest.fn().mockResolvedValue({
+      (
+        auditor as unknown as { checker: MockMacOSSecurityChecker }
+      ).checker.checkCurrentWifiNetwork = jest.fn().mockResolvedValue({
         networkName: 'EAIguest',
         connected: true
       });
@@ -288,7 +291,9 @@ describe('SecurityAuditor', () => {
 
     it('should pass when not connected to WiFi', async () => {
       // Modify mock to return not connected
-      (auditor as any).checker.checkCurrentWifiNetwork = jest.fn().mockResolvedValue({
+      (
+        auditor as unknown as { checker: MockMacOSSecurityChecker }
+      ).checker.checkCurrentWifiNetwork = jest.fn().mockResolvedValue({
         networkName: null,
         connected: false
       });
@@ -424,7 +429,9 @@ describe('SecurityAuditor', () => {
 
       it('should test different update modes', async () => {
         // Test disabled mode
-        (auditor as any).checker.checkAutomaticUpdates = jest.fn().mockResolvedValue({
+        (
+          auditor as unknown as { checker: MockMacOSSecurityChecker }
+        ).checker.checkAutomaticUpdates = jest.fn().mockResolvedValue({
           enabled: false,
           securityUpdatesOnly: false,
           automaticDownload: false,
@@ -449,7 +456,9 @@ describe('SecurityAuditor', () => {
 
       it('should handle fully-automatic mode', async () => {
         // Test fully-automatic mode
-        (auditor as any).checker.checkAutomaticUpdates = jest.fn().mockResolvedValue({
+        (
+          auditor as unknown as { checker: MockMacOSSecurityChecker }
+        ).checker.checkAutomaticUpdates = jest.fn().mockResolvedValue({
           enabled: true,
           securityUpdatesOnly: false,
           automaticDownload: true,
@@ -507,7 +516,9 @@ describe('SecurityAuditor', () => {
 
       it('should fail when banned applications are installed', async () => {
         // Mock the checker to return banned apps
-        (auditor as any).checker.checkInstalledApplications = jest.fn().mockResolvedValue({
+        (
+          auditor as unknown as { checker: MockMacOSSecurityChecker }
+        ).checker.checkInstalledApplications = jest.fn().mockResolvedValue({
           installedApps: ['Chrome', 'Firefox', 'Slack', 'BannedApp', 'TestApp'],
           bannedAppsFound: [],
           sources: {
@@ -533,7 +544,9 @@ describe('SecurityAuditor', () => {
 
       it('should handle partial string matches for banned applications', async () => {
         // Mock the checker to return apps with partial matches
-        (auditor as any).checker.checkInstalledApplications = jest.fn().mockResolvedValue({
+        (
+          auditor as unknown as { checker: MockMacOSSecurityChecker }
+        ).checker.checkInstalledApplications = jest.fn().mockResolvedValue({
           installedApps: ['Google Chrome', 'Firefox', 'Slack'],
           bannedAppsFound: [],
           sources: {
@@ -568,7 +581,9 @@ describe('SecurityAuditor', () => {
 
       it('should report applications from multiple sources', async () => {
         // Mock the checker to return apps from different sources
-        (auditor as any).checker.checkInstalledApplications = jest.fn().mockResolvedValue({
+        (
+          auditor as unknown as { checker: MockMacOSSecurityChecker }
+        ).checker.checkInstalledApplications = jest.fn().mockResolvedValue({
           installedApps: ['Chrome', 'git', 'typescript'],
           bannedAppsFound: [],
           sources: {
@@ -595,8 +610,13 @@ describe('SecurityAuditor', () => {
   describe('Version Compatibility Checks', () => {
     it('should check version compatibility for approved version', async () => {
       // Mock the getCurrentMacOSVersion to return an approved version
-      (auditor as any).versionInfo = null;
-      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('15.5');
+      (auditor as unknown as { versionInfo: VersionCompatibilityInfo | null }).versionInfo = null;
+      jest
+        .spyOn(
+          (auditor as unknown as { checker: MockMacOSSecurityChecker }).checker,
+          'getCurrentMacOSVersion'
+        )
+        .mockResolvedValue('15.5');
 
       const versionInfo = await auditor.checkVersionCompatibility();
 
@@ -609,8 +629,13 @@ describe('SecurityAuditor', () => {
 
     it('should check version compatibility for untested but supported version', async () => {
       // Mock the getCurrentMacOSVersion to return a supported but untested version
-      (auditor as any).versionInfo = null;
-      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('15.7');
+      (auditor as unknown as { versionInfo: VersionCompatibilityInfo | null }).versionInfo = null;
+      jest
+        .spyOn(
+          (auditor as unknown as { checker: MockMacOSSecurityChecker }).checker,
+          'getCurrentMacOSVersion'
+        )
+        .mockResolvedValue('15.7');
 
       const versionInfo = await auditor.checkVersionCompatibility();
 
@@ -624,8 +649,13 @@ describe('SecurityAuditor', () => {
 
     it('should check version compatibility for legacy version', async () => {
       // Mock the getCurrentMacOSVersion to return a legacy version
-      (auditor as any).versionInfo = null;
-      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('14.5');
+      (auditor as unknown as { versionInfo: VersionCompatibilityInfo | null }).versionInfo = null;
+      jest
+        .spyOn(
+          (auditor as unknown as { checker: MockMacOSSecurityChecker }).checker,
+          'getCurrentMacOSVersion'
+        )
+        .mockResolvedValue('14.5');
 
       const versionInfo = await auditor.checkVersionCompatibility();
 
@@ -639,19 +669,31 @@ describe('SecurityAuditor', () => {
 
     it('should use LegacyMacOSSecurityChecker for legacy versions', async () => {
       // Mock the getCurrentMacOSVersion to return a legacy version
-      (auditor as any).versionInfo = null;
-      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('14.5');
+      (auditor as unknown as { versionInfo: VersionCompatibilityInfo | null }).versionInfo = null;
+      jest
+        .spyOn(
+          (auditor as unknown as { checker: MockMacOSSecurityChecker }).checker,
+          'getCurrentMacOSVersion'
+        )
+        .mockResolvedValue('14.5');
 
       await auditor.checkVersionCompatibility();
 
       // The checker should now be an instance of LegacyMacOSSecurityChecker
-      expect((auditor as any).checker.constructor.name).toBe('LegacyMacOSSecurityChecker');
+      expect(
+        (auditor as unknown as { checker: MockMacOSSecurityChecker }).checker.constructor.name
+      ).toBe('LegacyMacOSSecurityChecker');
     });
 
     it('should include version compatibility result in audit for untested version', async () => {
       // Mock the getCurrentMacOSVersion to return an untested version
-      (auditor as any).versionInfo = null;
-      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('16.0');
+      (auditor as unknown as { versionInfo: VersionCompatibilityInfo | null }).versionInfo = null;
+      jest
+        .spyOn(
+          (auditor as unknown as { checker: MockMacOSSecurityChecker }).checker,
+          'getCurrentMacOSVersion'
+        )
+        .mockResolvedValue('16.0');
 
       const config: SecurityConfig = {
         diskEncryption: { enabled: true }
@@ -668,8 +710,13 @@ describe('SecurityAuditor', () => {
 
     it('should include version compatibility result in audit for legacy version', async () => {
       // Mock the getCurrentMacOSVersion to return a legacy version
-      (auditor as any).versionInfo = null;
-      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('13.0');
+      (auditor as unknown as { versionInfo: VersionCompatibilityInfo | null }).versionInfo = null;
+      jest
+        .spyOn(
+          (auditor as unknown as { checker: MockMacOSSecurityChecker }).checker,
+          'getCurrentMacOSVersion'
+        )
+        .mockResolvedValue('13.0');
 
       const config: SecurityConfig = {
         diskEncryption: { enabled: true }
@@ -686,8 +733,13 @@ describe('SecurityAuditor', () => {
 
     it('should not include version compatibility result for approved versions', async () => {
       // Mock the getCurrentMacOSVersion to return an approved version
-      (auditor as any).versionInfo = null;
-      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('15.6');
+      (auditor as unknown as { versionInfo: VersionCompatibilityInfo | null }).versionInfo = null;
+      jest
+        .spyOn(
+          (auditor as unknown as { checker: MockMacOSSecurityChecker }).checker,
+          'getCurrentMacOSVersion'
+        )
+        .mockResolvedValue('15.6');
 
       const config: SecurityConfig = {
         diskEncryption: { enabled: true }
@@ -701,9 +753,12 @@ describe('SecurityAuditor', () => {
 
     it('should cache version compatibility info', async () => {
       // Reset versionInfo cache to test caching behavior
-      (auditor as any).versionInfo = null;
+      (auditor as unknown as { versionInfo: VersionCompatibilityInfo | null }).versionInfo = null;
       const getCurrentVersionSpy = jest
-        .spyOn((auditor as any).checker, 'getCurrentMacOSVersion')
+        .spyOn(
+          (auditor as unknown as { checker: MockMacOSSecurityChecker }).checker,
+          'getCurrentMacOSVersion'
+        )
         .mockResolvedValue('15.5');
 
       // Call twice

@@ -5,7 +5,7 @@ jest.mock('os');
 jest.mock('child_process');
 
 import * as os from 'os';
-import { exec } from 'child_process';
+import { exec, ChildProcess, ExecException } from 'child_process';
 
 const mockOs = os as jest.Mocked<typeof os>;
 const mockExec = exec as jest.MockedFunction<typeof exec>;
@@ -91,9 +91,12 @@ describe('OutputUtils', () => {
       mockOs.platform.mockReturnValue('darwin');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as any)(null, { stdout: '', stderr: '' });
+          (callback as unknown as (error: any, result?: any) => void)(null, {
+            stdout: '',
+            stderr: ''
+          });
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const success = await OutputUtils.copyToClipboard('test content');
@@ -109,12 +112,18 @@ describe('OutputUtils', () => {
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
           if (command.includes('xclip')) {
-            (callback as any)(null, { stdout: '', stderr: '' } as any);
+            (callback as unknown as (error: any, result?: any) => void)(null, {
+              stdout: '',
+              stderr: ''
+            } as any);
           } else {
-            (callback as any)(new Error('Command not found'), { stdout: '', stderr: '' } as any);
+            (callback as unknown as (error: any, result?: any) => void)(
+              new Error('Command not found'),
+              { stdout: '', stderr: '' } as any
+            );
           }
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const success = await OutputUtils.copyToClipboard('test content');
@@ -125,9 +134,12 @@ describe('OutputUtils', () => {
       mockOs.platform.mockReturnValue('linux');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as any)(new Error('Command not found'), { stdout: '', stderr: '' } as any);
+          (callback as unknown as (error: any, result?: any) => void)(
+            new Error('Command not found'),
+            { stdout: '', stderr: '' } as any
+          );
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const success = await OutputUtils.copyToClipboard('test content');
@@ -212,14 +224,23 @@ describe('OutputUtils', () => {
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
           if (command === 'which xclip') {
-            (callback as any)(null, { stdout: '/usr/bin/xclip', stderr: '' } as any);
+            (callback as unknown as (error: any, result?: any) => void)(null, {
+              stdout: '/usr/bin/xclip',
+              stderr: ''
+            } as any);
           } else if (command === 'which xsel') {
-            (callback as any)(new Error('not found'), { stdout: '', stderr: '' } as any);
+            (callback as unknown as (error: any, result?: any) => void)(new Error('not found'), {
+              stdout: '',
+              stderr: ''
+            } as any);
           } else if (command === 'which wl-copy') {
-            (callback as any)(null, { stdout: '/usr/bin/wl-copy', stderr: '' } as any);
+            (callback as unknown as (error: any, result?: any) => void)(null, {
+              stdout: '/usr/bin/wl-copy',
+              stderr: ''
+            } as any);
           }
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const utilities = await OutputUtils.getAvailableClipboardUtilities();
@@ -241,9 +262,12 @@ describe('OutputUtils', () => {
       mockOs.platform.mockReturnValue('linux');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as any)(new Error('not found'), { stdout: '', stderr: '' } as any);
+          (callback as unknown as (error: any, result?: any) => void)(new Error('not found'), {
+            stdout: '',
+            stderr: ''
+          } as any);
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const available = await OutputUtils.isClipboardAvailable();

@@ -7,7 +7,7 @@ jest.mock('child_process', () => ({
 }));
 
 import * as os from 'os';
-import { exec } from 'child_process';
+import { exec, ChildProcess, ExecException } from 'child_process';
 
 const mockOs = os as jest.Mocked<typeof os>;
 const mockExec = exec as jest.MockedFunction<typeof exec>;
@@ -24,9 +24,12 @@ describe('PlatformDetector', () => {
       // Mock sw_vers command
       mockExec.mockImplementation((command, callback) => {
         if (command === 'sw_vers -productVersion') {
-          (callback as any)(null, { stdout: '15.5', stderr: '' });
+          (callback as unknown as (error: any, result?: any) => void)(null, {
+            stdout: '15.5',
+            stderr: ''
+          });
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const platformInfo = await PlatformDetector.detectPlatform();
@@ -44,13 +47,13 @@ describe('PlatformDetector', () => {
       mockExec.mockImplementation((command, callback) => {
         if (command === 'cat /etc/os-release') {
           if (callback) {
-            (callback as any)(null, {
+            (callback as unknown as (error: any, result?: any) => void)(null, {
               stdout: 'ID=fedora\nVERSION_ID=38',
               stderr: ''
             } as any);
           }
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const platformInfo = await PlatformDetector.detectPlatform();
@@ -78,10 +81,13 @@ describe('PlatformDetector', () => {
       mockExec.mockImplementation((command, callback) => {
         if (command === 'sw_vers -productVersion') {
           if (callback) {
-            (callback as any)(null, { stdout: '14.5', stderr: '' } as any);
+            (callback as unknown as (error: any, result?: any) => void)(null, {
+              stdout: '14.5',
+              stderr: ''
+            } as any);
           }
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const platformInfo = await PlatformDetector.detectPlatform();
@@ -98,10 +104,13 @@ describe('PlatformDetector', () => {
       mockExec.mockImplementation((command, callback) => {
         if (command === 'sw_vers -productVersion') {
           if (callback) {
-            (callback as any)(null, { stdout: '16.0', stderr: '' } as any);
+            (callback as unknown as (error: any, result?: any) => void)(null, {
+              stdout: '16.0',
+              stderr: ''
+            } as any);
           }
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const platformInfo = await PlatformDetector.detectPlatform();
@@ -119,13 +128,13 @@ describe('PlatformDetector', () => {
       mockExec.mockImplementation((command, callback) => {
         if (command === 'cat /etc/os-release') {
           if (callback) {
-            (callback as any)(null, {
+            (callback as unknown as (error: any, result?: any) => void)(null, {
               stdout: 'ID=arch\nVERSION_ID=rolling',
               stderr: ''
             } as any);
           }
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const platformInfo = await PlatformDetector.detectPlatform();
@@ -141,9 +150,12 @@ describe('PlatformDetector', () => {
       mockOs.platform.mockReturnValue('darwin');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as any)(null, { stdout: '15.5', stderr: '' } as any);
+          (callback as unknown as (error: any, result?: any) => void)(null, {
+            stdout: '15.5',
+            stderr: ''
+          } as any);
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const isMacOS = await PlatformDetector.isMacOS();
@@ -154,9 +166,12 @@ describe('PlatformDetector', () => {
       mockOs.platform.mockReturnValue('linux');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as any)(null, { stdout: 'ID=fedora\nVERSION_ID=38', stderr: '' } as any);
+          (callback as unknown as (error: any, result?: any) => void)(null, {
+            stdout: 'ID=fedora\nVERSION_ID=38',
+            stderr: ''
+          } as any);
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const isLinux = await PlatformDetector.isLinux();
@@ -167,9 +182,12 @@ describe('PlatformDetector', () => {
       mockOs.platform.mockReturnValue('darwin');
       mockExec.mockImplementation((command, callback) => {
         if (callback) {
-          (callback as any)(null, { stdout: '15.5', stderr: '' } as any);
+          (callback as unknown as (error: any, result?: any) => void)(null, {
+            stdout: '15.5',
+            stderr: ''
+          } as any);
         }
-        return {} as any;
+        return {} as unknown as ChildProcess;
       });
 
       const isSupported = await PlatformDetector.isSupported();

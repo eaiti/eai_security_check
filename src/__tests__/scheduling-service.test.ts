@@ -94,8 +94,10 @@ describe('SchedulingService', () => {
       const stateWithNoReport = { ...mockState, lastReportSent: '' };
       mockFs.readFileSync.mockReturnValue(JSON.stringify(stateWithNoReport));
 
-      // Access private method through any type casting
-      const shouldSend = (service as any).shouldSendReport(stateWithNoReport);
+      // Access private method for testing
+      const shouldSend = (
+        service as unknown as { shouldSendReport: (state: DaemonState) => boolean }
+      ).shouldSendReport(stateWithNoReport);
       expect(shouldSend).toBe(true);
     });
 
@@ -109,7 +111,9 @@ describe('SchedulingService', () => {
         lastReportSent: oldDate.toISOString()
       };
 
-      const shouldSend = (service as any).shouldSendReport(stateWithOldReport);
+      const shouldSend = (
+        service as unknown as { shouldSendReport: (state: DaemonState) => boolean }
+      ).shouldSendReport(stateWithOldReport);
       expect(shouldSend).toBe(true);
     });
 
@@ -123,7 +127,9 @@ describe('SchedulingService', () => {
         lastReportSent: recentDate.toISOString()
       };
 
-      const shouldSend = (service as any).shouldSendReport(stateWithRecentReport);
+      const shouldSend = (
+        service as unknown as { shouldSendReport: (state: DaemonState) => boolean }
+      ).shouldSendReport(stateWithRecentReport);
       expect(shouldSend).toBe(false);
     });
   });
