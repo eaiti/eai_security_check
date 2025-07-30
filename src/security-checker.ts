@@ -21,33 +21,64 @@ export class MacOSSecurityChecker {
       const { stdout: loginPasswordCheck } = await execAsync('defaults read com.apple.loginwindow DisableLoginItemSuppression 2>/dev/null || echo "enabled"');
       const passwordEnabled = !loginPasswordCheck.includes('disabled');
 
-      // Use AppleScript to check lock screen password requirement (works on macOS 15.5+)
+      // Use sysadminctl to check screen lock password requirement and delay (macOS native tool)
       let passwordRequiredAfterLock = false;
-      try {
-        const applescript = `tell application "System Events" to tell security preferences to get require password to wake`;
-        const { stdout: lockScreenResult } = await execAsync(`osascript -e '${applescript}'`);
-        passwordRequiredAfterLock = lockScreenResult.trim().toLowerCase() === 'true';
-      } catch (applescriptError) {
-        console.warn('AppleScript method failed, falling back to defaults:', applescriptError);
+      let requirePasswordImmediately = false;
 
-        // Fallback to traditional defaults method (may not work on newer macOS versions)
-        try {
-          const { stdout: screenSaverPassword } = await execAsync('defaults read com.apple.screensaver askForPassword 2>/dev/null || echo "0"');
-          const { stdout: passwordDelay } = await execAsync('defaults read com.apple.screensaver askForPasswordDelay 2>/dev/null || echo "0"');
-          passwordRequiredAfterLock = screenSaverPassword.trim() === '1';
-        } catch (fallbackError) {
-          console.warn('Fallback defaults method also failed:', fallbackError);
+      try {
+        const { stdout, stderr } = await execAsync('/usr/sbin/sysadminctl -screenLock status');
+
+        // sysadminctl outputs to stderr, so check both stdout and stderr
+        const screenLockStatus = stdout + stderr;
+        // Parse the output to determine if password is required and delay time
+        if (screenLockStatus.includes('screenLock delay is')) {
+          passwordRequiredAfterLock = true;
+
+          // Check if it's immediate
+          if (screenLockStatus.includes('delay is immediate')) {
+            requirePasswordImmediately = true;
+          } else {
+            // Any other delay (e.g., "5 seconds", "1 minute", etc.) is not immediate
+            requirePasswordImmediately = false;
+          }
+        } else if (screenLockStatus.includes('screenLock is disabled')) {
           passwordRequiredAfterLock = false;
+          requirePasswordImmediately = false;
+        } else {
+          // Unexpected output, assume disabled for safety
+          passwordRequiredAfterLock = false;
+          requirePasswordImmediately = false;
+        }
+      } catch (sysadminctlError) {
+        console.warn('sysadminctl method failed, falling back to AppleScript:', sysadminctlError);
+
+        // Fallback to AppleScript method
+        try {
+          const applescript = `tell application "System Events" to tell security preferences to get require password to wake`;
+          const { stdout: lockScreenResult } = await execAsync(`osascript -e '${applescript}'`);
+          passwordRequiredAfterLock = lockScreenResult.trim().toLowerCase() === 'true';
+
+          // Since AppleScript can't determine delay, assume it's not immediate unless we can verify otherwise
+          requirePasswordImmediately = false;
+        } catch (applescriptError) {
+          console.warn('AppleScript method also failed, falling back to defaults:', applescriptError);
+
+          // Final fallback to traditional defaults method
+          try {
+            const { stdout: screenSaverPassword } = await execAsync('defaults read com.apple.screensaver askForPassword 2>/dev/null || echo "0"');
+            const { stdout: passwordDelay } = await execAsync('defaults read com.apple.screensaver askForPasswordDelay 2>/dev/null || echo "0"');
+            passwordRequiredAfterLock = screenSaverPassword.trim() === '1';
+
+            // Check if delay is 0 (immediate) or very small
+            const delaySeconds = parseInt(passwordDelay.trim()) || 0;
+            requirePasswordImmediately = passwordRequiredAfterLock && delaySeconds === 0;
+          } catch (fallbackError) {
+            console.warn('All screen lock detection methods failed:', fallbackError);
+            passwordRequiredAfterLock = false;
+            requirePasswordImmediately = false;
+          }
         }
       }
-
-      // For "immediate" password requirement on macOS 15.5+:
-      // - We can detect if password is required (true/false) but not the actual delay time
-      // - Since we cannot determine the exact delay, we'll consider it passing as long as
-      //   password is required after lock, regardless of the delay time
-      // - This is a practical approach since any password requirement provides some security
-
-      const requirePasswordImmediately = passwordRequiredAfterLock;
 
       return {
         enabled: passwordEnabled,
@@ -179,8 +210,8 @@ export class MacOSSecurityChecker {
         riskLevel: 'High'
       },
       'Immediate Password Requirement': {
-        description: 'Requires password entry when waking from screen saver or sleep, preventing unauthorized access. On macOS 15.5+, only the enabled/disabled state is detectable - the actual delay time is not accessible programmatically.',
-        recommendation: 'Should be ENABLED. Any password requirement after lock provides security protection. For maximum security, set to "immediately", but any delay is better than no password requirement.',
+        description: 'Requires password entry immediately when waking from screen saver or sleep, preventing unauthorized access during brief periods away from the computer.',
+        recommendation: 'Should be ENABLED and set to "immediately" for maximum security. Any delay allows potential unauthorized access if someone approaches your unlocked Mac.',
         riskLevel: 'Medium'
       },
       'Auto-lock Timeout': {
@@ -330,8 +361,8 @@ export class MacOSSecurityChecker {
     }
   }
 
-  async checkAutomaticUpdates(): Promise<{ 
-    enabled: boolean; 
+  async checkAutomaticUpdates(): Promise<{
+    enabled: boolean;
     securityUpdatesOnly: boolean;
     automaticDownload: boolean;
     automaticInstall: boolean;
@@ -362,7 +393,7 @@ export class MacOSSecurityChecker {
 
       // Determine update mode based on settings
       let updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
-      
+
       if (!enabled) {
         updateMode = 'disabled';
       } else if (!automaticDownload) {
@@ -376,8 +407,8 @@ export class MacOSSecurityChecker {
       // Legacy securityUpdatesOnly for backward compatibility
       const securityUpdatesOnly = automaticSecurityInstall && !automaticInstall;
 
-      return { 
-        enabled, 
+      return {
+        enabled,
         securityUpdatesOnly,
         automaticDownload,
         automaticInstall,
@@ -387,8 +418,8 @@ export class MacOSSecurityChecker {
       };
     } catch (error) {
       console.error('Error checking automatic updates status:', error);
-      return { 
-        enabled: false, 
+      return {
+        enabled: false,
         securityUpdatesOnly: false,
         automaticDownload: false,
         automaticInstall: false,
@@ -441,10 +472,10 @@ export class MacOSSecurityChecker {
     }
   }
 
-  async checkInstalledApplications(): Promise<{ 
-    installedApps: string[]; 
-    bannedAppsFound: string[]; 
-    sources: { applications: string[]; homebrew: string[]; npm: string[] }; 
+  async checkInstalledApplications(): Promise<{
+    installedApps: string[];
+    bannedAppsFound: string[];
+    sources: { applications: string[]; homebrew: string[]; npm: string[] };
   }> {
     try {
       const sources = {
@@ -457,7 +488,7 @@ export class MacOSSecurityChecker {
       try {
         const { stdout: appsList } = await execAsync('ls /Applications/ 2>/dev/null || echo ""');
         const allApps = appsList.split('\n').filter(app => app.trim().length > 0);
-        
+
         // Filter out common system apps
         const systemApps = [
           'App Store.app', 'Automator.app', 'Calculator.app', 'Calendar.app',
@@ -470,7 +501,7 @@ export class MacOSSecurityChecker {
           'System Settings.app', 'Finder.app', 'Music.app', 'TV.app', 'Podcasts.app',
           'Books.app', 'News.app', 'Stocks.app', 'Home.app', 'Shortcuts.app'
         ];
-        
+
         const thirdPartyApps = allApps.filter(app => !systemApps.includes(app));
         sources.applications = thirdPartyApps.map(app => app.replace('.app', ''));
       } catch (error) {
@@ -505,17 +536,17 @@ export class MacOSSecurityChecker {
         ...sources.npm
       ].filter((app, index, array) => array.indexOf(app) === index); // Remove duplicates
 
-      return { 
-        installedApps, 
+      return {
+        installedApps,
         bannedAppsFound: [], // Will be populated by the auditor
-        sources 
+        sources
       };
     } catch (error) {
       console.error('Error checking installed applications:', error);
-      return { 
-        installedApps: [], 
-        bannedAppsFound: [], 
-        sources: { applications: [], homebrew: [], npm: [] } 
+      return {
+        installedApps: [],
+        bannedAppsFound: [],
+        sources: { applications: [], homebrew: [], npm: [] }
       };
     }
   }
