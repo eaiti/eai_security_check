@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SecurityAuditor } from './auditor';
 import { SecurityConfig } from './types';
-import { promptForValidPassword } from './password-utils';
+import { promptForValidPassword, validatePassword, checkPasswordExpiration } from './password-utils';
 
 /**
  * Determines if password is needed based on configuration
@@ -245,6 +245,7 @@ program
   .option('-c, --config <path>', 'Path to JSON configuration file (overrides profile argument)')
   .option('-o, --output <path>', 'Path to output report file (optional)')
   .option('-q, --quiet', 'Only show summary, suppress detailed output')
+  .option('--password <password>', 'Administrator password for sudo commands (if not provided, will prompt when needed)')
   .addHelpText('after', `
 Examples:
   $ eai-security-check check                    # Use default config
@@ -256,6 +257,7 @@ Examples:
   $ eai-security-check check -c my-config.json # Use custom config file
   $ eai-security-check check -o report.txt     # Save report to file
   $ eai-security-check check -q                # Quiet mode (summary only)
+  $ eai-security-check check --password mypass # Provide password directly
 
 Security Profiles:
   default     - Recommended security settings (7-min auto-lock)
@@ -316,17 +318,50 @@ Security Profiles:
       // Prompt for password if needed for sudo operations
       let password: string | undefined;
       if (requiresPassword(config)) {
-        if (!options.quiet) {
-          console.log('🔐 Some security checks require administrator privileges.');
-        }
-        try {
-          password = await promptForValidPassword();
+        if (options.password) {
+          // Use provided password, but validate it first
           if (!options.quiet) {
-            console.log('✅ Password accepted.\n');
+            console.log('🔐 Using provided password for administrator privileges.');
           }
-        } catch (error) {
-          console.error(`❌ ${error}`);
-          process.exit(1);
+          
+          // Validate the provided password
+          const passwordValidation = validatePassword(options.password);
+          if (!passwordValidation.isValid) {
+            console.error(`❌ Password validation failed: ${passwordValidation.message}`);
+            process.exit(1);
+          }
+          
+          // Check password expiration
+          const expirationCheck = await checkPasswordExpiration(180);
+          if (!expirationCheck.isValid) {
+            console.error(`❌ Password validation failed: ${expirationCheck.message}`);
+            process.exit(1);
+          }
+          
+          if (!options.quiet) {
+            if (expirationCheck.message.includes('could not be determined') || expirationCheck.message.includes('check failed')) {
+              console.log(`⚠️  ${expirationCheck.message}`);
+            } else {
+              console.log(`✅ ${expirationCheck.message}`);
+            }
+            console.log('✅ Password validation passed.\n');
+          }
+          
+          password = options.password;
+        } else {
+          // Prompt for password interactively
+          if (!options.quiet) {
+            console.log('🔐 Some security checks require administrator privileges.');
+          }
+          try {
+            password = await promptForValidPassword();
+            if (!options.quiet) {
+              console.log('✅ Password accepted.\n');
+            }
+          } catch (error) {
+            console.error(`❌ ${error}`);
+            process.exit(1);
+          }
         }
       }
 
