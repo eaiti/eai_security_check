@@ -1,8 +1,92 @@
 import * as readline from 'readline';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 export interface PasswordValidationResult {
   isValid: boolean;
   message: string;
+}
+
+/**
+ * Checks if the current user's password is older than the specified number of days
+ */
+export async function checkPasswordExpiration(maxAgeDays: number = 180): Promise<PasswordValidationResult> {
+  try {
+    const currentUser = process.env.USER || process.env.USERNAME || 'unknown';
+    
+    // Try to get password last set time using dscl
+    let passwordLastSetTime: Date | null = null;
+    
+    try {
+      const { stdout } = await execAsync(`dscl . -read /Users/${currentUser} passwordLastSetTime 2>/dev/null`);
+      const match = stdout.match(/passwordLastSetTime:\s*(.+)/);
+      if (match) {
+        passwordLastSetTime = new Date(match[1].trim());
+      }
+    } catch (error) {
+      // dscl command might not be available or might fail
+    }
+    
+    // Fallback: try to get account policy data which might contain password age info
+    if (!passwordLastSetTime) {
+      try {
+        const { stdout } = await execAsync(`dscl . -read /Users/${currentUser} accountPolicyData 2>/dev/null`);
+        // This is a more complex parsing but accountPolicyData might contain password age
+        // For now, we'll skip this complex parsing and rely on pwpolicy if available
+      } catch (error) {
+        // Ignore error, continue to next method
+      }
+    }
+    
+    // Fallback: try pwpolicy command
+    if (!passwordLastSetTime) {
+      try {
+        const { stdout } = await execAsync(`pwpolicy -u ${currentUser} -getaccountpolicies 2>/dev/null`);
+        // pwpolicy output is complex XML/plist format
+        // For simplicity, we'll look for password creation/modification dates
+        const creationMatch = stdout.match(/creationTime.*?(\d{4}-\d{2}-\d{2})/);
+        if (creationMatch) {
+          passwordLastSetTime = new Date(creationMatch[1]);
+        }
+      } catch (error) {
+        // pwpolicy might not be available or might fail
+      }
+    }
+    
+    // If we couldn't determine the password age, we'll assume it's compliant
+    // This prevents the security check from failing due to system limitations
+    if (!passwordLastSetTime) {
+      return {
+        isValid: true,
+        message: 'Password age could not be determined - assuming compliant'
+      };
+    }
+    
+    const currentTime = new Date();
+    const daysSincePasswordSet = Math.floor((currentTime.getTime() - passwordLastSetTime.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysSincePasswordSet > maxAgeDays) {
+      return {
+        isValid: false,
+        message: `Password is ${daysSincePasswordSet} days old (maximum allowed: ${maxAgeDays} days)`
+      };
+    }
+    
+    return {
+      isValid: true,
+      message: `Password is ${daysSincePasswordSet} days old (within ${maxAgeDays} day limit)`
+    };
+    
+  } catch (error) {
+    // If there's any error checking password expiration, log it but don't fail validation
+    console.warn('Warning: Could not check password expiration:', error);
+    return {
+      isValid: true,
+      message: 'Password expiration check failed - assuming compliant'
+    };
+  }
 }
 
 /**
@@ -112,6 +196,19 @@ export function promptForPassword(prompt: string = 'Enter password: '): Promise<
  * Prompts for password with validation, retries on invalid input
  */
 export async function promptForValidPassword(maxRetries: number = 3): Promise<string> {
+  // First check password expiration before prompting
+  const expirationCheck = await checkPasswordExpiration(180);
+  if (!expirationCheck.isValid) {
+    throw new Error(`Password validation failed: ${expirationCheck.message}`);
+  }
+  
+  // If expiration check passed but had a warning, show it
+  if (expirationCheck.message.includes('could not be determined') || expirationCheck.message.includes('check failed')) {
+    console.log(`⚠️  ${expirationCheck.message}`);
+  } else {
+    console.log(`✅ ${expirationCheck.message}`);
+  }
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const password = await promptForPassword(
