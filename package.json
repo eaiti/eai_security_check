@@ -24,7 +24,7 @@
     "macos",
     "security",
     "audit",
-    "filevault",
+    "diskEncryption",
     "password"
   ],
   "author": "",

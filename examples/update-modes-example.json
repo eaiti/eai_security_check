@@ -1,6 +1,6 @@
 {
   "comment": "Example demonstrating different automatic update configurations",
-  "filevault": {
+  "diskEncryption": {
     "enabled": true
   },
   "automaticUpdates": {

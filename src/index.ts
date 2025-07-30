@@ -25,7 +25,7 @@ function requiresPassword(config: SecurityConfig): boolean {
 function getConfigByProfile(profile: string): SecurityConfig {
   const baseConfig = {
     filevault: { enabled: true },
-    gatekeeper: { enabled: true },
+    packageVerification: { enabled: true },
     systemIntegrityProtection: { enabled: true }
   };
 
@@ -132,7 +132,7 @@ function getConfigByProfile(profile: string): SecurityConfig {
 
     case 'eai':
       return {
-        filevault: { enabled: true },
+        diskEncryption: { enabled: true },
         passwordProtection: {
           enabled: true,
           requirePasswordImmediately: true
