@@ -17,6 +17,5 @@
     "subject": "Weekly Security Audit Report"
   },
   "reportFormat": "email",
-  "securityProfile": "default",
-  "customConfigPath": "./security-config.json"
+  "securityProfile": "default"
 }
