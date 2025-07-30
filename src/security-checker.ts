@@ -4,6 +4,25 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 export class MacOSSecurityChecker {
+  private password?: string;
+
+  constructor(password?: string) {
+    this.password = password;
+  }
+
+  /**
+   * Execute command with sudo using stored password if available
+   */
+  private async execWithSudo(command: string): Promise<{ stdout: string; stderr: string }> {
+    if (this.password) {
+      // Use non-interactive sudo with password
+      const sudoCommand = `echo "${this.password}" | sudo -S ${command}`;
+      return execAsync(sudoCommand);
+    } else {
+      // Fallback to regular sudo (will prompt for password)
+      return execAsync(`sudo ${command}`);
+    }
+  }
 
   async checkFileVault(): Promise<boolean> {
     try {
@@ -300,7 +319,7 @@ export class MacOSSecurityChecker {
 
   async checkRemoteLogin(): Promise<boolean> {
     try {
-      const { stdout } = await execAsync('sudo systemsetup -getremotelogin 2>/dev/null || echo "On"');
+      const { stdout } = await this.execWithSudo('systemsetup -getremotelogin 2>/dev/null || echo "On"');
       return stdout.includes('On');
     } catch (error) {
       // Fallback method without sudo
@@ -316,7 +335,7 @@ export class MacOSSecurityChecker {
 
   async checkRemoteManagement(): Promise<boolean> {
     try {
-      const { stdout } = await execAsync('sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -query -settings 2>/dev/null || echo "not active"');
+      const { stdout } = await this.execWithSudo('/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -query -settings 2>/dev/null || echo "not active"');
       return !stdout.includes('not active');
     } catch (error) {
       // Fallback check

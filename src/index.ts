@@ -5,6 +5,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SecurityAuditor } from './auditor';
 import { SecurityConfig } from './types';
+import { promptForValidPassword } from './password-utils';
+
+/**
+ * Determines if password is needed based on configuration
+ */
+function requiresPassword(config: SecurityConfig): boolean {
+  return !!(config.remoteLogin || config.remoteManagement);
+}
 
 function getConfigByProfile(profile: string): SecurityConfig {
   const baseConfig = {
@@ -258,16 +266,6 @@ Security Profiles:
 `)
   .action(async (profile, options) => {
     try {
-      // Create auditor and check version compatibility first
-      const auditor = new SecurityAuditor();
-      const versionInfo = await auditor.checkVersionCompatibility();
-      
-      // Show version warning immediately if there are issues
-      if (versionInfo.warningMessage && !options.quiet) {
-        console.log(versionInfo.warningMessage);
-        console.log(''); // Add blank line for readability
-      }
-
       let config: SecurityConfig;
       let configSource = '';
 
@@ -313,6 +311,33 @@ Security Profiles:
           config = getConfigByProfile('default');
           configSource = 'default profile (generated)';
         }
+      }
+
+      // Prompt for password if needed for sudo operations
+      let password: string | undefined;
+      if (requiresPassword(config)) {
+        if (!options.quiet) {
+          console.log('🔐 Some security checks require administrator privileges.');
+        }
+        try {
+          password = await promptForValidPassword();
+          if (!options.quiet) {
+            console.log('✅ Password accepted.\n');
+          }
+        } catch (error) {
+          console.error(`❌ ${error}`);
+          process.exit(1);
+        }
+      }
+
+      // Create auditor with password if needed
+      const auditor = new SecurityAuditor(password);
+      const versionInfo = await auditor.checkVersionCompatibility();
+      
+      // Show version warning immediately if there are issues
+      if (versionInfo.warningMessage && !options.quiet) {
+        console.log(versionInfo.warningMessage);
+        console.log(''); // Add blank line for readability
       }
 
       if (!options.quiet) {

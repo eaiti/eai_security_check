@@ -14,8 +14,8 @@ export class SecurityAuditor {
   private checker: MacOSSecurityChecker;
   private versionInfo: VersionCompatibilityInfo | null = null;
 
-  constructor() {
-    this.checker = new MacOSSecurityChecker();
+  constructor(password?: string) {
+    this.checker = new MacOSSecurityChecker(password);
   }
 
   /**
