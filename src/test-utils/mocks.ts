@@ -1,4 +1,5 @@
 import { MacOSSecurityChecker } from '../security-checker';
+import { LegacyMacOSSecurityChecker } from '../legacy-security-checker';
 
 export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
   async checkFileVault(): Promise<boolean> {
@@ -164,5 +165,15 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
         riskLevel: 'Medium'
       }
     };
+  }
+}
+
+export class MockLegacyMacOSSecurityChecker extends LegacyMacOSSecurityChecker {
+  async getCurrentMacOSVersion(): Promise<string> {
+    return Promise.resolve('14.5');
+  }
+
+  async getSystemInfo(): Promise<string> {
+    return Promise.resolve('macOS 14.5 (Legacy Test Environment)');
   }
 }

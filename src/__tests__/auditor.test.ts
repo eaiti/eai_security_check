@@ -1,6 +1,7 @@
 import { SecurityAuditor } from '../auditor';
 import { SecurityConfig } from '../types';
 import { MockMacOSSecurityChecker } from '../test-utils/mocks';
+import { LegacyMacOSSecurityChecker } from '../legacy-security-checker';
 
 describe('SecurityAuditor', () => {
   let auditor: SecurityAuditor;
@@ -9,6 +10,14 @@ describe('SecurityAuditor', () => {
     auditor = new SecurityAuditor();
     // Replace the real checker with a mock
     (auditor as any).checker = new MockMacOSSecurityChecker();
+    // Mock version info to an approved version to avoid switching to legacy checker
+    (auditor as any).versionInfo = {
+      currentVersion: '15.5',
+      isSupported: true,
+      isApproved: true,
+      isLegacy: false,
+      warningMessage: undefined
+    };
   });
 
   describe('auditSecurity', () => {
@@ -560,6 +569,127 @@ describe('SecurityAuditor', () => {
         expect(appsResult?.actual).toContain('1 in Applications, 1 via Homebrew, 1 via npm');
         expect(appsResult?.message).toContain('Chrome, git, typescript');
       });
+    });
+  });
+
+  describe('Version Compatibility Checks', () => {
+    it('should check version compatibility for approved version', async () => {
+      // Mock the getCurrentMacOSVersion to return an approved version
+      (auditor as any).versionInfo = null;
+      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('15.5');
+
+      const versionInfo = await auditor.checkVersionCompatibility();
+
+      expect(versionInfo.currentVersion).toBe('15.5');
+      expect(versionInfo.isSupported).toBe(true);
+      expect(versionInfo.isApproved).toBe(true);
+      expect(versionInfo.isLegacy).toBe(false);
+      expect(versionInfo.warningMessage).toBeUndefined();
+    });
+
+    it('should check version compatibility for untested but supported version', async () => {
+      // Mock the getCurrentMacOSVersion to return a supported but untested version
+      (auditor as any).versionInfo = null;
+      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('15.7');
+
+      const versionInfo = await auditor.checkVersionCompatibility();
+
+      expect(versionInfo.currentVersion).toBe('15.7');
+      expect(versionInfo.isSupported).toBe(true);
+      expect(versionInfo.isApproved).toBe(false);
+      expect(versionInfo.isLegacy).toBe(false);
+      expect(versionInfo.warningMessage).toContain('has not been fully tested');
+      expect(versionInfo.warningMessage).toContain('false positives or false negatives');
+    });
+
+    it('should check version compatibility for legacy version', async () => {
+      // Mock the getCurrentMacOSVersion to return a legacy version
+      (auditor as any).versionInfo = null;
+      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('14.5');
+
+      const versionInfo = await auditor.checkVersionCompatibility();
+
+      expect(versionInfo.currentVersion).toBe('14.5');
+      expect(versionInfo.isSupported).toBe(false);
+      expect(versionInfo.isApproved).toBe(false);
+      expect(versionInfo.isLegacy).toBe(true);
+      expect(versionInfo.warningMessage).toContain('below version 15.0');
+      expect(versionInfo.warningMessage).toContain('will return failure states');
+    });
+
+    it('should use LegacyMacOSSecurityChecker for legacy versions', async () => {
+      // Mock the getCurrentMacOSVersion to return a legacy version
+      (auditor as any).versionInfo = null;
+      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('14.5');
+
+      await auditor.checkVersionCompatibility();
+
+      // The checker should now be an instance of LegacyMacOSSecurityChecker
+      expect((auditor as any).checker.constructor.name).toBe('LegacyMacOSSecurityChecker');
+    });
+
+    it('should include version compatibility result in audit for untested version', async () => {
+      // Mock the getCurrentMacOSVersion to return an untested version
+      (auditor as any).versionInfo = null;
+      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('16.0');
+
+      const config: SecurityConfig = {
+        filevault: { enabled: true }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      
+      const versionResult = report.results.find(r => r.setting === 'macOS Version Compatibility');
+      expect(versionResult).toBeDefined();
+      expect(versionResult?.passed).toBe(false);
+      expect(versionResult?.actual).toBe('16.0');
+      expect(versionResult?.message).toContain('has not been fully tested');
+    });
+
+    it('should include version compatibility result in audit for legacy version', async () => {
+      // Mock the getCurrentMacOSVersion to return a legacy version
+      (auditor as any).versionInfo = null;
+      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('13.0');
+
+      const config: SecurityConfig = {
+        filevault: { enabled: true }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      
+      const versionResult = report.results.find(r => r.setting === 'macOS Version Compatibility');
+      expect(versionResult).toBeDefined();
+      expect(versionResult?.passed).toBe(false);
+      expect(versionResult?.actual).toBe('13.0');
+      expect(versionResult?.message).toContain('below version 15.0');
+    });
+
+    it('should not include version compatibility result for approved versions', async () => {
+      // Mock the getCurrentMacOSVersion to return an approved version
+      (auditor as any).versionInfo = null;
+      jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('15.6');
+
+      const config: SecurityConfig = {
+        filevault: { enabled: true }
+      };
+
+      const report = await auditor.auditSecurity(config);
+      
+      const versionResult = report.results.find(r => r.setting === 'macOS Version Compatibility');
+      expect(versionResult).toBeUndefined();
+    });
+
+    it('should cache version compatibility info', async () => {
+      // Reset versionInfo cache to test caching behavior
+      (auditor as any).versionInfo = null;
+      const getCurrentVersionSpy = jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('15.5');
+
+      // Call twice
+      await auditor.checkVersionCompatibility();
+      await auditor.checkVersionCompatibility();
+
+      // Should only call the actual method once due to caching
+      expect(getCurrentVersionSpy).toHaveBeenCalledTimes(1);
     });
   });
 });
