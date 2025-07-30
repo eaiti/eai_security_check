@@ -98,7 +98,10 @@ describe('OutputUtils', () => {
 
       const success = await OutputUtils.copyToClipboard('test content');
       expect(success).toBe(true);
-      expect(mockExec).toHaveBeenCalledWith(expect.stringContaining('pbcopy'), expect.any(Function));
+      expect(mockExec).toHaveBeenCalledWith(
+        expect.stringContaining('pbcopy'),
+        expect.any(Function)
+      );
     });
 
     it('should copy to clipboard on Linux with xclip', async () => {

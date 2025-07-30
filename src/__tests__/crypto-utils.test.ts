@@ -133,7 +133,8 @@ describe('CryptoUtils', () => {
 
     it('should handle malformed signature JSON', () => {
       // This matches the exact format that signReport produces
-      const content = "content\n--- SECURITY SIGNATURE ---\ninvalid json\n\n--- SECURITY SIGNATURE ---\n";
+      const content =
+        'content\n--- SECURITY SIGNATURE ---\ninvalid json\n\n--- SECURITY SIGNATURE ---\n';
 
       const verification = CryptoUtils.verifyReport(content);
 
@@ -143,14 +144,17 @@ describe('CryptoUtils', () => {
     });
 
     it('should handle incomplete signature', () => {
-      // This matches the exact format that signReport produces  
-      const content = "content\n--- SECURITY SIGNATURE ---\n{\"hash\": \"testhash\"}\n\n--- SECURITY SIGNATURE ---\n";
+      // This matches the exact format that signReport produces
+      const content =
+        'content\n--- SECURITY SIGNATURE ---\n{"hash": "testhash"}\n\n--- SECURITY SIGNATURE ---\n';
 
       const verification = CryptoUtils.verifyReport(content);
 
       expect(verification.isValid).toBe(false);
       expect(verification.tampered).toBe(true);
-      expect(verification.message).toContain('Invalid signature structure: missing required fields');
+      expect(verification.message).toContain(
+        'Invalid signature structure: missing required fields'
+      );
     });
   });
 
