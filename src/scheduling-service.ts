@@ -467,4 +467,223 @@ export class SchedulingService {
       config: this.config
     };
   }
+
+  /**
+   * Stop a running daemon by sending SIGTERM to the process
+   */
+  static async stopDaemon(lockFilePath?: string): Promise<{ success: boolean; message: string }> {
+    const resolvedLockPath = lockFilePath || path.resolve('./daemon.lock');
+    
+    try {
+      if (!fs.existsSync(resolvedLockPath)) {
+        return {
+          success: false,
+          message: 'No daemon lock file found. Daemon may not be running.'
+        };
+      }
+
+      const lockContent = fs.readFileSync(resolvedLockPath, 'utf-8');
+      const lockInfo = JSON.parse(lockContent);
+      
+      // Check if process is still running first
+      try {
+        process.kill(lockInfo.pid, 0);
+      } catch (error) {
+        // Process doesn't exist, clean up stale lock file
+        fs.unlinkSync(resolvedLockPath);
+        return {
+          success: false,
+          message: 'Daemon process not found. Cleaned up stale lock file.'
+        };
+      }
+
+      // Send SIGTERM to gracefully shutdown the daemon
+      console.log(`Sending shutdown signal to daemon process ${lockInfo.pid}...`);
+      process.kill(lockInfo.pid, 'SIGTERM');
+      
+      // Wait for the process to shutdown and lock file to be removed
+      let attempts = 0;
+      const maxAttempts = 30; // Wait up to 30 seconds
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        attempts++;
+        
+        try {
+          // Check if process is still running
+          process.kill(lockInfo.pid, 0);
+          
+          // Process still running, continue waiting
+          if (attempts % 5 === 0) {
+            console.log(`Waiting for daemon to shutdown... (${attempts}s)`);
+          }
+        } catch (error) {
+          // Process has stopped
+          // Clean up lock file if it still exists
+          if (fs.existsSync(resolvedLockPath)) {
+            fs.unlinkSync(resolvedLockPath);
+          }
+          
+          return {
+            success: true,
+            message: `Daemon stopped successfully after ${attempts} seconds.`
+          };
+        }
+      }
+      
+      // If we get here, the process didn't shutdown gracefully
+      console.log('Daemon did not respond to graceful shutdown, forcing termination...');
+      try {
+        process.kill(lockInfo.pid, 'SIGKILL');
+        
+        // Clean up lock file
+        if (fs.existsSync(resolvedLockPath)) {
+          fs.unlinkSync(resolvedLockPath);
+        }
+        
+        return {
+          success: true,
+          message: 'Daemon forcefully terminated after timeout.'
+        };
+      } catch (killError) {
+        return {
+          success: false,
+          message: `Failed to stop daemon: ${killError}`
+        };
+      }
+      
+    } catch (error) {
+      return {
+        success: false,
+        message: `Error stopping daemon: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Restart the daemon (stop current instance and start a new one)
+   */
+  static async restartDaemon(configPath?: string, stateFilePath?: string): Promise<{ success: boolean; message: string }> {
+    console.log('🔄 Restarting daemon...');
+    
+    // First, stop the current daemon
+    const stopResult = await this.stopDaemon();
+    if (!stopResult.success && !stopResult.message.includes('not running')) {
+      return {
+        success: false,
+        message: `Failed to stop current daemon: ${stopResult.message}`
+      };
+    }
+    
+    console.log('✅ Current daemon stopped');
+    
+    // Wait a moment to ensure cleanup is complete
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    try {
+      // Start a new daemon instance
+      console.log('🚀 Starting new daemon instance...');
+      const newService = new SchedulingService(configPath, stateFilePath);
+      await newService.startDaemon();
+      
+      return {
+        success: true,
+        message: 'Daemon restarted successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to start new daemon: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Uninstall daemon and clean up all related files
+   */
+  static async uninstallDaemon(options: {
+    configPath?: string;
+    stateFilePath?: string;
+    removeExecutable?: boolean;
+    force?: boolean;
+  } = {}): Promise<{ success: boolean; message: string; removedFiles: string[] }> {
+    const removedFiles: string[] = [];
+    const messages: string[] = [];
+    
+    try {
+      // Stop daemon if running
+      console.log('🛑 Stopping daemon...');
+      const stopResult = await this.stopDaemon();
+      if (stopResult.success) {
+        messages.push('Daemon stopped successfully');
+      } else if (!stopResult.message.includes('not running') && !stopResult.message.includes('not found') && !stopResult.message.includes('may not be running')) {
+        if (!options.force) {
+          return {
+            success: false,
+            message: `Cannot uninstall: ${stopResult.message}. Use --force to override.`,
+            removedFiles
+          };
+        } else {
+          messages.push(`Warning: ${stopResult.message}`);
+        }
+      }
+
+      // Remove daemon state file
+      const stateFile = options.stateFilePath || path.resolve('./daemon-state.json');
+      if (fs.existsSync(stateFile)) {
+        fs.unlinkSync(stateFile);
+        removedFiles.push(stateFile);
+        messages.push('Removed daemon state file');
+      }
+
+      // Remove scheduling config file
+      const configFile = options.configPath || path.resolve('./scheduling-config.json');
+      if (fs.existsSync(configFile)) {
+        if (options.force) {
+          fs.unlinkSync(configFile);
+          removedFiles.push(configFile);
+          messages.push('Removed scheduling configuration file');
+        } else {
+          messages.push(`Scheduling config preserved: ${configFile} (use --force to remove)`);
+        }
+      }
+
+      // Remove lock file if it exists
+      const lockFile = path.resolve('./daemon.lock');
+      if (fs.existsSync(lockFile)) {
+        fs.unlinkSync(lockFile);
+        removedFiles.push(lockFile);
+        messages.push('Removed daemon lock file');
+      }
+
+      // Remove executable if requested
+      if (options.removeExecutable && options.force) {
+        try {
+          const executablePath = process.argv[0];
+          if (fs.existsSync(executablePath) && path.basename(executablePath).includes('eai-security-check')) {
+            fs.unlinkSync(executablePath);
+            removedFiles.push(executablePath);
+            messages.push('Removed executable file');
+          }
+        } catch (error) {
+          messages.push(`Warning: Could not remove executable: ${error}`);
+        }
+      } else if (options.removeExecutable) {
+        messages.push('Use --force with --remove-executable to actually remove the executable');
+      }
+
+      return {
+        success: true,
+        message: messages.join('\n'),
+        removedFiles
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        message: `Error during uninstall: ${error}`,
+        removedFiles
+      };
+    }
+  }
 }
