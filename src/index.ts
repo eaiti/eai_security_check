@@ -17,17 +17,19 @@ function requiresPassword(config: SecurityConfig): boolean {
   if (config.password?.required) {
     return true;
   }
-  
+
   // Also check if any sudo operations are needed (backward compatibility)
   return !!(config.remoteLogin || config.remoteManagement);
 }
 
 function getConfigByProfile(profile: string): SecurityConfig {
   const baseConfig = {
-    filevault: { enabled: true },
+    diskEncryption: { enabled: true },
     packageVerification: { enabled: true },
     systemIntegrityProtection: { enabled: true }
   };
+
+  console.warn('Using dynamic configuration generation for profile:', profile);
 
   switch (profile) {
     case 'strict':
@@ -50,7 +52,11 @@ function getConfigByProfile(profile: string): SecurityConfig {
         firewall: { enabled: true, stealthMode: true },
         remoteLogin: { enabled: false },
         remoteManagement: { enabled: false },
-        automaticUpdates: { enabled: true, securityUpdatesOnly: true },
+        automaticUpdates: {
+          enabled: true,
+          automaticInstall: true,
+          automaticSecurityInstall: true
+        },
         sharingServices: {
           fileSharing: false,
           screenSharing: false,
@@ -58,10 +64,10 @@ function getConfigByProfile(profile: string): SecurityConfig {
         },
         osVersion: { targetVersion: 'latest' },
         wifiSecurity: {
-          bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi']
+          bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi', 'Free WiFi']
         },
         installedApps: {
-          bannedApplications: ['BitTorrent', 'uTorrent', 'Limewire', 'TeamViewer', 'AnyDesk']
+          bannedApplications: ['BitTorrent', 'uTorrent', 'Limewire', 'TeamViewer', 'AnyDesk', 'Skype']
         }
       };
 
@@ -85,17 +91,15 @@ function getConfigByProfile(profile: string): SecurityConfig {
         firewall: { enabled: true, stealthMode: false },
         remoteLogin: { enabled: false },
         remoteManagement: { enabled: false },
-        automaticUpdates: { enabled: true },
+        automaticUpdates: {
+          enabled: true,
+          downloadOnly: false,
+          automaticSecurityInstall: false
+        },
         sharingServices: {
           fileSharing: false,
           screenSharing: false,
           remoteLogin: false
-        },
-        wifiSecurity: {
-          bannedNetworks: ['EAIguest']
-        },
-        installedApps: {
-          bannedApplications: ['BitTorrent', 'uTorrent']
         }
       };
 
@@ -119,14 +123,15 @@ function getConfigByProfile(profile: string): SecurityConfig {
         firewall: { enabled: true, stealthMode: false },
         remoteLogin: { enabled: true },
         remoteManagement: { enabled: false },
-        automaticUpdates: { enabled: true, securityUpdatesOnly: true },
+        automaticUpdates: {
+          enabled: true,
+          downloadOnly: true,
+          automaticSecurityInstall: true
+        },
         sharingServices: {
           fileSharing: true,
           screenSharing: true,
           remoteLogin: true
-        },
-        installedApps: {
-          bannedApplications: []
         }
       };
 
@@ -147,7 +152,25 @@ function getConfigByProfile(profile: string): SecurityConfig {
           maxAgeDays: 180
         },
         autoLock: { maxTimeoutMinutes: 7 },
+        firewall: { enabled: false, stealthMode: false },
+        packageVerification: { enabled: true },
+        systemIntegrityProtection: { enabled: true },
         remoteLogin: { enabled: false },
+        remoteManagement: { enabled: false },
+        automaticUpdates: {
+          enabled: true,
+          automaticInstall: true,
+          automaticSecurityInstall: true
+        },
+        sharingServices: {
+          fileSharing: false,
+          screenSharing: false,
+          remoteLogin: false
+        },
+        osVersion: { targetVersion: 'latest' },
+        installedApps: {
+          bannedApplications: ['BitTorrent', 'uTorrent', 'Limewire', 'TeamViewer', 'AnyDesk', 'Skype', 'Steam']
+        },
         wifiSecurity: {
           bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi']
         }
@@ -173,7 +196,11 @@ function getConfigByProfile(profile: string): SecurityConfig {
         firewall: { enabled: true, stealthMode: true },
         remoteLogin: { enabled: false },
         remoteManagement: { enabled: false },
-        automaticUpdates: { enabled: true, securityUpdatesOnly: true },
+        automaticUpdates: {
+          enabled: true,
+          automaticInstall: true,
+          automaticSecurityInstall: true
+        },
         sharingServices: {
           fileSharing: false,
           screenSharing: false,
@@ -231,14 +258,14 @@ function resolveProfileConfigPath(profile: string): string | null {
 
   // Check if we're running in a pkg environment
   const isPkg = typeof (process as any).pkg !== 'undefined';
-  
+
   if (isPkg) {
     // In pkg environment, check the snapshot filesystem first
     const pkgPath = path.join(path.dirname(process.execPath), 'examples', configFileName);
     if (fs.existsSync(pkgPath)) {
       return pkgPath;
     }
-    
+
     // Try the embedded path (pkg snapshot)
     const snapshotPath = path.join(__dirname, '..', 'examples', configFileName);
     if (fs.existsSync(snapshotPath)) {
@@ -369,14 +396,14 @@ Security Profiles:
       } else if (profile) {
         // Use profile argument
         const profileConfig = getConfigForProfile(profile);
-        
+
         if (!profileConfig) {
           console.error(`❌ Invalid profile: ${profile}`);
           console.log('💡 Valid profiles: default, strict, relaxed, developer, eai');
           console.log('💡 Use "eai-security-check check --help" for examples');
           process.exit(1);
         }
-        
+
         config = profileConfig;
         configSource = `${profile} profile`;
 
@@ -404,40 +431,40 @@ Security Profiles:
 
       // Prompt for password if needed for sudo operations (platform-aware)
       let password: string | undefined;
-      
-      if (requiresPassword(config)) {
-        if (options.password) {
-          // Use provided password
+
+
+      if (options.password) {
+        // Use provided password
+        if (!options.quiet) {
+          console.log('🔐 Using provided password for administrator privileges.');
+        }
+        password = options.password;
+      } else {
+        // Prompt for password interactively
+        if (!options.quiet) {
+          console.log('🔐 Some security checks require administrator privileges.');
+        }
+        try {
+          // Platform-aware password prompt
+          const { promptForPassword } = await import('./password-utils');
+          const promptText = platformInfo.platform === Platform.MACOS ?
+            '🔐 Enter your macOS password: ' :
+            '🔐 Enter your sudo password: ';
+          password = await promptForPassword(promptText);
           if (!options.quiet) {
-            console.log('🔐 Using provided password for administrator privileges.');
+            console.log('✅ Password collected.\n');
           }
-          password = options.password;
-        } else {
-          // Prompt for password interactively
-          if (!options.quiet) {
-            console.log('🔐 Some security checks require administrator privileges.');
-          }
-          try {
-            // Platform-aware password prompt
-            const { promptForPassword } = await import('./password-utils');
-            const promptText = platformInfo.platform === Platform.MACOS ? 
-              '🔐 Enter your macOS password: ' : 
-              '🔐 Enter your sudo password: ';
-            password = await promptForPassword(promptText);
-            if (!options.quiet) {
-              console.log('✅ Password collected.\n');
-            }
-          } catch (error) {
-            console.error(`❌ ${error}`);
-            process.exit(1);
-          }
+        } catch (error) {
+          console.error(`❌ ${error}`);
+          process.exit(1);
         }
       }
+
 
       // Create auditor with password if needed
       const auditor = new SecurityAuditor(password);
       const versionInfo = await auditor.checkVersionCompatibility();
-      
+
       // Show version warning immediately if there are issues
       if (versionInfo.warningMessage && !options.quiet) {
         console.log(versionInfo.warningMessage);
@@ -457,7 +484,7 @@ Security Profiles:
       if (options.summary) {
         const summaryLine = OutputUtils.createSummaryLine(report);
         console.log(summaryLine);
-        
+
         if (options.clipboard) {
           const clipboardAvailable = await OutputUtils.isClipboardAvailable();
           if (clipboardAvailable) {
@@ -472,7 +499,7 @@ Security Profiles:
             console.log(OutputUtils.getClipboardInstallSuggestion());
           }
         }
-        
+
         const auditResult = await auditor.auditSecurity(config);
         process.exit(auditResult.overallPassed ? 0 : 1);
       }
@@ -488,7 +515,7 @@ Security Profiles:
       // Format report if needed
       let finalReport = report;
       let outputFilename = options.output;
-      
+
       if (options.format && options.format !== OutputFormat.CONSOLE) {
         const auditResult = await auditor.auditSecurity(config);
         const formattedOutput = OutputUtils.formatReport(report, options.format as OutputFormat, {
@@ -496,9 +523,9 @@ Security Profiles:
           timestamp: new Date().toISOString(),
           overallPassed: auditResult.overallPassed
         });
-        
+
         finalReport = formattedOutput.content;
-        
+
         // Use default filename if not specified
         if (!outputFilename && formattedOutput.filename) {
           outputFilename = formattedOutput.filename;
@@ -512,9 +539,9 @@ Security Profiles:
           distribution: platformInfo.distribution,
           configSource
         });
-        
+
         const hashShort = CryptoUtils.createShortHash(hashedReport.hash);
-        
+
         if (outputFilename) {
           // Save to file
           const outputPath = path.resolve(outputFilename);
@@ -529,9 +556,9 @@ Security Profiles:
           console.log(`${'='.repeat(80)}\n`);
           console.log(signedContent);
         }
-        
+
         if (options.clipboard) {
-          const clipboardContent = outputFilename ? 
+          const clipboardContent = outputFilename ?
             `Security audit completed. Hash: ${hashShort}. Verify: eai-security-check verify "${outputFilename}"` :
             `Security audit completed. Hash: ${hashShort}. Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`;
           const clipboardAvailable = await OutputUtils.isClipboardAvailable();
@@ -556,10 +583,10 @@ Security Profiles:
         if (options.clipboard) {
           const clipboardAvailable = await OutputUtils.isClipboardAvailable();
           if (clipboardAvailable) {
-            const clipboardContent = options.quiet ? 
-              OutputUtils.createSummaryLine(report) : 
+            const clipboardContent = options.quiet ?
+              OutputUtils.createSummaryLine(report) :
               OutputUtils.stripAnsiCodes(finalReport);
-            
+
             const success = await OutputUtils.copyToClipboard(clipboardContent);
             if (success) {
               console.log('📋 Report copied to clipboard');
@@ -645,7 +672,7 @@ Exit codes: 0 = verification passed, 1 = verification failed or file error
   .action(async (filepath, options) => {
     try {
       const resolvedPath = path.resolve(filepath);
-      
+
       if (!fs.existsSync(resolvedPath)) {
         console.error(`❌ File not found: ${resolvedPath}`);
         process.exit(1);
@@ -653,11 +680,11 @@ Exit codes: 0 = verification passed, 1 = verification failed or file error
 
       const { content, verification } = CryptoUtils.loadAndVerifyReport(resolvedPath);
       const signature = CryptoUtils.extractSignature(content);
-      
+
       if (verification.isValid) {
         console.log('✅ Report verification PASSED');
         console.log(`🔐 Hash: ${CryptoUtils.createShortHash(verification.originalHash)}`);
-        
+
         if (signature) {
           console.log(`📅 Generated: ${new Date(signature.timestamp).toLocaleString()}`);
           console.log(`💻 Platform: ${signature.metadata.platform}`);
@@ -666,17 +693,17 @@ Exit codes: 0 = verification passed, 1 = verification failed or file error
       } else {
         console.error('❌ Report verification FAILED');
         console.error(`⚠️  ${verification.message}`);
-        
+
         if (verification.originalHash && verification.calculatedHash) {
           console.error(`🔐 Expected: ${CryptoUtils.createShortHash(verification.originalHash)}`);
           console.error(`🔐 Actual: ${CryptoUtils.createShortHash(verification.calculatedHash)}`);
         }
       }
-      
+
       if (options.verbose) {
         console.log(CryptoUtils.createVerificationSummary(verification, signature));
       }
-      
+
       process.exit(verification.isValid ? 0 : 1);
     } catch (error) {
       console.error('❌ Error verifying report:', error);

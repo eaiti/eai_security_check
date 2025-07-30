@@ -269,12 +269,12 @@ export class SecurityAuditor {
     }
 
     // Check disk encryption (FileVault on macOS, LUKS on Linux)
-    if (config.filevault || config.diskEncryption) {
+    if (config.diskEncryption) {
       const encryptionEnabled = versionInfo.platform === Platform.MACOS ? 
         await (this.checker as MacOSSecurityChecker).checkFileVault() :
         await (this.checker as LinuxSecurityChecker).checkDiskEncryption();
       
-      const configEnabled = config.filevault?.enabled ?? config.diskEncryption?.enabled ?? false;
+      const configEnabled = config.diskEncryption?.enabled ?? false;
       const settingName = versionInfo.platform === Platform.MACOS ? 'FileVault' : 'Disk Encryption (LUKS)';
       const enabledMessage = versionInfo.platform === Platform.MACOS ? 
         'FileVault is enabled - disk encryption is active' :
@@ -362,12 +362,12 @@ export class SecurityAuditor {
     }
 
     // Check Gatekeeper/Package Verification (only if configured)
-    if (config.gatekeeper || config.packageVerification) {
+    if (config.packageVerification) {
       const verificationEnabled = versionInfo.platform === Platform.MACOS ? 
         await (this.checker as MacOSSecurityChecker).checkGatekeeper() :
         await (this.checker as LinuxSecurityChecker).checkPackageVerification();
       
-      const configEnabled = config.gatekeeper?.enabled ?? config.packageVerification?.enabled ?? false;
+      const configEnabled = config.packageVerification?.enabled ?? false;
       const settingName = versionInfo.platform === Platform.MACOS ? 'Gatekeeper' : 'Package Verification';
       const enabledMessage = versionInfo.platform === Platform.MACOS ? 
         'Gatekeeper is enabled - unsigned applications are blocked' :

@@ -1,8 +1,5 @@
 export interface SecurityConfig {
   // Disk encryption (FileVault on macOS, LUKS on Linux)
-  filevault?: {
-    enabled: boolean;
-  };
   diskEncryption?: {
     enabled: boolean;
   };
@@ -27,9 +24,6 @@ export interface SecurityConfig {
     stealthMode?: boolean;
   };
   // Code signing/package verification (Gatekeeper on macOS, package verification on Linux)
-  gatekeeper?: {
-    enabled: boolean;
-  };
   packageVerification?: {
     enabled: boolean;
   };
