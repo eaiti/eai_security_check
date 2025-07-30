@@ -43,7 +43,7 @@ describe('SchedulingService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFs.existsSync.mockReturnValue(true);
-    mockFs.readFileSync.mockImplementation((path) => {
+    mockFs.readFileSync.mockImplementation(path => {
       if (path.toString().includes('scheduling-config.json')) {
         return JSON.stringify(mockConfig);
       }
@@ -86,7 +86,7 @@ describe('SchedulingService', () => {
       const service = new SchedulingService();
       const stateWithNoReport = { ...mockState, lastReportSent: '' };
       mockFs.readFileSync.mockReturnValue(JSON.stringify(stateWithNoReport));
-      
+
       // Access private method through any type casting
       const shouldSend = (service as any).shouldSendReport(stateWithNoReport);
       expect(shouldSend).toBe(true);
@@ -96,12 +96,12 @@ describe('SchedulingService', () => {
       const service = new SchedulingService();
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 8); // 8 days ago
-      
-      const stateWithOldReport = { 
-        ...mockState, 
-        lastReportSent: oldDate.toISOString() 
+
+      const stateWithOldReport = {
+        ...mockState,
+        lastReportSent: oldDate.toISOString()
       };
-      
+
       const shouldSend = (service as any).shouldSendReport(stateWithOldReport);
       expect(shouldSend).toBe(true);
     });
@@ -110,12 +110,12 @@ describe('SchedulingService', () => {
       const service = new SchedulingService();
       const recentDate = new Date();
       recentDate.setDate(recentDate.getDate() - 3); // 3 days ago
-      
-      const stateWithRecentReport = { 
-        ...mockState, 
-        lastReportSent: recentDate.toISOString() 
+
+      const stateWithRecentReport = {
+        ...mockState,
+        lastReportSent: recentDate.toISOString()
       };
-      
+
       const shouldSend = (service as any).shouldSendReport(stateWithRecentReport);
       expect(shouldSend).toBe(false);
     });
