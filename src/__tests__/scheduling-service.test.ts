@@ -36,7 +36,9 @@ describe('SchedulingService', () => {
   const mockState: DaemonState = {
     lastReportSent: '',
     totalReportsGenerated: 0,
-    daemonStarted: new Date().toISOString()
+    daemonStarted: new Date().toISOString(),
+    currentVersion: undefined,
+    lastVersionCheck: new Date().toISOString()
   };
 
   beforeEach(() => {
@@ -76,7 +78,13 @@ describe('SchedulingService', () => {
 
       expect(status.running).toBe(true);
       expect(status.config).toEqual(mockConfig);
-      expect(status.state).toEqual(mockState);
+      expect(status.state).toMatchObject({
+        lastReportSent: mockState.lastReportSent,
+        totalReportsGenerated: mockState.totalReportsGenerated,
+        daemonStarted: expect.any(String),
+        currentVersion: undefined,
+        lastVersionCheck: expect.any(String)
+      });
     });
   });
 

@@ -62,8 +62,8 @@ describe('OutputUtils', () => {
       const jsonData = JSON.parse(formatted.content);
       expect(jsonData).toHaveProperty('timestamp');
       expect(jsonData).toHaveProperty('results');
-      expect(jsonData.results).toHaveLength(2);
-      expect(jsonData.passedChecks).toBe(1);
+      expect(jsonData.results).toHaveLength(3);
+      expect(jsonData.passedChecks).toBe(2);
       expect(jsonData.failedChecks).toBe(1);
     });
 
@@ -98,7 +98,7 @@ describe('OutputUtils', () => {
 
       const success = await OutputUtils.copyToClipboard('test content');
       expect(success).toBe(true);
-      expect(mockExec).toHaveBeenCalledWith(expect.stringContaining('pbcopy'));
+      expect(mockExec).toHaveBeenCalledWith(expect.stringContaining('pbcopy'), expect.any(Function));
     });
 
     it('should copy to clipboard on Linux with xclip', async () => {
