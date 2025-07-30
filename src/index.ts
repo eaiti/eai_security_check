@@ -526,6 +526,7 @@ program
   .command('daemon')
   .description('🔄 Run security checks on a schedule and send email reports')
   .option('-c, --config <path>', 'Path to scheduling configuration file', './scheduling-config.json')
+  .option('--security-config <path>', 'Path to security configuration file (overrides profile in schedule config)')
   .option('-s, --state <path>', 'Path to daemon state file', './daemon-state.json')
   .option('--init', 'Create a sample scheduling configuration file')
   .option('--status', 'Show current daemon status and exit')
@@ -540,6 +541,8 @@ program
 Examples:
   $ eai-security-check daemon                              # Start daemon with default config
   $ eai-security-check daemon -c my-schedule.json         # Use custom scheduling config
+  $ eai-security-check daemon --security-config strict.json # Use specific security config
+  $ eai-security-check daemon -c schedule.json --security-config eai.json # Use both configs
   $ eai-security-check daemon --init                      # Create sample scheduling config
   $ eai-security-check daemon --status                    # Check daemon status
   $ eai-security-check daemon --test-email                # Send test email
@@ -560,11 +563,16 @@ Daemon Features:
   - Graceful shutdown on SIGINT/SIGTERM
 
 Configuration:
-  The daemon uses a separate configuration file (scheduling-config.json) that includes:
-  - Email SMTP settings and recipients
-  - Check interval (in days)
-  - Security profile to use for checks
-  - Report format preferences
+  The daemon uses two types of configuration files:
+  1. Schedule Configuration (scheduling-config.json):
+     - Email SMTP settings and recipients
+     - Check interval (in days)
+     - Security profile or custom config path
+     - Report format preferences
+  2. Security Configuration (optional, overrides profile):
+     - Specific security requirements and settings
+     - Use --security-config to specify a custom security config file
+     - If not specified, uses profile from schedule config
 
 Service Setup:
   To run as a system service that restarts automatically:
@@ -628,7 +636,7 @@ Service Setup:
 
       // Handle restart option
       if (options.restart) {
-        const result = await SchedulingService.restartDaemon(options.config, options.state);
+        const result = await SchedulingService.restartDaemon(options.config, options.state, options.securityConfig);
         if (result.success) {
           console.log(`✅ ${result.message}`);
         } else {
@@ -673,7 +681,7 @@ Service Setup:
       }
 
       // Create scheduling service
-      const schedulingService = new SchedulingService(options.config, options.state);
+      const schedulingService = new SchedulingService(options.config, options.state, options.securityConfig);
 
       // Handle status option
       if (options.status) {

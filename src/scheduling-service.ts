@@ -18,10 +18,12 @@ export class SchedulingService {
   private isShuttingDown = false;
   private currentJob?: cron.ScheduledTask;
   private versionCheckInterval?: NodeJS.Timeout;
+  private securityConfigPath?: string;
 
-  constructor(configPath?: string, stateFilePath?: string) {
+  constructor(configPath?: string, stateFilePath?: string, securityConfigPath?: string) {
     this.stateFilePath = stateFilePath || path.resolve('./daemon-state.json');
     this.lockFilePath = path.resolve('./daemon.lock');
+    this.securityConfigPath = securityConfigPath;
     this.config = this.loadSchedulingConfig(configPath);
   }
 
@@ -125,8 +127,13 @@ export class SchedulingService {
    * Load security configuration for checks
    */
   private loadSecurityConfig(): SecurityConfig {
-    if (this.config.customConfigPath) {
-      // Use custom config file
+    // Priority: 1. Explicit security config path, 2. Custom config path from schedule config, 3. Profile
+    if (this.securityConfigPath) {
+      // Use explicit security config file from command line
+      const content = fs.readFileSync(this.securityConfigPath, 'utf-8');
+      return JSON.parse(content);
+    } else if (this.config.customConfigPath) {
+      // Use custom config file from schedule config
       const content = fs.readFileSync(this.config.customConfigPath, 'utf-8');
       return JSON.parse(content);
     } else {
@@ -567,7 +574,7 @@ export class SchedulingService {
   /**
    * Restart the daemon (stop current instance and start a new one)
    */
-  static async restartDaemon(configPath?: string, stateFilePath?: string): Promise<{ success: boolean; message: string }> {
+  static async restartDaemon(configPath?: string, stateFilePath?: string, securityConfigPath?: string): Promise<{ success: boolean; message: string }> {
     console.log('🔄 Restarting daemon...');
     
     // First, stop the current daemon
@@ -587,7 +594,7 @@ export class SchedulingService {
     try {
       // Start a new daemon instance
       console.log('🚀 Starting new daemon instance...');
-      const newService = new SchedulingService(configPath, stateFilePath);
+      const newService = new SchedulingService(configPath, stateFilePath, securityConfigPath);
       await newService.startDaemon();
       
       return {
