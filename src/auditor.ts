@@ -1,7 +1,9 @@
 import { MacOSSecurityChecker } from './security-checker';
 import { LegacyMacOSSecurityChecker } from './legacy-security-checker';
+import { LinuxSecurityChecker } from './linux-security-checker';
 import { SecurityConfig, SecurityCheckResult, SecurityReport } from './types';
 import { validatePasswordConfiguration } from './password-utils';
+import { PlatformDetector, Platform, PlatformInfo } from './platform-detector';
 
 export interface VersionCompatibilityInfo {
   currentVersion: string;
@@ -9,27 +11,57 @@ export interface VersionCompatibilityInfo {
   isApproved: boolean;
   warningMessage?: string;
   isLegacy: boolean;
+  platform: Platform;
+  distribution?: string;
 }
 
 export class SecurityAuditor {
-  private checker: MacOSSecurityChecker;
+  private checker: MacOSSecurityChecker | LinuxSecurityChecker;
   private versionInfo: VersionCompatibilityInfo | null = null;
   private initialPassword?: string;
+  private platformInfo: PlatformInfo | null = null;
 
   constructor(password?: string) {
     this.initialPassword = password;
+    // Default to macOS checker, will be updated in checkVersionCompatibility
     this.checker = new MacOSSecurityChecker(password);
   }
 
   /**
-   * Check macOS version compatibility and return version information
+   * Check version compatibility for the current platform
    */
   async checkVersionCompatibility(): Promise<VersionCompatibilityInfo> {
     if (this.versionInfo) {
       return this.versionInfo;
     }
 
-    const currentVersion = await this.checker.getCurrentMacOSVersion();
+    // Detect platform first
+    this.platformInfo = await PlatformDetector.detectPlatform();
+    
+    if (this.platformInfo.platform === Platform.MACOS) {
+      return await this.checkMacOSCompatibility();
+    } else if (this.platformInfo.platform === Platform.LINUX) {
+      return await this.checkLinuxCompatibility();
+    } else {
+      // Unsupported platform
+      this.versionInfo = {
+        currentVersion: 'unknown',
+        isSupported: false,
+        isApproved: false,
+        warningMessage: this.platformInfo.warningMessage,
+        isLegacy: false,
+        platform: Platform.UNSUPPORTED,
+        distribution: this.platformInfo.distribution
+      };
+      return this.versionInfo;
+    }
+  }
+
+  /**
+   * Check macOS version compatibility
+   */
+  private async checkMacOSCompatibility(): Promise<VersionCompatibilityInfo> {
+    const currentVersion = await (this.checker as MacOSSecurityChecker).getCurrentMacOSVersion();
     
     // Approved versions that have been tested
     const approvedVersions = ['15.5', '15.6'];
@@ -54,13 +86,52 @@ export class SecurityAuditor {
       isSupported,
       isApproved,
       warningMessage,
-      isLegacy
+      isLegacy,
+      platform: Platform.MACOS
     };
 
     // Switch to legacy checker if needed
     if (isLegacy) {
       this.checker = new LegacyMacOSSecurityChecker(this.initialPassword);
     }
+
+    return this.versionInfo;
+  }
+
+  /**
+   * Check Linux version compatibility
+   */
+  private async checkLinuxCompatibility(): Promise<VersionCompatibilityInfo> {
+    // Switch to Linux checker
+    this.checker = new LinuxSecurityChecker(this.initialPassword);
+    
+    const currentVersion = await (this.checker as LinuxSecurityChecker).getCurrentLinuxVersion();
+    const distribution = await (this.checker as LinuxSecurityChecker).getCurrentLinuxDistribution();
+    
+    // Supported distributions
+    const supportedDistributions = ['fedora', 'ubuntu', 'debian', 'centos', 'rhel'];
+    const isSupported = supportedDistributions.includes(distribution.toLowerCase());
+    
+    // Primary support is for Fedora
+    const isApproved = distribution.toLowerCase() === 'fedora';
+    
+    let warningMessage: string | undefined;
+    
+    if (!isSupported) {
+      warningMessage = `⚠️  Linux distribution '${distribution}' is not officially supported. Supported: ${supportedDistributions.join(', ')}. Security checks may not work correctly.`;
+    } else if (!isApproved) {
+      warningMessage = `⚠️  Linux distribution '${distribution}' has limited testing. Primary support is for Fedora. Some checks may not work correctly.`;
+    }
+
+    this.versionInfo = {
+      currentVersion,
+      isSupported,
+      isApproved,
+      warningMessage,
+      isLegacy: false, // Linux doesn't have legacy versions in our context
+      platform: Platform.LINUX,
+      distribution
+    };
 
     return this.versionInfo;
   }
@@ -108,10 +179,27 @@ export class SecurityAuditor {
 
     // Add version compatibility result if there are warnings
     if (versionInfo.warningMessage) {
+      const platformName = versionInfo.platform === Platform.MACOS ? 'macOS' : 
+                          versionInfo.platform === Platform.LINUX ? 'Linux' : 'Platform';
+      const compatibilityName = `${platformName} Version Compatibility`;
+      
+      let expectedText = '';
+      if (versionInfo.platform === Platform.MACOS) {
+        expectedText = versionInfo.isLegacy ? '≥ 15.0 (for full functionality)' : 'Tested version (15.5 or 15.6)';
+      } else if (versionInfo.platform === Platform.LINUX) {
+        expectedText = 'Supported distribution (Fedora recommended)';
+      } else {
+        expectedText = 'Supported platform';
+      }
+      
+      const actualText = versionInfo.distribution ? 
+        `${versionInfo.distribution} ${versionInfo.currentVersion}` : 
+        versionInfo.currentVersion;
+      
       results.push({
-        setting: 'macOS Version Compatibility',
-        expected: versionInfo.isLegacy ? '≥ 15.0 (for full functionality)' : 'Tested version (15.5 or 15.6)',
-        actual: versionInfo.currentVersion,
+        setting: compatibilityName,
+        expected: expectedText,
+        actual: actualText,
         passed: versionInfo.isApproved,
         message: versionInfo.warningMessage
       });
@@ -119,7 +207,13 @@ export class SecurityAuditor {
 
     // Check password configuration (only if configured)
     if (config.password) {
-      const currentPassword = this.checker.getPassword();
+      let currentPassword: string | undefined;
+      
+      // Only get password from macOS checker (Linux checker doesn't have this method)
+      if (versionInfo.platform === Platform.MACOS) {
+        currentPassword = (this.checker as MacOSSecurityChecker).getPassword();
+      }
+      
       const passwordValidation = await validatePasswordConfiguration(currentPassword, config.password);
       
       // Generate description of requirements
@@ -174,17 +268,27 @@ export class SecurityAuditor {
       });
     }
 
-    // Check FileVault (only if configured)
-    if (config.filevault) {
-      const fileVaultEnabled = await this.checker.checkFileVault();
+    // Check disk encryption (FileVault on macOS, LUKS on Linux)
+    if (config.filevault || config.diskEncryption) {
+      const encryptionEnabled = versionInfo.platform === Platform.MACOS ? 
+        await (this.checker as MacOSSecurityChecker).checkFileVault() :
+        await (this.checker as LinuxSecurityChecker).checkDiskEncryption();
+      
+      const configEnabled = config.filevault?.enabled ?? config.diskEncryption?.enabled ?? false;
+      const settingName = versionInfo.platform === Platform.MACOS ? 'FileVault' : 'Disk Encryption (LUKS)';
+      const enabledMessage = versionInfo.platform === Platform.MACOS ? 
+        'FileVault is enabled - disk encryption is active' :
+        'Disk encryption is enabled - LUKS encryption is active';
+      const disabledMessage = versionInfo.platform === Platform.MACOS ? 
+        'FileVault is disabled - disk is not encrypted' :
+        'Disk encryption is disabled - disk is not encrypted';
+      
       results.push({
-        setting: 'FileVault',
-        expected: config.filevault.enabled,
-        actual: fileVaultEnabled,
-        passed: fileVaultEnabled === config.filevault.enabled,
-        message: fileVaultEnabled
-          ? 'FileVault is enabled - disk encryption is active'
-          : 'FileVault is disabled - disk is not encrypted'
+        setting: settingName,
+        expected: configEnabled,
+        actual: encryptionEnabled,
+        passed: encryptionEnabled === configEnabled,
+        message: encryptionEnabled ? enabledMessage : disabledMessage
       });
     }
 
@@ -257,31 +361,48 @@ export class SecurityAuditor {
       }
     }
 
-    // Check Gatekeeper (only if configured)
-    if (config.gatekeeper) {
-      const gatekeeperEnabled = await this.checker.checkGatekeeper();
+    // Check Gatekeeper/Package Verification (only if configured)
+    if (config.gatekeeper || config.packageVerification) {
+      const verificationEnabled = versionInfo.platform === Platform.MACOS ? 
+        await (this.checker as MacOSSecurityChecker).checkGatekeeper() :
+        await (this.checker as LinuxSecurityChecker).checkPackageVerification();
+      
+      const configEnabled = config.gatekeeper?.enabled ?? config.packageVerification?.enabled ?? false;
+      const settingName = versionInfo.platform === Platform.MACOS ? 'Gatekeeper' : 'Package Verification';
+      const enabledMessage = versionInfo.platform === Platform.MACOS ? 
+        'Gatekeeper is enabled - unsigned applications are blocked' :
+        'Package verification is enabled - unsigned packages are blocked';
+      const disabledMessage = versionInfo.platform === Platform.MACOS ? 
+        'Gatekeeper is disabled - unsigned applications can run' :
+        'Package verification is disabled - unsigned packages can be installed';
+      
       results.push({
-        setting: 'Gatekeeper',
-        expected: config.gatekeeper.enabled,
-        actual: gatekeeperEnabled,
-        passed: gatekeeperEnabled === config.gatekeeper.enabled,
-        message: gatekeeperEnabled
-          ? 'Gatekeeper is enabled - unsigned applications are blocked'
-          : 'Gatekeeper is disabled - unsigned applications can run'
+        setting: settingName,
+        expected: configEnabled,
+        actual: verificationEnabled,
+        passed: verificationEnabled === configEnabled,
+        message: verificationEnabled ? enabledMessage : disabledMessage
       });
     }
 
     // Check System Integrity Protection (only if configured)
     if (config.systemIntegrityProtection) {
       const sipEnabled = await this.checker.checkSystemIntegrityProtection();
+      const settingName = versionInfo.platform === Platform.MACOS ? 
+        'System Integrity Protection' : 'System Integrity Protection (SELinux/AppArmor)';
+      const enabledMessage = versionInfo.platform === Platform.MACOS ? 
+        'SIP is enabled - system files are protected' :
+        'System integrity protection is enabled (SELinux/AppArmor)';
+      const disabledMessage = versionInfo.platform === Platform.MACOS ? 
+        'SIP is disabled - system files are vulnerable' :
+        'System integrity protection is disabled';
+      
       results.push({
-        setting: 'System Integrity Protection',
+        setting: settingName,
         expected: config.systemIntegrityProtection.enabled,
         actual: sipEnabled,
         passed: sipEnabled === config.systemIntegrityProtection.enabled,
-        message: sipEnabled
-          ? 'SIP is enabled - system files are protected'
-          : 'SIP is disabled - system files are vulnerable'
+        message: sipEnabled ? enabledMessage : disabledMessage
       });
     }
 
@@ -331,13 +452,26 @@ export class SecurityAuditor {
       // Check specific update mode if granular settings are provided
       if (config.automaticUpdates.downloadOnly !== undefined) {
         const downloadOnlyExpected = config.automaticUpdates.downloadOnly;
-        const downloadOnlyActual = updateInfo.updateMode === 'download-only';
+        
+        let downloadOnlyActual = false;
+        let actualModeText = '';
+        
+        if (versionInfo.platform === Platform.MACOS) {
+          const macUpdateInfo = updateInfo as any; // Type assertion for macOS-specific fields
+          downloadOnlyActual = macUpdateInfo.updateMode === 'download-only';
+          actualModeText = macUpdateInfo.updateMode;
+        } else {
+          const linuxUpdateInfo = updateInfo as any; // Type assertion for Linux-specific fields
+          downloadOnlyActual = linuxUpdateInfo.downloadOnly || false;
+          actualModeText = linuxUpdateInfo.downloadOnly ? 'download-only' : (linuxUpdateInfo.automaticInstall ? 'fully-automatic' : 'disabled');
+        }
+        
         results.push({
           setting: 'Automatic Update Mode',
           expected: downloadOnlyExpected ? 'download-only' : 'fully-automatic or disabled',
-          actual: updateInfo.updateMode,
+          actual: actualModeText,
           passed: downloadOnlyExpected === downloadOnlyActual,
-          message: `Update mode is "${updateInfo.updateMode}" - ${this.getUpdateModeDescription(updateInfo.updateMode)}`
+          message: `Update mode is "${actualModeText}" - ${this.getUpdateModeDescription(actualModeText)}`
         });
       } else if (config.automaticUpdates.automaticInstall !== undefined) {
         const automaticInstallExpected = config.automaticUpdates.automaticInstall;
@@ -353,12 +487,25 @@ export class SecurityAuditor {
         });
       } else {
         // Provide general update mode information when no specific settings are configured
+        let actualModeText = '';
+        let modePassed = false;
+        
+        if (versionInfo.platform === Platform.MACOS) {
+          const macUpdateInfo = updateInfo as any; // Type assertion for macOS-specific fields
+          actualModeText = macUpdateInfo.updateMode;
+          modePassed = macUpdateInfo.updateMode !== 'disabled' && macUpdateInfo.updateMode !== 'check-only';
+        } else {
+          const linuxUpdateInfo = updateInfo as any; // Type assertion for Linux-specific fields
+          actualModeText = linuxUpdateInfo.downloadOnly ? 'download-only' : (linuxUpdateInfo.automaticInstall ? 'fully-automatic' : 'disabled');
+          modePassed = linuxUpdateInfo.downloadOnly || linuxUpdateInfo.automaticInstall;
+        }
+        
         results.push({
           setting: 'Automatic Update Mode',
           expected: 'At least download-only or fully-automatic',
-          actual: updateInfo.updateMode,
-          passed: updateInfo.updateMode !== 'disabled' && updateInfo.updateMode !== 'check-only',
-          message: `Update mode is "${updateInfo.updateMode}" - ${this.getUpdateModeDescription(updateInfo.updateMode)}`
+          actual: actualModeText,
+          passed: modePassed,
+          message: `Update mode is "${actualModeText}" - ${this.getUpdateModeDescription(actualModeText)}`
         });
       }
 
@@ -415,9 +562,10 @@ export class SecurityAuditor {
       }
     }
 
-    // Check OS Version (only if configured)
-    if (config.osVersion) {
-      const versionInfo = await this.checker.checkOSVersion(config.osVersion.targetVersion);
+    // Check OS Version (only if configured and supported on platform)
+    if (config.osVersion && versionInfo.platform === Platform.MACOS) {
+      const macChecker = this.checker as MacOSSecurityChecker;
+      const versionInfo = await macChecker.checkOSVersion(config.osVersion.targetVersion);
       const expectedMessage = versionInfo.isLatest ? 'latest macOS version' : `≥ ${versionInfo.target}`;
       
       results.push({
@@ -431,9 +579,10 @@ export class SecurityAuditor {
       });
     }
 
-    // Check WiFi Network Security (only if configured)
-    if (config.wifiSecurity) {
-      const wifiInfo = await this.checker.checkCurrentWifiNetwork();
+    // Check WiFi Network Security (only if configured and supported on platform)
+    if (config.wifiSecurity && versionInfo.platform === Platform.MACOS) {
+      const macChecker = this.checker as MacOSSecurityChecker;
+      const wifiInfo = await macChecker.checkCurrentWifiNetwork();
       const bannedNetworks = config.wifiSecurity.bannedNetworks || [];
       
       if (wifiInfo.connected && wifiInfo.networkName) {
@@ -472,13 +621,14 @@ export class SecurityAuditor {
       }
     }
 
-    // Check Installed Applications (only if configured)
-    if (config.installedApps) {
-      const appInfo = await this.checker.checkInstalledApplications();
+    // Check Installed Applications (only if configured and supported on platform)
+    if (config.installedApps && versionInfo.platform === Platform.MACOS) {
+      const macChecker = this.checker as MacOSSecurityChecker;
+      const appInfo = await macChecker.checkInstalledApplications();
       const bannedApps = config.installedApps.bannedApplications || [];
       
       // Find any banned apps that are currently installed
-      const bannedAppsFound = appInfo.installedApps.filter(app => 
+      const bannedAppsFound = appInfo.installedApps.filter((app: any) => 
         bannedApps.some(banned => 
           app.toLowerCase().includes(banned.toLowerCase()) || 
           banned.toLowerCase().includes(app.toLowerCase())
@@ -523,20 +673,39 @@ export class SecurityAuditor {
   }
 
   async generateReport(config: SecurityConfig): Promise<string> {
-    const systemInfo = await this.checker.getSystemInfo();
     const versionInfo = await this.checkVersionCompatibility();
     const report = await this.auditSecurity(config);
-    const explanations = this.checker.getSecurityExplanations();
+    
+    // Get system info and explanations (macOS only)
+    let systemInfo = null;
+    let explanations = null;
+    
+    if (versionInfo.platform === Platform.MACOS) {
+      const macChecker = this.checker as MacOSSecurityChecker;
+      systemInfo = await macChecker.getSystemInfo();
+      explanations = macChecker.getSecurityExplanations();
+    }
 
-    let output = `\n🔒 macOS Security Audit Report\n`;
+    const platformName = versionInfo.platform === Platform.MACOS ? 'macOS' : 'Linux';
+    let output = `\n🔒 ${platformName} Security Audit Report\n`;
     output += `📅 Generated: ${new Date(report.timestamp).toLocaleString()}\n`;
-    output += `💻 System: ${systemInfo}\n`;
+    
+    if (systemInfo) {
+      output += `💻 System: ${systemInfo}\n`;
+    } else {
+      // Generic system info for Linux
+      const distribution = versionInfo.distribution || 'Unknown';
+      output += `💻 System: ${distribution} ${versionInfo.currentVersion}\n`;
+    }
     
     // Add version compatibility information
     if (versionInfo.warningMessage) {
       output += `⚠️  Version Status: ${versionInfo.warningMessage}\n`;
     } else {
-      output += `✅ Version Status: macOS ${versionInfo.currentVersion} is fully supported\n`;
+      const systemText = versionInfo.platform === Platform.MACOS ? 
+        `macOS ${versionInfo.currentVersion}` : 
+        `${versionInfo.distribution} ${versionInfo.currentVersion}`;
+      output += `✅ Version Status: ${systemText} is fully supported\n`;
     }
     
     output += `✅ Overall Status: ${report.overallPassed ? 'PASSED' : 'FAILED'}\n\n`;
@@ -557,7 +726,7 @@ export class SecurityAuditor {
 
     for (const result of report.results) {
       const status = result.passed ? '✅ PASS' : '❌ FAIL';
-      const explanation = explanations[result.setting];
+      const explanation = explanations ? explanations[result.setting] : null;
 
       output += `\n${status} ${result.setting}`;
       if (explanation) {
@@ -579,20 +748,25 @@ export class SecurityAuditor {
       output += `The checks marked as FAIL indicate potential security vulnerabilities.\n`;
       output += `Review the security advice above and adjust your system settings accordingly.\n`;
 
-      // Group failed checks by risk level
+      // Group failed checks by risk level (only if explanations are available)
       const failedChecks = report.results.filter(r => !r.passed);
-      const highRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'High');
-      const mediumRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'Medium');
-      const lowRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'Low');
+      
+      if (explanations) {
+        const highRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'High');
+        const mediumRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'Medium');
+        const lowRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'Low');
 
-      if (highRisk.length > 0) {
-        output += `\n🚨 HIGH PRIORITY: ${highRisk.map(r => r.setting).join(', ')}\n`;
-      }
-      if (mediumRisk.length > 0) {
-        output += `⚠️  MEDIUM PRIORITY: ${mediumRisk.map(r => r.setting).join(', ')}\n`;
-      }
-      if (lowRisk.length > 0) {
-        output += `📋 LOW PRIORITY: ${lowRisk.map(r => r.setting).join(', ')}\n`;
+        if (highRisk.length > 0) {
+          output += `\n🚨 HIGH PRIORITY: ${highRisk.map(r => r.setting).join(', ')}\n`;
+        }
+        if (mediumRisk.length > 0) {
+          output += `⚠️  MEDIUM PRIORITY: ${mediumRisk.map(r => r.setting).join(', ')}\n`;
+        }
+        if (lowRisk.length > 0) {
+          output += `📋 LOW PRIORITY: ${lowRisk.map(r => r.setting).join(', ')}\n`;
+        }
+      } else if (failedChecks.length > 0) {
+        output += `\n❌ FAILED CHECKS: ${failedChecks.map(r => r.setting).join(', ')}\n`;
       }
     } else {
       output += `\n🎉 All security checks passed!\n`;
@@ -604,41 +778,68 @@ export class SecurityAuditor {
   }
 
   async generateQuietReport(config: SecurityConfig): Promise<string> {
-    const systemInfo = await this.checker.getSystemInfo();
     const versionInfo = await this.checkVersionCompatibility();
     const report = await this.auditSecurity(config);
 
-    let output = `🔒 macOS Security Audit Summary\n`;
+    // Get system info (macOS only)
+    let systemInfo = null;
+    let explanations = null;
+    
+    if (versionInfo.platform === Platform.MACOS) {
+      const macChecker = this.checker as MacOSSecurityChecker;
+      systemInfo = await macChecker.getSystemInfo();
+      explanations = macChecker.getSecurityExplanations();
+    }
+
+    const platformName = versionInfo.platform === Platform.MACOS ? 'macOS' : 'Linux';
+    let output = `🔒 ${platformName} Security Audit Summary\n`;
     output += `📅 ${new Date(report.timestamp).toLocaleString()}\n`;
-    output += `💻 ${systemInfo}\n`;
+    
+    if (systemInfo) {
+      output += `💻 ${systemInfo}\n`;
+    } else {
+      const distribution = versionInfo.distribution || 'Unknown';
+      output += `💻 ${distribution} ${versionInfo.currentVersion}\n`;
+    }
     
     // Add version compatibility status
     if (versionInfo.isLegacy) {
       output += `⚠️  Version: ${versionInfo.currentVersion} (legacy - checks not supported)\n`;
     } else if (!versionInfo.isApproved) {
-      output += `⚠️  Version: ${versionInfo.currentVersion} (untested - may have false positives/negatives)\n`;
+      const systemText = versionInfo.platform === Platform.MACOS ? 
+        versionInfo.currentVersion : 
+        `${versionInfo.distribution} ${versionInfo.currentVersion}`;
+      output += `⚠️  Version: ${systemText} (untested - may have false positives/negatives)\n`;
     } else {
-      output += `✅ Version: ${versionInfo.currentVersion} (fully supported)\n`;
+      const systemText = versionInfo.platform === Platform.MACOS ? 
+        versionInfo.currentVersion : 
+        `${versionInfo.distribution} ${versionInfo.currentVersion}`;
+      output += `✅ Version: ${systemText} (fully supported)\n`;
     }
     
     output += `${report.overallPassed ? '✅ PASSED' : '❌ FAILED'} - ${report.results.filter(r => r.passed).length}/${report.results.length} checks passed\n`;
 
     if (!report.overallPassed) {
-      const explanations = this.checker.getSecurityExplanations();
       const failedChecks = report.results.filter(r => !r.passed);
-      const highRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'High');
-      const mediumRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'Medium');
-      const lowRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'Low');
-
+      
       output += `\n🚨 Failed Checks:\n`;
-      if (highRisk.length > 0) {
-        output += `   HIGH (${highRisk.length}): ${highRisk.map(r => r.setting).join(', ')}\n`;
-      }
-      if (mediumRisk.length > 0) {
-        output += `   MEDIUM (${mediumRisk.length}): ${mediumRisk.map(r => r.setting).join(', ')}\n`;
-      }
-      if (lowRisk.length > 0) {
-        output += `   LOW (${lowRisk.length}): ${lowRisk.map(r => r.setting).join(', ')}\n`;
+      
+      if (explanations) {
+        const highRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'High');
+        const mediumRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'Medium');
+        const lowRisk = failedChecks.filter(r => explanations[r.setting]?.riskLevel === 'Low');
+
+        if (highRisk.length > 0) {
+          output += `   HIGH (${highRisk.length}): ${highRisk.map(r => r.setting).join(', ')}\n`;
+        }
+        if (mediumRisk.length > 0) {
+          output += `   MEDIUM (${mediumRisk.length}): ${mediumRisk.map(r => r.setting).join(', ')}\n`;
+        }
+        if (lowRisk.length > 0) {
+          output += `   LOW (${lowRisk.length}): ${lowRisk.map(r => r.setting).join(', ')}\n`;
+        }
+      } else {
+        output += `   ${failedChecks.map(r => r.setting).join(', ')}\n`;
       }
       output += `\n💡 Run without --quiet for detailed recommendations\n`;
     }

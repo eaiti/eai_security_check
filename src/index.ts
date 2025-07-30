@@ -5,6 +5,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SecurityAuditor } from './auditor';
 import { SecurityConfig } from './types';
+import { OutputUtils, OutputFormat } from './output-utils';
+import { CryptoUtils } from './crypto-utils';
+import { PlatformDetector, Platform } from './platform-detector';
 
 /**
  * Determines if password is needed based on configuration
@@ -22,7 +25,7 @@ function requiresPassword(config: SecurityConfig): boolean {
 function getConfigByProfile(profile: string): SecurityConfig {
   const baseConfig = {
     filevault: { enabled: true },
-    gatekeeper: { enabled: true },
+    packageVerification: { enabled: true },
     systemIntegrityProtection: { enabled: true }
   };
 
@@ -129,7 +132,7 @@ function getConfigByProfile(profile: string): SecurityConfig {
 
     case 'eai':
       return {
-        filevault: { enabled: true },
+        diskEncryption: { enabled: true },
         passwordProtection: {
           enabled: true,
           requirePasswordImmediately: true
@@ -297,18 +300,44 @@ program
   .option('-o, --output <path>', 'Path to output report file (optional)')
   .option('-q, --quiet', 'Only show summary, suppress detailed output')
   .option('--password <password>', 'Administrator password for sudo commands (if not provided, will prompt when needed)')
+  .option('--clipboard', 'Copy report summary to clipboard')
+  .option('--format <type>', 'Output format: console, plain, markdown, json, email', 'console')
+  .option('--hash', 'Generate cryptographic hash for tamper detection')
+  .option('--summary', 'Generate a summary line for quick sharing')
   .addHelpText('after', `
 Examples:
-  $ eai-security-check check                    # Use default config
-  $ eai-security-check check default           # Use default profile
-  $ eai-security-check check strict            # Use strict profile
-  $ eai-security-check check relaxed           # Use relaxed profile
-  $ eai-security-check check developer         # Use developer profile
-  $ eai-security-check check eai               # Use EAI profile (10+ char passwords)
-  $ eai-security-check check -c my-config.json # Use custom config file
-  $ eai-security-check check -o report.txt     # Save report to file
-  $ eai-security-check check -q                # Quiet mode (summary only)
-  $ eai-security-check check --password mypass # Provide password directly
+  $ eai-security-check check                        # Use default config
+  $ eai-security-check check default               # Use default profile
+  $ eai-security-check check strict                # Use strict profile
+  $ eai-security-check check relaxed               # Use relaxed profile
+  $ eai-security-check check developer             # Use developer profile
+  $ eai-security-check check eai                   # Use EAI profile (10+ char passwords)
+  $ eai-security-check check -c my-config.json     # Use custom config file
+  $ eai-security-check check -o ~/Documents/report.txt  # Save report to Documents folder
+  $ eai-security-check check -q                    # Quiet mode (summary only)
+  $ eai-security-check check --password mypass     # Provide admin password directly
+  $ eai-security-check check --clipboard           # Copy summary to clipboard
+  $ eai-security-check check --format markdown     # Markdown format output
+  $ eai-security-check check --hash -o report.txt  # Generate tamper-evident report file
+  $ eai-security-check check --hash --format json  # Generate tamper-evident JSON to console
+  $ eai-security-check check --summary             # Just show summary line
+
+Password Input:
+  --password    - Provide admin/sudo password directly (avoid interactive prompt)
+  Interactive   - If password needed, will prompt: "Enter your macOS/sudo password:"
+  Platform      - macOS users enter their user password, Linux users enter sudo password
+
+Output Formats (all support --hash for tamper detection):
+  console     - Colorized console output (default)
+  plain       - Plain text without colors
+  markdown    - Markdown format for documentation
+  json        - Structured JSON format
+  email       - Email-friendly format with headers
+
+Tamper Detection:
+  --hash        - Generate cryptographic signature for report integrity
+  Available in all formats (console, file, markdown, json, email)
+  Verify with:  eai-security-check verify <filename>
 
 Security Profiles:
   default     - Recommended security settings (7-min auto-lock)
@@ -366,7 +395,14 @@ Security Profiles:
         }
       }
 
-      // Prompt for password if needed for sudo operations
+      // Check platform compatibility first
+      const platformInfo = await PlatformDetector.detectPlatform();
+      if (!platformInfo.isSupported) {
+        console.error(platformInfo.warningMessage);
+        process.exit(1);
+      }
+
+      // Prompt for password if needed for sudo operations (platform-aware)
       let password: string | undefined;
       
       if (requiresPassword(config)) {
@@ -382,9 +418,12 @@ Security Profiles:
             console.log('🔐 Some security checks require administrator privileges.');
           }
           try {
-            // Simple password prompt without validation (validation happens in audit)
+            // Platform-aware password prompt
             const { promptForPassword } = await import('./password-utils');
-            password = await promptForPassword('🔐 Enter your macOS password: ');
+            const promptText = platformInfo.platform === Platform.MACOS ? 
+              '🔐 Enter your macOS password: ' : 
+              '🔐 Enter your sudo password: ';
+            password = await promptForPassword(promptText);
             if (!options.quiet) {
               console.log('✅ Password collected.\n');
             }
@@ -410,17 +449,128 @@ Security Profiles:
       }
 
       // Run audit
-      const report = options.quiet
+      let report = options.quiet
         ? await auditor.generateQuietReport(config)
         : await auditor.generateReport(config);
 
-      // Output report
-      if (options.output) {
-        const outputPath = path.resolve(options.output);
-        fs.writeFileSync(outputPath, report);
-        console.log(`📄 Report saved to: ${outputPath}`);
+      // Handle summary-only option
+      if (options.summary) {
+        const summaryLine = OutputUtils.createSummaryLine(report);
+        console.log(summaryLine);
+        
+        if (options.clipboard) {
+          const clipboardAvailable = await OutputUtils.isClipboardAvailable();
+          if (clipboardAvailable) {
+            const success = await OutputUtils.copyToClipboard(summaryLine);
+            if (success) {
+              console.log('📋 Summary copied to clipboard');
+            } else {
+              console.error('❌ Failed to copy to clipboard');
+            }
+          } else {
+            console.error('❌ Clipboard not available');
+            console.log(OutputUtils.getClipboardInstallSuggestion());
+          }
+        }
+        
+        const auditResult = await auditor.auditSecurity(config);
+        process.exit(auditResult.overallPassed ? 0 : 1);
+      }
+
+      // Validate output format
+      const validFormats = Object.values(OutputFormat);
+      if (options.format && !validFormats.includes(options.format)) {
+        console.error(`❌ Invalid format: ${options.format}`);
+        console.log(`💡 Valid formats: ${validFormats.join(', ')}`);
+        process.exit(1);
+      }
+
+      // Format report if needed
+      let finalReport = report;
+      let outputFilename = options.output;
+      
+      if (options.format && options.format !== OutputFormat.CONSOLE) {
+        const auditResult = await auditor.auditSecurity(config);
+        const formattedOutput = OutputUtils.formatReport(report, options.format as OutputFormat, {
+          platform: platformInfo.platform,
+          timestamp: new Date().toISOString(),
+          overallPassed: auditResult.overallPassed
+        });
+        
+        finalReport = formattedOutput.content;
+        
+        // Use default filename if not specified
+        if (!outputFilename && formattedOutput.filename) {
+          outputFilename = formattedOutput.filename;
+        }
+      }
+
+      // Handle hashing if requested
+      if (options.hash) {
+        const { signedContent, hashedReport } = CryptoUtils.createTamperEvidentReport(finalReport, {
+          platform: platformInfo.platform,
+          distribution: platformInfo.distribution,
+          configSource
+        });
+        
+        const hashShort = CryptoUtils.createShortHash(hashedReport.hash);
+        
+        if (outputFilename) {
+          // Save to file
+          const outputPath = path.resolve(outputFilename);
+          fs.writeFileSync(outputPath, signedContent);
+          console.log(`📄 Tamper-evident report saved to: ${outputPath}`);
+          console.log(`🔐 Report hash: ${hashShort}`);
+          console.log(`🔍 Verify with: eai-security-check verify "${outputFilename}"`);
+        } else {
+          // Output to console with hash header
+          console.log(`\n🔒 TAMPER-EVIDENT SECURITY REPORT`);
+          console.log(`🔐 Hash: ${hashShort} | Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`);
+          console.log(`${'='.repeat(80)}\n`);
+          console.log(signedContent);
+        }
+        
+        if (options.clipboard) {
+          const clipboardContent = outputFilename ? 
+            `Security audit completed. Hash: ${hashShort}. Verify: eai-security-check verify "${outputFilename}"` :
+            `Security audit completed. Hash: ${hashShort}. Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`;
+          const clipboardAvailable = await OutputUtils.isClipboardAvailable();
+          if (clipboardAvailable) {
+            const success = await OutputUtils.copyToClipboard(clipboardContent);
+            if (success) {
+              console.log('📋 Verification info copied to clipboard');
+            }
+          }
+        }
       } else {
-        console.log(report);
+        // Handle regular output
+        if (outputFilename) {
+          const outputPath = path.resolve(outputFilename);
+          fs.writeFileSync(outputPath, finalReport);
+          console.log(`📄 Report saved to: ${outputPath}`);
+        } else {
+          console.log(finalReport);
+        }
+
+        // Handle clipboard for regular reports
+        if (options.clipboard) {
+          const clipboardAvailable = await OutputUtils.isClipboardAvailable();
+          if (clipboardAvailable) {
+            const clipboardContent = options.quiet ? 
+              OutputUtils.createSummaryLine(report) : 
+              OutputUtils.stripAnsiCodes(finalReport);
+            
+            const success = await OutputUtils.copyToClipboard(clipboardContent);
+            if (success) {
+              console.log('📋 Report copied to clipboard');
+            } else {
+              console.error('❌ Failed to copy to clipboard');
+            }
+          } else {
+            console.error('❌ Clipboard not available');
+            console.log(OutputUtils.getClipboardInstallSuggestion());
+          }
+        }
       }
 
       // Exit with error code if audit failed
@@ -470,6 +620,66 @@ Security Profiles:
 
     } catch (error) {
       console.error('❌ Error creating configuration file:', error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('verify')
+  .description('🔍 Verify the integrity of a tamper-evident security report')
+  .argument('<file>', 'Path to the signed report file to verify')
+  .option('--verbose', 'Show detailed verification information')
+  .addHelpText('after', `
+Examples:
+  $ eai-security-check verify security-report.txt     # Verify report integrity
+  $ eai-security-check verify --verbose report.txt    # Show detailed verification info
+  $ eai-security-check verify report.json             # Works with all formats (JSON, markdown, etc.)
+
+This command verifies that a report has not been tampered with by checking
+its cryptographic signature. Reports generated with --hash option include
+verification signatures.
+
+Supported formats: All output formats support verification (plain, markdown, json, email)
+Exit codes: 0 = verification passed, 1 = verification failed or file error
+`)
+  .action(async (filepath, options) => {
+    try {
+      const resolvedPath = path.resolve(filepath);
+      
+      if (!fs.existsSync(resolvedPath)) {
+        console.error(`❌ File not found: ${resolvedPath}`);
+        process.exit(1);
+      }
+
+      const { content, verification } = CryptoUtils.loadAndVerifyReport(resolvedPath);
+      const signature = CryptoUtils.extractSignature(content);
+      
+      if (verification.isValid) {
+        console.log('✅ Report verification PASSED');
+        console.log(`🔐 Hash: ${CryptoUtils.createShortHash(verification.originalHash)}`);
+        
+        if (signature) {
+          console.log(`📅 Generated: ${new Date(signature.timestamp).toLocaleString()}`);
+          console.log(`💻 Platform: ${signature.metadata.platform}`);
+          console.log(`🖥️  Hostname: ${signature.metadata.hostname}`);
+        }
+      } else {
+        console.error('❌ Report verification FAILED');
+        console.error(`⚠️  ${verification.message}`);
+        
+        if (verification.originalHash && verification.calculatedHash) {
+          console.error(`🔐 Expected: ${CryptoUtils.createShortHash(verification.originalHash)}`);
+          console.error(`🔐 Actual: ${CryptoUtils.createShortHash(verification.calculatedHash)}`);
+        }
+      }
+      
+      if (options.verbose) {
+        console.log(CryptoUtils.createVerificationSummary(verification, signature));
+      }
+      
+      process.exit(verification.isValid ? 0 : 1);
+    } catch (error) {
+      console.error('❌ Error verifying report:', error);
       process.exit(1);
     }
   });

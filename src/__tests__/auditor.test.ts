@@ -1,7 +1,6 @@
 import { SecurityAuditor } from '../auditor';
 import { SecurityConfig } from '../types';
 import { MockMacOSSecurityChecker } from '../test-utils/mocks';
-import { LegacyMacOSSecurityChecker } from '../legacy-security-checker';
 
 describe('SecurityAuditor', () => {
   let auditor: SecurityAuditor;
@@ -23,14 +22,14 @@ describe('SecurityAuditor', () => {
   describe('auditSecurity', () => {
     it('should return a security report with correct structure', async () => {
       const config: SecurityConfig = {
-        filevault: { enabled: true },
+        diskEncryption: { enabled: true },
         passwordProtection: {
           enabled: true,
           requirePasswordImmediately: true
         },
         autoLock: { maxTimeoutMinutes: 7 },
         firewall: { enabled: true, stealthMode: true },
-        gatekeeper: { enabled: true },
+        packageVerification: { enabled: true },
         systemIntegrityProtection: { enabled: true },
         remoteLogin: { enabled: false },
         remoteManagement: { enabled: false },
@@ -63,14 +62,14 @@ describe('SecurityAuditor', () => {
 
     it('should check for FileVault setting', async () => {
       const config: SecurityConfig = {
-        filevault: { enabled: true },
+        diskEncryption: { enabled: true },
         passwordProtection: {
           enabled: true,
           requirePasswordImmediately: true
         },
         autoLock: { maxTimeoutMinutes: 7 },
         firewall: { enabled: true },
-        gatekeeper: { enabled: true },
+        packageVerification: { enabled: true },
         systemIntegrityProtection: { enabled: true },
         remoteLogin: { enabled: false },
         remoteManagement: { enabled: false },
@@ -93,14 +92,14 @@ describe('SecurityAuditor', () => {
   describe('generateReport', () => {
     it('should generate a formatted report string', async () => {
       const config: SecurityConfig = {
-        filevault: { enabled: true },
+        diskEncryption: { enabled: true },
         passwordProtection: {
           enabled: true,
           requirePasswordImmediately: true
         },
         autoLock: { maxTimeoutMinutes: 7 },
         firewall: { enabled: true },
-        gatekeeper: { enabled: true },
+        packageVerification: { enabled: true },
         systemIntegrityProtection: { enabled: true },
         remoteLogin: { enabled: false },
         remoteManagement: { enabled: false },
@@ -127,7 +126,7 @@ describe('SecurityAuditor', () => {
     it('should handle partial configuration with only essential checks', async () => {
       // Test the EAI-style configuration with only essential checks
       const partialConfig: SecurityConfig = {
-        filevault: { enabled: true },
+        diskEncryption: { enabled: true },
         passwordProtection: {
           enabled: true,
           requirePasswordImmediately: true
@@ -205,7 +204,7 @@ describe('SecurityAuditor', () => {
 
     it('should skip OS version check when not configured', async () => {
       const config: SecurityConfig = {
-        filevault: { enabled: true }
+        diskEncryption: { enabled: true }
       };
 
       const report = await auditor.auditSecurity(config);
@@ -297,7 +296,7 @@ describe('SecurityAuditor', () => {
 
     it('should skip WiFi check when not configured', async () => {
       const config: SecurityConfig = {
-        filevault: { enabled: true }
+        diskEncryption: { enabled: true }
       };
 
       const report = await auditor.auditSecurity(config);
@@ -399,7 +398,7 @@ describe('SecurityAuditor', () => {
 
       it('should skip automatic updates check when not configured', async () => {
         const config: SecurityConfig = {
-          filevault: { enabled: true }
+          diskEncryption: { enabled: true }
         };
 
         const report = await auditor.auditSecurity(config);
@@ -543,7 +542,7 @@ describe('SecurityAuditor', () => {
 
       it('should skip installed applications check when not configured', async () => {
         const config: SecurityConfig = {
-          filevault: { enabled: true }
+          diskEncryption: { enabled: true }
         };
 
         const report = await auditor.auditSecurity(config);
@@ -640,7 +639,7 @@ describe('SecurityAuditor', () => {
       jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('16.0');
 
       const config: SecurityConfig = {
-        filevault: { enabled: true }
+        diskEncryption: { enabled: true }
       };
 
       const report = await auditor.auditSecurity(config);
@@ -658,7 +657,7 @@ describe('SecurityAuditor', () => {
       jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('13.0');
 
       const config: SecurityConfig = {
-        filevault: { enabled: true }
+        diskEncryption: { enabled: true }
       };
 
       const report = await auditor.auditSecurity(config);
@@ -676,7 +675,7 @@ describe('SecurityAuditor', () => {
       jest.spyOn((auditor as any).checker, 'getCurrentMacOSVersion').mockResolvedValue('15.6');
 
       const config: SecurityConfig = {
-        filevault: { enabled: true }
+        diskEncryption: { enabled: true }
       };
 
       const report = await auditor.auditSecurity(config);

@@ -1,5 +1,9 @@
 export interface SecurityConfig {
+  // Disk encryption (FileVault on macOS, LUKS on Linux)
   filevault?: {
+    enabled: boolean;
+  };
+  diskEncryption?: {
     enabled: boolean;
   };
   passwordProtection?: {
@@ -22,9 +26,14 @@ export interface SecurityConfig {
     enabled: boolean;
     stealthMode?: boolean;
   };
+  // Code signing/package verification (Gatekeeper on macOS, package verification on Linux)
   gatekeeper?: {
     enabled: boolean;
   };
+  packageVerification?: {
+    enabled: boolean;
+  };
+  // System protection (SIP on macOS, SELinux/AppArmor on Linux)
   systemIntegrityProtection?: {
     enabled: boolean;
   };
@@ -55,6 +64,10 @@ export interface SecurityConfig {
   };
   installedApps?: {
     bannedApplications: string[]; // List of application names that should not be installed
+  };
+  // Platform-specific settings
+  platform?: {
+    target: 'macos' | 'linux' | 'auto'; // Target platform, 'auto' detects automatically
   };
 }
 

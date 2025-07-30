@@ -1,5 +1,5 @@
 {
-  "filevault": {
+  "diskEncryption": {
     "enabled": true
   },
   "passwordProtection": {
@@ -22,7 +22,7 @@
     "enabled": true,
     "stealthMode": true
   },
-  "gatekeeper": {
+  "packageVerification": {
     "enabled": true
   },
   "systemIntegrityProtection": {
