@@ -252,6 +252,11 @@ export class MacOSSecurityChecker {
         description: 'Monitors current WiFi network connection to ensure you are not connected to banned or insecure networks.',
         recommendation: 'Avoid connecting to untrusted, guest, or prohibited networks for work purposes. Use secure, company-approved networks.',
         riskLevel: 'Medium'
+      },
+      'Installed Applications': {
+        description: 'Monitors installed third-party applications to ensure no banned or prohibited software is installed on the system.',
+        recommendation: 'Remove any banned applications and only install approved software from trusted sources.',
+        riskLevel: 'Medium'
       }
     };
   }
@@ -433,6 +438,85 @@ export class MacOSSecurityChecker {
     } catch (error) {
       console.warn('Error checking WiFi network:', error);
       return { networkName: null, connected: false };
+    }
+  }
+
+  async checkInstalledApplications(): Promise<{ 
+    installedApps: string[]; 
+    bannedAppsFound: string[]; 
+    sources: { applications: string[]; homebrew: string[]; npm: string[] }; 
+  }> {
+    try {
+      const sources = {
+        applications: [] as string[],
+        homebrew: [] as string[],
+        npm: [] as string[]
+      };
+
+      // Check /Applications folder for third-party apps (exclude system apps)
+      try {
+        const { stdout: appsList } = await execAsync('ls /Applications/ 2>/dev/null || echo ""');
+        const allApps = appsList.split('\n').filter(app => app.trim().length > 0);
+        
+        // Filter out common system apps
+        const systemApps = [
+          'App Store.app', 'Automator.app', 'Calculator.app', 'Calendar.app',
+          'Chess.app', 'Contacts.app', 'DVD Player.app', 'Dashboard.app',
+          'Dictionary.app', 'FaceTime.app', 'Font Book.app', 'Image Capture.app',
+          'Launchpad.app', 'Mail.app', 'Maps.app', 'Messages.app', 'Mission Control.app',
+          'Notes.app', 'Photo Booth.app', 'Photos.app', 'Preview.app', 'QuickTime Player.app',
+          'Reminders.app', 'Safari.app', 'Siri.app', 'Stickies.app', 'System Preferences.app',
+          'TextEdit.app', 'Time Machine.app', 'Utilities', 'VoiceOver Utility.app',
+          'System Settings.app', 'Finder.app', 'Music.app', 'TV.app', 'Podcasts.app',
+          'Books.app', 'News.app', 'Stocks.app', 'Home.app', 'Shortcuts.app'
+        ];
+        
+        const thirdPartyApps = allApps.filter(app => !systemApps.includes(app));
+        sources.applications = thirdPartyApps.map(app => app.replace('.app', ''));
+      } catch (error) {
+        console.warn('Error checking Applications folder:', error);
+      }
+
+      // Check Homebrew cask installations
+      try {
+        const { stdout: brewList } = await execAsync('brew list --cask 2>/dev/null || echo ""');
+        const brewApps = brewList.split('\n').filter(app => app.trim().length > 0);
+        sources.homebrew = brewApps;
+      } catch (error) {
+        console.warn('Error checking Homebrew casks:', error);
+      }
+
+      // Check npm global packages
+      try {
+        const { stdout: npmList } = await execAsync('npm list -g --depth=0 --parseable 2>/dev/null || echo ""');
+        const npmPackages = npmList.split('\n')
+          .filter(line => line.includes('node_modules'))
+          .map(line => line.split('/').pop())
+          .filter((pkg): pkg is string => pkg !== undefined && pkg.length > 0);
+        sources.npm = npmPackages;
+      } catch (error) {
+        console.warn('Error checking npm global packages:', error);
+      }
+
+      // Combine all installed applications
+      const installedApps = [
+        ...sources.applications,
+        ...sources.homebrew,
+        ...sources.npm
+      ].filter((app, index, array) => array.indexOf(app) === index); // Remove duplicates
+
+      return { 
+        installedApps, 
+        bannedAppsFound: [], // Will be populated by the auditor
+        sources 
+      };
+    } catch (error) {
+      console.error('Error checking installed applications:', error);
+      return { 
+        installedApps: [], 
+        bannedAppsFound: [], 
+        sources: { applications: [], homebrew: [], npm: [] } 
+      };
     }
   }
 }

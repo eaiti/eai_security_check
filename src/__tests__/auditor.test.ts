@@ -445,5 +445,121 @@ describe('SecurityAuditor', () => {
         expect(installResult?.message).toContain('All updates are installed automatically');
       });
     });
+
+    describe('Installed Applications Checks', () => {
+      it('should pass when no banned applications are configured', async () => {
+        const config: SecurityConfig = {
+          installedApps: { bannedApplications: [] }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const appsResult = report.results.find(r => r.setting === 'Installed Applications');
+
+        expect(appsResult).toBeDefined();
+        expect(appsResult?.passed).toBe(true);
+        expect(appsResult?.expected).toBe('Application monitoring (no restrictions configured)');
+        expect(appsResult?.message).toContain('Detected applications:');
+      });
+
+      it('should pass when no banned applications are installed', async () => {
+        const config: SecurityConfig = {
+          installedApps: { bannedApplications: ['BannedApp', 'AnotherBannedApp'] }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const appsResult = report.results.find(r => r.setting === 'Installed Applications');
+
+        expect(appsResult).toBeDefined();
+        expect(appsResult?.passed).toBe(true);
+        expect(appsResult?.expected).toBe('No banned applications: BannedApp, AnotherBannedApp');
+        expect(appsResult?.message).toContain('✅ No banned applications detected');
+        expect(appsResult?.message).toContain('All apps:');
+      });
+
+      it('should fail when banned applications are installed', async () => {
+        // Mock the checker to return banned apps
+        (auditor as any).checker.checkInstalledApplications = jest.fn().mockResolvedValue({
+          installedApps: ['Chrome', 'Firefox', 'Slack', 'BannedApp', 'TestApp'],
+          bannedAppsFound: [],
+          sources: {
+            applications: ['Chrome', 'Firefox', 'Slack', 'BannedApp', 'TestApp'],
+            homebrew: [],
+            npm: []
+          }
+        });
+
+        const config: SecurityConfig = {
+          installedApps: { bannedApplications: ['BannedApp'] }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const appsResult = report.results.find(r => r.setting === 'Installed Applications');
+
+        expect(appsResult).toBeDefined();
+        expect(appsResult?.passed).toBe(false);
+        expect(appsResult?.expected).toBe('No banned applications: BannedApp');
+        expect(appsResult?.message).toContain('❌ Banned applications found: BannedApp');
+        expect(appsResult?.message).toContain('All apps:');
+      });
+
+      it('should handle partial string matches for banned applications', async () => {
+        // Mock the checker to return apps with partial matches
+        (auditor as any).checker.checkInstalledApplications = jest.fn().mockResolvedValue({
+          installedApps: ['Google Chrome', 'Firefox', 'Slack'],
+          bannedAppsFound: [],
+          sources: {
+            applications: ['Google Chrome', 'Firefox', 'Slack'],
+            homebrew: [],
+            npm: []
+          }
+        });
+
+        const config: SecurityConfig = {
+          installedApps: { bannedApplications: ['chrome'] }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const appsResult = report.results.find(r => r.setting === 'Installed Applications');
+
+        expect(appsResult).toBeDefined();
+        expect(appsResult?.passed).toBe(false);
+        expect(appsResult?.message).toContain('❌ Banned applications found: Google Chrome');
+      });
+
+      it('should skip installed applications check when not configured', async () => {
+        const config: SecurityConfig = {
+          filevault: { enabled: true }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const appsResult = report.results.find(r => r.setting === 'Installed Applications');
+
+        expect(appsResult).toBeUndefined();
+      });
+
+      it('should report applications from multiple sources', async () => {
+        // Mock the checker to return apps from different sources
+        (auditor as any).checker.checkInstalledApplications = jest.fn().mockResolvedValue({
+          installedApps: ['Chrome', 'git', 'typescript'],
+          bannedAppsFound: [],
+          sources: {
+            applications: ['Chrome'],
+            homebrew: ['git'],
+            npm: ['typescript']
+          }
+        });
+
+        const config: SecurityConfig = {
+          installedApps: { bannedApplications: [] }
+        };
+
+        const report = await auditor.auditSecurity(config);
+        const appsResult = report.results.find(r => r.setting === 'Installed Applications');
+
+        expect(appsResult).toBeDefined();
+        expect(appsResult?.actual).toContain('1 in Applications, 1 via Homebrew, 1 via npm');
+        expect(appsResult?.message).toContain('Chrome, git, typescript');
+      });
+    });
   });
 });

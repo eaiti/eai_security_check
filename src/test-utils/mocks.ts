@@ -105,6 +105,27 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     return Promise.resolve({ networkName: 'TestNetwork', connected: true });
   }
 
+  async checkInstalledApplications(): Promise<{ 
+    installedApps: string[]; 
+    bannedAppsFound: string[]; 
+    sources: { applications: string[]; homebrew: string[]; npm: string[] }; 
+  }> {
+    // Mock: Return a test set of installed applications
+    const sources = {
+      applications: ['Chrome', 'Firefox', 'Slack', 'TestApp'],
+      homebrew: ['git', 'node', 'wget'],
+      npm: ['typescript', 'jest', 'eslint']
+    };
+    
+    const installedApps = [...sources.applications, ...sources.homebrew, ...sources.npm];
+    
+    return Promise.resolve({ 
+      installedApps, 
+      bannedAppsFound: [], 
+      sources 
+    });
+  }
+
   getSecurityExplanations(): Record<string, { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }> {
     return {
       'FileVault': {
@@ -135,6 +156,11 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
       'WiFi Network Security': {
         description: 'Test description for WiFi Network Security.',
         recommendation: 'Test recommendation for WiFi Network Security.',
+        riskLevel: 'Medium'
+      },
+      'Installed Applications': {
+        description: 'Test description for Installed Applications.',
+        recommendation: 'Test recommendation for Installed Applications.',
         riskLevel: 'Medium'
       }
     };
