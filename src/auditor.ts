@@ -1,11 +1,85 @@
 import { MacOSSecurityChecker } from './security-checker';
+import { LegacyMacOSSecurityChecker } from './legacy-security-checker';
 import { SecurityConfig, SecurityCheckResult, SecurityReport } from './types';
+
+export interface VersionCompatibilityInfo {
+  currentVersion: string;
+  isSupported: boolean;
+  isApproved: boolean;
+  warningMessage?: string;
+  isLegacy: boolean;
+}
 
 export class SecurityAuditor {
   private checker: MacOSSecurityChecker;
+  private versionInfo: VersionCompatibilityInfo | null = null;
 
   constructor() {
     this.checker = new MacOSSecurityChecker();
+  }
+
+  /**
+   * Check macOS version compatibility and return version information
+   */
+  async checkVersionCompatibility(): Promise<VersionCompatibilityInfo> {
+    if (this.versionInfo) {
+      return this.versionInfo;
+    }
+
+    const currentVersion = await this.checker.getCurrentMacOSVersion();
+    
+    // Approved versions that have been tested
+    const approvedVersions = ['15.5', '15.6'];
+    const isApproved = approvedVersions.includes(currentVersion);
+    
+    // Check if version is legacy (below 15.0)
+    const isLegacy = this.compareVersions(currentVersion, '15.0') < 0;
+    
+    // Version is supported if it's 15.0 or higher
+    const isSupported = !isLegacy;
+    
+    let warningMessage: string | undefined;
+    
+    if (isLegacy) {
+      warningMessage = `⚠️  macOS ${currentVersion} is below version 15.0. Security checks may not work correctly and will return failure states. Please upgrade to macOS 15.0 or later for full functionality.`;
+    } else if (!isApproved) {
+      warningMessage = `⚠️  macOS ${currentVersion} has not been fully tested with this tool. This tool has been tested with macOS 15.5 and 15.6. Results may include false positives or false negatives.`;
+    }
+
+    this.versionInfo = {
+      currentVersion,
+      isSupported,
+      isApproved,
+      warningMessage,
+      isLegacy
+    };
+
+    // Switch to legacy checker if needed
+    if (isLegacy) {
+      this.checker = new LegacyMacOSSecurityChecker();
+    }
+
+    return this.versionInfo;
+  }
+
+  private parseVersion(version: string): number[] {
+    return version.split('.').map(n => parseInt(n, 10));
+  }
+
+  private compareVersions(current: string, target: string): number {
+    const currentParts = this.parseVersion(current);
+    const targetParts = this.parseVersion(target);
+
+    // Normalize arrays to same length
+    const maxLength = Math.max(currentParts.length, targetParts.length);
+    while (currentParts.length < maxLength) currentParts.push(0);
+    while (targetParts.length < maxLength) targetParts.push(0);
+
+    for (let i = 0; i < maxLength; i++) {
+      if (currentParts[i] > targetParts[i]) return 1;
+      if (currentParts[i] < targetParts[i]) return -1;
+    }
+    return 0; // Equal
   }
 
   private getUpdateModeDescription(mode: string): string {
@@ -24,7 +98,21 @@ export class SecurityAuditor {
   }
 
   async auditSecurity(config: SecurityConfig): Promise<SecurityReport> {
+    // Check version compatibility first
+    const versionInfo = await this.checkVersionCompatibility();
+    
     const results: SecurityCheckResult[] = [];
+
+    // Add version compatibility result if there are warnings
+    if (versionInfo.warningMessage) {
+      results.push({
+        setting: 'macOS Version Compatibility',
+        expected: versionInfo.isLegacy ? '≥ 15.0 (for full functionality)' : 'Tested version (15.5 or 15.6)',
+        actual: versionInfo.currentVersion,
+        passed: versionInfo.isApproved,
+        message: versionInfo.warningMessage
+      });
+    }
 
     // Check FileVault (only if configured)
     if (config.filevault) {
@@ -376,13 +464,33 @@ export class SecurityAuditor {
 
   async generateReport(config: SecurityConfig): Promise<string> {
     const systemInfo = await this.checker.getSystemInfo();
+    const versionInfo = await this.checkVersionCompatibility();
     const report = await this.auditSecurity(config);
     const explanations = this.checker.getSecurityExplanations();
 
     let output = `\n🔒 macOS Security Audit Report\n`;
     output += `📅 Generated: ${new Date(report.timestamp).toLocaleString()}\n`;
     output += `💻 System: ${systemInfo}\n`;
+    
+    // Add version compatibility information
+    if (versionInfo.warningMessage) {
+      output += `⚠️  Version Status: ${versionInfo.warningMessage}\n`;
+    } else {
+      output += `✅ Version Status: macOS ${versionInfo.currentVersion} is fully supported\n`;
+    }
+    
     output += `✅ Overall Status: ${report.overallPassed ? 'PASSED' : 'FAILED'}\n\n`;
+
+    // Special message for legacy versions
+    if (versionInfo.isLegacy) {
+      output += `🚨 IMPORTANT: You are running macOS ${versionInfo.currentVersion}, which is below the minimum supported version (15.0).\n`;
+      output += `All security checks will report as failed because automated checking is not supported on this version.\n`;
+      output += `Please upgrade to macOS 15.0 or later, or manually verify your security settings.\n\n`;
+    } else if (!versionInfo.isApproved) {
+      output += `📝 NOTE: This tool has been tested primarily with macOS 15.5 and 15.6.\n`;
+      output += `Results on macOS ${versionInfo.currentVersion} may include false positives or false negatives.\n`;
+      output += `Please review results carefully and verify manually if needed.\n\n`;
+    }
 
     output += `📋 Security Check Results:\n`;
     output += `${'='.repeat(60)}\n`;
@@ -437,11 +545,22 @@ export class SecurityAuditor {
 
   async generateQuietReport(config: SecurityConfig): Promise<string> {
     const systemInfo = await this.checker.getSystemInfo();
+    const versionInfo = await this.checkVersionCompatibility();
     const report = await this.auditSecurity(config);
 
     let output = `🔒 macOS Security Audit Summary\n`;
     output += `📅 ${new Date(report.timestamp).toLocaleString()}\n`;
     output += `💻 ${systemInfo}\n`;
+    
+    // Add version compatibility status
+    if (versionInfo.isLegacy) {
+      output += `⚠️  Version: ${versionInfo.currentVersion} (legacy - checks not supported)\n`;
+    } else if (!versionInfo.isApproved) {
+      output += `⚠️  Version: ${versionInfo.currentVersion} (untested - may have false positives/negatives)\n`;
+    } else {
+      output += `✅ Version: ${versionInfo.currentVersion} (fully supported)\n`;
+    }
+    
     output += `${report.overallPassed ? '✅ PASSED' : '❌ FAILED'} - ${report.results.filter(r => r.passed).length}/${report.results.length} checks passed\n`;
 
     if (!report.overallPassed) {

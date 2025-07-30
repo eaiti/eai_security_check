@@ -258,6 +258,16 @@ Security Profiles:
 `)
   .action(async (profile, options) => {
     try {
+      // Create auditor and check version compatibility first
+      const auditor = new SecurityAuditor();
+      const versionInfo = await auditor.checkVersionCompatibility();
+      
+      // Show version warning immediately if there are issues
+      if (versionInfo.warningMessage && !options.quiet) {
+        console.log(versionInfo.warningMessage);
+        console.log(''); // Add blank line for readability
+      }
+
       let config: SecurityConfig;
       let configSource = '';
 
@@ -310,7 +320,6 @@ Security Profiles:
       }
 
       // Run audit
-      const auditor = new SecurityAuditor();
       const report = options.quiet
         ? await auditor.generateQuietReport(config)
         : await auditor.generateReport(config);
