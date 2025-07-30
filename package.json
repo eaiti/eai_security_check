@@ -32,7 +32,8 @@
   "license": "MIT",
   "pkg": {
     "assets": [
-      "examples/**/*.json"
+      "examples/**/*.json",
+      "daemon-examples/**/*"
     ],
     "scripts": [
       "dist/**/*.js"

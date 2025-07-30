@@ -101,6 +101,7 @@ export interface SchedulingConfig {
   reportFormat: 'email' | 'plain' | 'markdown' | 'json';
   securityProfile: string;  // Which security profile to use for checks
   customConfigPath?: string;  // Optional path to custom security config
+  userId?: string;  // User identifier included in reports and emails
 }
 
 export interface DaemonState {
