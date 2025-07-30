@@ -328,7 +328,7 @@ export class MacOSSecurityChecker {
       const { stdout: sshEnabled, stderr: sshErr } = await execAsync('defaults read /System/Library/LaunchDaemons/ssh Disabled 2>&1 || echo "1"');
       const sshOutput = sshEnabled + sshErr;
       const sshEnabledViaPlist = !sshOutput.includes('does not exist') && sshOutput.trim() === '0';
-      
+
       if (sshEnabledViaPlist) {
         return true;
       }
@@ -337,7 +337,7 @@ export class MacOSSecurityChecker {
       try {
         const { stdout: launchctlCheck } = await execAsync('launchctl list | grep "com.openssh.sshd" 2>/dev/null');
         const sshRunning = launchctlCheck.length > 0;
-        
+
         if (sshRunning) {
           return true;
         }
@@ -465,14 +465,14 @@ export class MacOSSecurityChecker {
 
         // If launchd check indicates disabled, double-check with sharing command output content
         if (!fileSharing) {
-          const { stdout: sharingCheck } = await execAsync('sharing -l 2>/dev/null');
+          const { stdout: sharingCheck } = await this.execWithSudo('sharing -l 2>/dev/null');
           // Only consider it enabled if there are actual share records (not just "No share point records")
           fileSharing = sharingCheck.includes('name:') || (!sharingCheck.includes('No share point records') && sharingCheck.trim().length > 0);
         }
       } catch {
         // Fallback to checking if SMB daemon is loaded and not disabled
         try {
-          const { stdout: smbLoaded } = await execAsync('sudo launchctl print system/com.apple.smbd 2>/dev/null');
+          const { stdout: smbLoaded } = await this.execWithSudo('launchctl print system/com.apple.smbd 2>/dev/null');
           fileSharing = !smbLoaded.includes('Could not find service') && !smbLoaded.includes('state = not running');
         } catch {
           fileSharing = false;
@@ -496,7 +496,7 @@ export class MacOSSecurityChecker {
       } catch {
         // Fallback to checking if screen sharing daemon is loaded
         try {
-          const { stdout: screenLoaded } = await execAsync('sudo launchctl print system/com.apple.screensharing 2>/dev/null');
+          const { stdout: screenLoaded } = await this.execWithSudo('launchctl print system/com.apple.screensharing 2>/dev/null');
           screenSharing = !screenLoaded.includes('Could not find service');
         } catch {
           screenSharing = false;
@@ -535,7 +535,7 @@ export class MacOSSecurityChecker {
       // Check remote login capability (SSH enabled in System Preferences)
       let remoteLogin = false;
       try {
-        const { stdout: sshStatus } = await execAsync('sudo systemsetup -getremotelogin 2>/dev/null || echo "Off"');
+        const { stdout: sshStatus } = await this.execWithSudo('systemsetup -getremotelogin 2>/dev/null || echo "Off"');
         remoteLogin = sshStatus.includes('On');
       } catch {
         // Fallback to checking SSH daemon capability via launchd
