@@ -9,6 +9,15 @@ export interface PasswordValidationResult {
   message: string;
 }
 
+export interface PasswordRequirements {
+  minLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireNumber: boolean;
+  requireSpecialChar: boolean;
+  maxAgeDays: number;
+}
+
 /**
  * Checks if the current user's password is older than the specified number of days
  */
@@ -90,27 +99,58 @@ export async function checkPasswordExpiration(maxAgeDays: number = 180): Promise
 }
 
 /**
- * Validates password strength according to security requirements
+ * Gets password requirements for a specific profile
  */
-export function validatePassword(password: string): PasswordValidationResult {
-  if (!password || password.length < 8) {
+export function getPasswordRequirements(profile: string): PasswordRequirements {
+  switch (profile) {
+    case 'eai':
+      return {
+        minLength: 10,
+        requireUppercase: false,
+        requireLowercase: false,
+        requireNumber: false,
+        requireSpecialChar: false,
+        maxAgeDays: 180
+      };
+    default:
+      return {
+        minLength: 8,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireNumber: true,
+        requireSpecialChar: true,
+        maxAgeDays: 180
+      };
+  }
+}
+
+/**
+ * Validates password strength according to profile-specific requirements
+ */
+export function validatePassword(password: string, profile: string = 'default'): PasswordValidationResult {
+  const requirements = getPasswordRequirements(profile);
+  
+  if (!password || password.length < requirements.minLength) {
     return {
       isValid: false,
-      message: 'Password must be at least 8 characters long'
+      message: `Password must be at least ${requirements.minLength} characters long`
     };
   }
 
-  // Check for required character types
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasLowercase = /[a-z]/.test(password);
-  const hasNumber = /\d/.test(password);
-  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-
   const missingRequirements = [];
-  if (!hasUppercase) missingRequirements.push('uppercase letter');
-  if (!hasLowercase) missingRequirements.push('lowercase letter'); 
-  if (!hasNumber) missingRequirements.push('number');
-  if (!hasSpecialChar) missingRequirements.push('special character');
+  
+  if (requirements.requireUppercase && !/[A-Z]/.test(password)) {
+    missingRequirements.push('uppercase letter');
+  }
+  if (requirements.requireLowercase && !/[a-z]/.test(password)) {
+    missingRequirements.push('lowercase letter');
+  }
+  if (requirements.requireNumber && !/\d/.test(password)) {
+    missingRequirements.push('number');
+  }
+  if (requirements.requireSpecialChar && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    missingRequirements.push('special character');
+  }
 
   if (missingRequirements.length > 0) {
     return {
@@ -195,9 +235,11 @@ export function promptForPassword(prompt: string = 'Enter password: '): Promise<
 /**
  * Prompts for password with validation, retries on invalid input
  */
-export async function promptForValidPassword(maxRetries: number = 3): Promise<string> {
+export async function promptForValidPassword(maxRetries: number = 3, profile: string = 'default'): Promise<string> {
+  const requirements = getPasswordRequirements(profile);
+  
   // First check password expiration before prompting
-  const expirationCheck = await checkPasswordExpiration(180);
+  const expirationCheck = await checkPasswordExpiration(requirements.maxAgeDays);
   if (!expirationCheck.isValid) {
     throw new Error(`Password validation failed: ${expirationCheck.message}`);
   }
@@ -217,7 +259,7 @@ export async function promptForValidPassword(maxRetries: number = 3): Promise<st
           : `🔐 Enter your macOS password (attempt ${attempt}/${maxRetries}): `
       );
 
-      const validation = validatePassword(password);
+      const validation = validatePassword(password, profile);
       if (validation.isValid) {
         return password;
       }

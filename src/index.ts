@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SecurityAuditor } from './auditor';
 import { SecurityConfig } from './types';
-import { promptForValidPassword, validatePassword, checkPasswordExpiration } from './password-utils';
+import { promptForValidPassword, validatePassword, checkPasswordExpiration, getPasswordRequirements } from './password-utils';
 
 /**
  * Determines if password is needed based on configuration
@@ -103,6 +103,7 @@ function getConfigByProfile(profile: string): SecurityConfig {
           requirePasswordImmediately: true
         },
         autoLock: { maxTimeoutMinutes: 7 },
+        remoteLogin: { enabled: false }, // Enable to require password validation
         wifiSecurity: {
           bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi']
         }
@@ -253,7 +254,7 @@ Examples:
   $ eai-security-check check strict            # Use strict profile
   $ eai-security-check check relaxed           # Use relaxed profile
   $ eai-security-check check developer         # Use developer profile
-  $ eai-security-check check eai               # Use EAI profile (focused security)
+  $ eai-security-check check eai               # Use EAI profile (10+ char passwords)
   $ eai-security-check check -c my-config.json # Use custom config file
   $ eai-security-check check -o report.txt     # Save report to file
   $ eai-security-check check -q                # Quiet mode (summary only)
@@ -264,7 +265,7 @@ Security Profiles:
   strict      - Maximum security (3-min auto-lock)
   relaxed     - Balanced security (15-min auto-lock)
   developer   - Developer-friendly (remote access enabled)
-  eai         - EAI focused security (7-min auto-lock, essential security only)
+  eai         - EAI focused security (10+ char passwords, 180-day expiration)
 `)
   .action(async (profile, options) => {
     try {
@@ -317,6 +318,8 @@ Security Profiles:
 
       // Prompt for password if needed for sudo operations
       let password: string | undefined;
+      let currentProfile = profile || 'default'; // Track the profile for password validation
+      
       if (requiresPassword(config)) {
         if (options.password) {
           // Use provided password, but validate it first
@@ -324,15 +327,16 @@ Security Profiles:
             console.log('🔐 Using provided password for administrator privileges.');
           }
           
-          // Validate the provided password
-          const passwordValidation = validatePassword(options.password);
+          // Validate the provided password with profile-specific requirements
+          const passwordValidation = validatePassword(options.password, currentProfile);
           if (!passwordValidation.isValid) {
             console.error(`❌ Password validation failed: ${passwordValidation.message}`);
             process.exit(1);
           }
           
-          // Check password expiration
-          const expirationCheck = await checkPasswordExpiration(180);
+          // Check password expiration with profile-specific age limit
+          const requirements = getPasswordRequirements(currentProfile);
+          const expirationCheck = await checkPasswordExpiration(requirements.maxAgeDays);
           if (!expirationCheck.isValid) {
             console.error(`❌ Password validation failed: ${expirationCheck.message}`);
             process.exit(1);
@@ -349,12 +353,12 @@ Security Profiles:
           
           password = options.password;
         } else {
-          // Prompt for password interactively
+          // Prompt for password interactively with profile-specific requirements
           if (!options.quiet) {
             console.log('🔐 Some security checks require administrator privileges.');
           }
           try {
-            password = await promptForValidPassword();
+            password = await promptForValidPassword(3, currentProfile);
             if (!options.quiet) {
               console.log('✅ Password accepted.\n');
             }

@@ -265,15 +265,16 @@ The tool may require administrator privileges for certain security checks (speci
 - **CLI parameter**: Use `--password 'YourPassword123!'` to provide the password directly
 
 **Password Requirements:**
-- Minimum 8 characters
-- Must contain uppercase letter, lowercase letter, number, and special character
+- **Default profiles** (default, strict, relaxed): Minimum 8 characters with uppercase letter, lowercase letter, number, and special character
+- **EAI profile**: Minimum 10 characters (any characters allowed - no complexity requirements)
+- **Developer profile**: Minimum 8 characters with uppercase letter, lowercase letter, number, and special character
 - Password age validation (must be less than 180 days old)
 - Up to 3 retry attempts for interactive prompts
 
 **Security Profiles and Password Requirements:**
-- `eai` profile: No password required (only checks essential settings)
+- `eai` profile: Password required with relaxed complexity (10+ characters, 180-day expiration)
 - `default`, `strict`, `relaxed`: No password required (remote access disabled)
-- `developer` profile: Password required (remote access enabled for development)
+- `developer` profile: Password required with full complexity requirements (remote access enabled for development)
 
 ### 🔒 FileVault
 - `enabled`: Boolean - Whether disk encryption should be enabled
