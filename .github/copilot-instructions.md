@@ -4,31 +4,51 @@ This file provides context and guidelines for GitHub Copilot when working with t
 
 ## Project Overview
 
-This is a Node.js + TypeScript CLI tool for auditing macOS security settings against configurable security profiles. The tool checks various security configurations and provides detailed reports with educational explanations and actionable recommendations.
+This is a cross-platform Node.js + TypeScript CLI tool for auditing security settings on macOS and Linux systems against configurable security profiles. The tool checks various security configurations and provides detailed reports with educational explanations and actionable recommendations.
 
 ## Architecture
 
 ### Core Components
 - `src/types.ts`: TypeScript interfaces and types for security checks and configurations
-- `src/security-checker.ts`: Core security checking logic that executes system commands
-- `src/auditor.ts`: Main auditing engine that orchestrates checks and generates reports
+- `src/auditor.ts`: Main auditing engine (SecurityAuditor class) that orchestrates checks and generates reports
+- `src/security-checker.ts`: macOS security checking logic (MacOSSecurityChecker class) that executes system commands
+- `src/linux-security-checker.ts`: Linux security checking logic (LinuxSecurityChecker class) with cross-platform support
+- `src/platform-detector.ts`: Platform detection service (PlatformDetector class) for cross-platform compatibility
+- `src/scheduling-service.ts`: Daemon service (SchedulingService class) for automated scheduled security audits
 - `src/index.ts`: CLI interface using Commander.js with multiple commands and options
+- `src/output-utils.ts`: Output formatting utilities (OutputUtils class) supporting multiple formats
+- `src/crypto-utils.ts`: Cryptographic utilities (CryptoUtils class) for tamper-evident reports
 
 ### Configuration System
-- JSON-based security profiles (default, strict, relaxed, developer)
-- Flexible check definitions with risk levels and educational content
+- JSON-based security profiles (default, strict, relaxed, developer, eai)
+- Cross-platform configuration names (diskEncryption, packageVerification, systemIntegrityProtection)
+- Legacy macOS-specific names supported for backward compatibility
 - Profile-specific timeout and requirement variations
+- Scheduling configuration for daemon mode with email notifications and user identification
 
 ### Security Checks Implemented
+
+**macOS:**
 - FileVault disk encryption
 - Password protection and screen saver settings
 - Auto-lock timeout configuration
-- Firewall and stealth mode
+- Application Firewall and stealth mode
 - Gatekeeper malware protection
 - System Integrity Protection (SIP)
 - Remote access services (SSH, remote management)
 - Automatic security updates
 - File and screen sharing services
+
+**Linux:**
+- LUKS disk encryption
+- Password protection and session lock settings
+- Auto-lock timeout configuration (GNOME/KDE)
+- Firewall (ufw/firewalld/iptables) 
+- Package verification (DNF/APT GPG)
+- System integrity (SELinux/AppArmor)
+- Remote access services (SSH, VNC)
+- Automatic security updates
+- Network sharing services (Samba/NFS)
 
 ## Development Guidelines
 
@@ -44,26 +64,30 @@ This is a Node.js + TypeScript CLI tool for auditing macOS security settings aga
 - Test both success and failure scenarios for security checks
 - Maintain high test coverage for critical security logic
 
-### macOS System Integration
+### Cross-Platform System Integration
 - Use `child_process.exec` for executing system commands
-- Handle different macOS versions and command variations
-- Parse system command output reliably (plist, text formats)
+- Handle different macOS versions and Linux distributions
+- Parse system command output reliably (plist, text formats, JSON)
 - Gracefully handle missing or unavailable system features
+- Automatic platform detection and appropriate checker selection
 
 ### CLI Design Principles
 - Modern CLI experience with clear help text and examples
-- Support multiple output formats (console, file output)
+- Support multiple output formats (console, plain, markdown, json, email)
+- Tamper-evident reports with cryptographic verification
+- Cross-platform password prompts and secure input handling
 - Provide both detailed and summary reporting modes
 - Include educational content to help users understand security implications
+- Daemon mode for automated scheduled security audits with email notifications
 
 ## Common Patterns
 
 ### Adding New Security Checks
 1. Define the check interface in `src/types.ts`
-2. Implement check logic in `src/security-checker.ts`
-3. Add configuration options to security profiles
+2. Implement check logic in appropriate checker (`src/security-checker.ts` for macOS, `src/linux-security-checker.ts` for Linux)
+3. Add platform-agnostic configuration options to security profiles
 4. Include educational explanations and remediation advice
-5. Add test cases with mocked system responses
+5. Add test cases with mocked system responses for both platforms if applicable
 
 ### Configuration Management
 - Use JSON schema validation for configuration files
@@ -81,7 +105,9 @@ This is a Node.js + TypeScript CLI tool for auditing macOS security settings aga
 
 ### Production
 - `commander`: CLI framework for command parsing and help generation
-- Node.js built-in modules: `child_process`, `fs`, `path`
+- `node-cron`: Task scheduling for daemon mode
+- `nodemailer`: Email sending for automated reports
+- Node.js built-in modules: `child_process`, `fs`, `path`, `crypto`
 
 ### Development
 - `typescript`: Type checking and compilation
@@ -94,7 +120,7 @@ This is a Node.js + TypeScript CLI tool for auditing macOS security settings aga
 - Validate all input parameters and configuration values
 - Handle sensitive information (passwords, keys) appropriately
 - Provide clear warnings about security implications of changes
-- Test on various macOS versions to ensure compatibility
+- Test on various macOS versions and Linux distributions to ensure compatibility
 
 ## File Structure Conventions
 

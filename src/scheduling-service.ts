@@ -264,11 +264,14 @@ export class SchedulingService {
       const auditResult = await auditor.auditSecurity(securityConfig);
 
       // Format report for email
-      const formattedOutput = OutputUtils.formatReport(report, this.config.reportFormat as OutputFormat, {
+      const reportMetadata = {
         platform: platformInfo.platform,
         timestamp: new Date().toISOString(),
-        overallPassed: auditResult.overallPassed
-      });
+        overallPassed: auditResult.overallPassed,
+        ...(this.config.userId && { userId: this.config.userId })
+      };
+      
+      const formattedOutput = OutputUtils.formatReport(report, this.config.reportFormat as OutputFormat, reportMetadata);
 
       // Send email
       await this.sendEmailReport(formattedOutput.content, auditResult.overallPassed);
@@ -299,8 +302,9 @@ export class SchedulingService {
       }
     });
 
+    const userIdPrefix = this.config.userId ? `[${this.config.userId}] ` : '';
     const subject = this.config.email.subject || 
-      `Security Audit Report - ${overallPassed ? 'PASSED' : 'FAILED'} - ${new Date().toLocaleDateString()}`;
+      `${userIdPrefix}Security Audit Report - ${overallPassed ? 'PASSED' : 'FAILED'} - ${new Date().toLocaleDateString()}`;
 
     const mailOptions = {
       from: this.config.email.from,

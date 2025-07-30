@@ -776,6 +776,7 @@ Service Setup:
         const sampleConfig = {
           enabled: true,
           intervalDays: 7,
+          userId: 'user@company.com',
           email: {
             smtp: {
               host: 'smtp.gmail.com',
@@ -798,6 +799,7 @@ Service Setup:
         console.log(`✅ Sample scheduling configuration created: ${configPath}`);
         console.log('💡 Edit this file to configure your email settings and preferences.');
         console.log('📧 Make sure to update the SMTP credentials and recipient email addresses.');
+        console.log('👤 Update the userId field to identify reports from this user/system.');
         return;
       }
 

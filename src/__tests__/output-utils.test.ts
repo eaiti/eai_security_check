@@ -118,12 +118,12 @@ describe('OutputUtils', () => {
             (callback as unknown as MockExecCallback)(null, {
               stdout: '',
               stderr: ''
-            } as any);
+            } as { stdout: string; stderr: string });
           } else {
             (callback as unknown as MockExecCallback)(new Error('Command not found'), {
               stdout: '',
               stderr: ''
-            } as any);
+            } as { stdout: string; stderr: string });
           }
         }
         return {} as unknown as ChildProcess;
@@ -140,7 +140,7 @@ describe('OutputUtils', () => {
           (callback as unknown as MockExecCallback)(new Error('Command not found'), {
             stdout: '',
             stderr: ''
-          } as any);
+          } as { stdout: string; stderr: string });
         }
         return {} as unknown as ChildProcess;
       });

@@ -89,6 +89,9 @@ npm run build
 
 # Save detailed report to Documents folder
 ./eai-security-check check eai --output ~/Documents/security-report.txt --password "mypassword"
+
+# Generate tamper-evident report for email sharing
+./eai-security-check check eai --hash --format email --output ~/Documents/security-audit-$(date +%Y%m%d).txt --password "mypassword"
 ```
 
 ### Advanced Usage Examples
