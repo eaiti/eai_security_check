@@ -6,6 +6,7 @@ import { SecurityAuditor } from './auditor';
 import { SecurityConfig, SchedulingConfig, DaemonState } from './types';
 import { OutputUtils, OutputFormat } from './output-utils';
 import { PlatformDetector } from './platform-detector';
+import { VersionUtils } from './version-utils';
 
 /**
  * SchedulingService handles the daemon mode for automated security checks
@@ -13,11 +14,14 @@ import { PlatformDetector } from './platform-detector';
 export class SchedulingService {
   private config: SchedulingConfig;
   private stateFilePath: string;
+  private lockFilePath: string;
   private isShuttingDown = false;
   private currentJob?: cron.ScheduledTask;
+  private versionCheckInterval?: NodeJS.Timeout;
 
   constructor(configPath?: string, stateFilePath?: string) {
     this.stateFilePath = stateFilePath || path.resolve('./daemon-state.json');
+    this.lockFilePath = path.resolve('./daemon.lock');
     this.config = this.loadSchedulingConfig(configPath);
   }
 
@@ -56,7 +60,9 @@ export class SchedulingService {
       const initialState: DaemonState = {
         lastReportSent: '',
         totalReportsGenerated: 0,
-        daemonStarted: new Date().toISOString()
+        daemonStarted: new Date().toISOString(),
+        currentVersion: VersionUtils.getCurrentVersion(),
+        lastVersionCheck: new Date().toISOString()
       };
       this.saveDaemonState(initialState);
       return initialState;
@@ -64,13 +70,25 @@ export class SchedulingService {
 
     try {
       const content = fs.readFileSync(this.stateFilePath, 'utf-8');
-      return JSON.parse(content) as DaemonState;
+      const state = JSON.parse(content) as DaemonState;
+      
+      // Update version info if not present or different
+      const currentVersion = VersionUtils.getCurrentVersion();
+      if (!state.currentVersion || state.currentVersion !== currentVersion) {
+        state.currentVersion = currentVersion;
+        state.lastVersionCheck = new Date().toISOString();
+        this.saveDaemonState(state);
+      }
+      
+      return state;
     } catch (error) {
       console.error('Failed to load daemon state, creating new:', error);
       const newState: DaemonState = {
         lastReportSent: '',
         totalReportsGenerated: 0,
-        daemonStarted: new Date().toISOString()
+        daemonStarted: new Date().toISOString(),
+        currentVersion: VersionUtils.getCurrentVersion(),
+        lastVersionCheck: new Date().toISOString()
       };
       this.saveDaemonState(newState);
       return newState;
@@ -317,7 +335,14 @@ export class SchedulingService {
       return;
     }
 
-    console.log(`Starting EAI Security Check daemon...`);
+    // Check for and create daemon lock to prevent multiple instances
+    if (!VersionUtils.createDaemonLock(this.lockFilePath)) {
+      console.error('❌ Another daemon instance is already running or failed to create lock file');
+      console.log('💡 Use "eai-security-check daemon --status" to check daemon status');
+      process.exit(1);
+    }
+
+    console.log(`Starting EAI Security Check daemon v${VersionUtils.getCurrentVersion()}...`);
     console.log(`Check interval: every ${this.config.intervalDays} days`);
     console.log(`Email recipients: ${this.config.email.to.join(', ')}`);
     console.log(`Security profile: ${this.config.securityProfile}`);
@@ -325,9 +350,16 @@ export class SchedulingService {
     const state = this.loadDaemonState();
     console.log(`Daemon state: ${state.totalReportsGenerated} reports sent, last report: ${state.lastReportSent || 'never'}`);
 
+    // Check for newer versions on startup
+    console.log('🔍 Checking for newer versions...');
+    await this.checkForNewerVersions();
+
     // Set up graceful shutdown
-    process.on('SIGINT', () => this.shutdown('SIGINT'));
-    process.on('SIGTERM', () => this.shutdown('SIGTERM'));
+    process.on('SIGINT', async () => await this.shutdown('SIGINT'));
+    process.on('SIGTERM', async () => await this.shutdown('SIGTERM'));
+    process.on('exit', () => {
+      VersionUtils.removeDaemonLock(this.lockFilePath);
+    });
 
     // Check immediately on startup if report is due
     if (this.shouldSendReport(state)) {
@@ -342,11 +374,50 @@ export class SchedulingService {
       }
     });
 
+    // Check for newer versions every hour
+    this.versionCheckInterval = setInterval(async () => {
+      if (!this.isShuttingDown) {
+        await this.checkForNewerVersions();
+      }
+    }, 60 * 60 * 1000); // Every hour
+
     console.log('Daemon started successfully. Scheduled to check daily at 9:00 AM.');
+    console.log('🔄 Version checks will run hourly to detect newer versions.');
     console.log('Press Ctrl+C to stop the daemon.');
 
     // Keep the process running
     this.keepAlive();
+  }
+
+  /**
+   * Check for newer versions and potentially yield control
+   */
+  private async checkForNewerVersions(): Promise<void> {
+    try {
+      const yieldCheck = await VersionUtils.shouldYieldToNewerVersion();
+      
+      if (yieldCheck.shouldYield) {
+        console.log(`⬆️  ${yieldCheck.reason}`);
+        console.log('🔄 Gracefully shutting down to allow newer version to take over...');
+        
+        // Update state with version check timestamp
+        const state = this.loadDaemonState();
+        state.lastVersionCheck = new Date().toISOString();
+        this.saveDaemonState(state);
+        
+        // Shutdown gracefully
+        await this.shutdown('VERSION_UPGRADE');
+        return;
+      }
+      
+      // Update version check timestamp
+      const state = this.loadDaemonState();
+      state.lastVersionCheck = new Date().toISOString();
+      this.saveDaemonState(state);
+      
+    } catch (error) {
+      console.warn('Warning: Version check failed:', error);
+    }
   }
 
   /**
@@ -363,7 +434,7 @@ export class SchedulingService {
   /**
    * Graceful shutdown
    */
-  private shutdown(signal: string): void {
+  private async shutdown(signal: string): Promise<void> {
     console.log(`\n[${new Date().toISOString()}] Received ${signal}, shutting down gracefully...`);
     this.isShuttingDown = true;
 
@@ -372,8 +443,17 @@ export class SchedulingService {
       console.log('Stopped scheduled tasks');
     }
 
+    if (this.versionCheckInterval) {
+      clearInterval(this.versionCheckInterval);
+      console.log('Stopped version checking');
+    }
+
+    // Clean up daemon lock
+    VersionUtils.removeDaemonLock(this.lockFilePath);
+    console.log('Removed daemon lock');
+
     console.log('Daemon stopped');
-    process.exit(0);
+    process.exit(signal === 'VERSION_UPGRADE' ? 0 : 0);
   }
 
   /**

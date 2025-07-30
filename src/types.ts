@@ -107,4 +107,6 @@ export interface DaemonState {
   lastReportSent: string;  // ISO timestamp
   totalReportsGenerated: number;
   daemonStarted: string;  // ISO timestamp
+  currentVersion?: string;  // Version of the daemon currently running
+  lastVersionCheck?: string;  // ISO timestamp of last version check
 }
