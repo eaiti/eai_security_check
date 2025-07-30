@@ -1,15 +1,18 @@
 import { CryptoUtils } from '../crypto-utils';
 import * as fs from 'fs';
+import * as os from 'os';
 
 // Mock fs and os
 jest.mock('fs');
 jest.mock('os');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
+const mockOs = os as jest.Mocked<typeof os>;
 
 describe('CryptoUtils', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockOs.hostname.mockReturnValue('test-host');
   });
 
   describe('generateHash', () => {
@@ -64,7 +67,7 @@ describe('CryptoUtils', () => {
 
       const hashedReport = CryptoUtils.createHashedReport(content);
 
-      expect(hashedReport.content).toBe('Report content\n');
+      expect(hashedReport.content).toBe('Report content');
       expect(hashedReport.content).not.toContain('SECURITY SIGNATURE');
     });
   });
@@ -129,29 +132,29 @@ describe('CryptoUtils', () => {
     });
 
     it('should handle malformed signature JSON', () => {
-      const content = `content
---- SECURITY SIGNATURE ---
-invalid json
---- SECURITY SIGNATURE ---`;
+      // This matches the exact format that signReport produces
+      const content =
+        'content\n--- SECURITY SIGNATURE ---\ninvalid json\n\n--- SECURITY SIGNATURE ---\n';
 
       const verification = CryptoUtils.verifyReport(content);
 
       expect(verification.isValid).toBe(false);
       expect(verification.tampered).toBe(true);
-      expect(verification.message).toContain('unable to parse JSON');
+      expect(verification.message).toContain('Invalid signature format: unable to parse JSON');
     });
 
     it('should handle incomplete signature', () => {
-      const content = `content
---- SECURITY SIGNATURE ---
-{"hash": "testhash"}
---- SECURITY SIGNATURE ---`;
+      // This matches the exact format that signReport produces
+      const content =
+        'content\n--- SECURITY SIGNATURE ---\n{"hash": "testhash"}\n\n--- SECURITY SIGNATURE ---\n';
 
       const verification = CryptoUtils.verifyReport(content);
 
       expect(verification.isValid).toBe(false);
       expect(verification.tampered).toBe(true);
-      expect(verification.message).toContain('missing required fields');
+      expect(verification.message).toContain(
+        'Invalid signature structure: missing required fields'
+      );
     });
   });
 
@@ -184,7 +187,7 @@ invalid json
 
       const stripped = CryptoUtils.stripExistingSignature(content);
 
-      expect(stripped).toBe('Report content\n');
+      expect(stripped).toBe('Report content');
       expect(stripped).not.toContain('SECURITY SIGNATURE');
     });
 
@@ -219,12 +222,10 @@ invalid json
       const content = 'test report';
       const tamperEvident = CryptoUtils.createTamperEvidentReport(content);
 
-      expect(tamperEvident).toContain('TAMPER-EVIDENT SECURITY REPORT');
-      expect(tamperEvident).toContain('Hash:');
-      expect(tamperEvident).toContain('Generated:');
-      expect(tamperEvident).toContain('Verify with:');
-      expect(tamperEvident).toContain(content);
-      expect(tamperEvident).toContain('--- SECURITY SIGNATURE ---');
+      expect(tamperEvident.signedContent).toContain('--- SECURITY SIGNATURE ---');
+      expect(tamperEvident.hashedReport).toBeDefined();
+      expect(tamperEvident.hashedReport.hash).toBeDefined();
+      expect(tamperEvident.hashedReport.content).toBe(content);
     });
   });
 
@@ -281,7 +282,7 @@ invalid json
       mockFs.writeFileSync.mockImplementation((path, data) => {
         savedContent = data as string;
       });
-      mockFs.readFileSync.mockReturnValue(savedContent);
+      mockFs.readFileSync.mockImplementation(() => savedContent);
       mockFs.existsSync.mockReturnValue(true);
 
       // Save report

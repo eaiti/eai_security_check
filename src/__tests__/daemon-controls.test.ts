@@ -1,6 +1,5 @@
 import { SchedulingService } from '../scheduling-service';
 import * as fs from 'fs';
-import * as path from 'path';
 
 describe('Daemon Controls', () => {
   const testLockFile = '/tmp/test-daemon.lock';
@@ -28,7 +27,7 @@ describe('Daemon Controls', () => {
   describe('stopDaemon', () => {
     it('should handle case when no daemon is running', async () => {
       const result = await SchedulingService.stopDaemon(testLockFile);
-      
+
       expect(result.success).toBe(false);
       expect(result.message).toContain('No daemon lock file found');
     });
@@ -41,11 +40,11 @@ describe('Daemon Controls', () => {
         started: new Date().toISOString(),
         executable: 'test-executable'
       };
-      
+
       fs.writeFileSync(testLockFile, JSON.stringify(staleLockInfo, null, 2));
-      
+
       const result = await SchedulingService.stopDaemon(testLockFile);
-      
+
       expect(result.success).toBe(false);
       expect(result.message).toContain('not found');
       expect(fs.existsSync(testLockFile)).toBe(false);
@@ -62,7 +61,7 @@ describe('Daemon Controls', () => {
         currentVersion: '1.0.0',
         lastVersionCheck: '2025-01-01T00:00:00Z'
       };
-      
+
       const testConfig = {
         enabled: true,
         intervalDays: 7,

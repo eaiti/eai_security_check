@@ -1,11 +1,25 @@
 import { SecurityAuditor } from '../auditor';
 import { SecurityConfig } from '../types';
 import { MockMacOSSecurityChecker } from '../test-utils/mocks';
+import { PlatformDetector, Platform } from '../platform-detector';
+
+// Mock platform detection to always return macOS
+jest.mock('../platform-detector');
+const mockPlatformDetector = PlatformDetector as jest.Mocked<typeof PlatformDetector>;
 
 describe('SecurityAuditor', () => {
   let auditor: SecurityAuditor;
 
   beforeEach(() => {
+    // Mock platform detection to return macOS
+    mockPlatformDetector.detectPlatform = jest.fn().mockResolvedValue({
+      platform: Platform.MACOS,
+      version: '15.5',
+      isSupported: true,
+      isApproved: true,
+      warningMessage: undefined
+    });
+
     auditor = new SecurityAuditor();
     // Replace the real checker with a mock
     (auditor as any).checker = new MockMacOSSecurityChecker();
@@ -15,7 +29,8 @@ describe('SecurityAuditor', () => {
       isSupported: true,
       isApproved: true,
       isLegacy: false,
-      warningMessage: undefined
+      warningMessage: undefined,
+      platform: Platform.MACOS
     };
   });
 

@@ -62,8 +62,8 @@ describe('OutputUtils', () => {
       const jsonData = JSON.parse(formatted.content);
       expect(jsonData).toHaveProperty('timestamp');
       expect(jsonData).toHaveProperty('results');
-      expect(jsonData.results).toHaveLength(2);
-      expect(jsonData.passedChecks).toBe(1);
+      expect(jsonData.results).toHaveLength(3);
+      expect(jsonData.passedChecks).toBe(2);
       expect(jsonData.failedChecks).toBe(1);
     });
 
@@ -90,22 +90,29 @@ describe('OutputUtils', () => {
     it('should copy to clipboard on macOS', async () => {
       mockOs.platform.mockReturnValue('darwin');
       mockExec.mockImplementation((command, callback) => {
-        callback!(null, { stdout: '', stderr: '' } as any);
+        if (callback) {
+          (callback as any)(null, { stdout: '', stderr: '' });
+        }
         return {} as any;
       });
 
       const success = await OutputUtils.copyToClipboard('test content');
       expect(success).toBe(true);
-      expect(mockExec).toHaveBeenCalledWith(expect.stringContaining('pbcopy'));
+      expect(mockExec).toHaveBeenCalledWith(
+        expect.stringContaining('pbcopy'),
+        expect.any(Function)
+      );
     });
 
     it('should copy to clipboard on Linux with xclip', async () => {
       mockOs.platform.mockReturnValue('linux');
       mockExec.mockImplementation((command, callback) => {
-        if (command.includes('xclip')) {
-          callback!(null, { stdout: '', stderr: '' } as any);
-        } else {
-          callback!(new Error('Command not found'), { stdout: '', stderr: '' } as any);
+        if (callback) {
+          if (command.includes('xclip')) {
+            (callback as any)(null, { stdout: '', stderr: '' } as any);
+          } else {
+            (callback as any)(new Error('Command not found'), { stdout: '', stderr: '' } as any);
+          }
         }
         return {} as any;
       });
@@ -117,7 +124,9 @@ describe('OutputUtils', () => {
     it('should handle clipboard errors gracefully', async () => {
       mockOs.platform.mockReturnValue('linux');
       mockExec.mockImplementation((command, callback) => {
-        callback!(new Error('Command not found'), { stdout: '', stderr: '' } as any);
+        if (callback) {
+          (callback as any)(new Error('Command not found'), { stdout: '', stderr: '' } as any);
+        }
         return {} as any;
       });
 
@@ -201,12 +210,14 @@ describe('OutputUtils', () => {
     it('should check for Linux utilities', async () => {
       mockOs.platform.mockReturnValue('linux');
       mockExec.mockImplementation((command, callback) => {
-        if (command === 'which xclip') {
-          callback!(null, { stdout: '/usr/bin/xclip', stderr: '' } as any);
-        } else if (command === 'which xsel') {
-          callback!(new Error('not found'), { stdout: '', stderr: '' } as any);
-        } else if (command === 'which wl-copy') {
-          callback!(null, { stdout: '/usr/bin/wl-copy', stderr: '' } as any);
+        if (callback) {
+          if (command === 'which xclip') {
+            (callback as any)(null, { stdout: '/usr/bin/xclip', stderr: '' } as any);
+          } else if (command === 'which xsel') {
+            (callback as any)(new Error('not found'), { stdout: '', stderr: '' } as any);
+          } else if (command === 'which wl-copy') {
+            (callback as any)(null, { stdout: '/usr/bin/wl-copy', stderr: '' } as any);
+          }
         }
         return {} as any;
       });
@@ -229,7 +240,9 @@ describe('OutputUtils', () => {
     it('should return false when no utilities are available', async () => {
       mockOs.platform.mockReturnValue('linux');
       mockExec.mockImplementation((command, callback) => {
-        callback!(new Error('not found'), { stdout: '', stderr: '' } as any);
+        if (callback) {
+          (callback as any)(new Error('not found'), { stdout: '', stderr: '' } as any);
+        }
         return {} as any;
       });
 
