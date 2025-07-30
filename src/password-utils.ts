@@ -42,8 +42,12 @@ export async function checkPasswordExpiration(maxAgeDays: number = 180): Promise
     if (!passwordLastSetTime) {
       try {
         const { stdout } = await execAsync(`dscl . -read /Users/${currentUser} accountPolicyData 2>/dev/null`);
-        // This is a more complex parsing but accountPolicyData might contain password age
-        // For now, we'll skip this complex parsing and rely on pwpolicy if available
+        // Parse the XML/plist data to extract passwordLastSetTime
+        const passwordTimeMatch = stdout.match(/<key>passwordLastSetTime<\/key>\s*<real>([^<]+)<\/real>/);
+        if (passwordTimeMatch) {
+          const unixTimestamp = parseFloat(passwordTimeMatch[1]);
+          passwordLastSetTime = new Date(unixTimestamp * 1000);
+        }
       } catch (error) {
         // Ignore error, continue to next method
       }
