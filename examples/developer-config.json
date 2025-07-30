@@ -6,6 +6,15 @@
     "enabled": true,
     "requirePasswordImmediately": true
   },
+  "password": {
+    "required": true,
+    "minLength": 8,
+    "requireUppercase": true,
+    "requireLowercase": true,
+    "requireNumber": true,
+    "requireSpecialChar": true,
+    "maxAgeDays": 180
+  },
   "autoLock": {
     "maxTimeoutMinutes": 10
   },

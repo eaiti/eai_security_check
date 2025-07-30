@@ -20,25 +20,27 @@ export interface PasswordRequirements {
 
 /**
  * Checks if the current user's password is older than the specified number of days
+ * Enhanced with multiple fallback methods for better reliability across macOS versions
  */
 export async function checkPasswordExpiration(maxAgeDays: number = 180): Promise<PasswordValidationResult> {
   try {
     const currentUser = process.env.USER || process.env.USERNAME || 'unknown';
-    
-    // Try to get password last set time using dscl
     let passwordLastSetTime: Date | null = null;
+    let method = '';
     
+    // Method 1: Try dscl passwordLastSetTime (direct approach)
     try {
       const { stdout } = await execAsync(`dscl . -read /Users/${currentUser} passwordLastSetTime 2>/dev/null`);
       const match = stdout.match(/passwordLastSetTime:\s*(.+)/);
       if (match) {
         passwordLastSetTime = new Date(match[1].trim());
+        method = 'dscl passwordLastSetTime';
       }
     } catch (error) {
-      // dscl command might not be available or might fail
+      // Continue to next method
     }
     
-    // Fallback: try to get account policy data which might contain password age info
+    // Method 2: Try dscl accountPolicyData (account creation time from policy data)
     if (!passwordLastSetTime) {
       try {
         const { stdout } = await execAsync(`dscl . -read /Users/${currentUser} accountPolicyData 2>/dev/null`);
@@ -47,33 +49,57 @@ export async function checkPasswordExpiration(maxAgeDays: number = 180): Promise
         if (passwordTimeMatch) {
           const unixTimestamp = parseFloat(passwordTimeMatch[1]);
           passwordLastSetTime = new Date(unixTimestamp * 1000);
+          method = 'dscl accountPolicyData';
         }
       } catch (error) {
-        // Ignore error, continue to next method
+        // Continue to next method
       }
     }
     
-    // Fallback: try pwpolicy command
+    // Method 3: Try pwpolicy (password policies with multiple date patterns)
     if (!passwordLastSetTime) {
       try {
         const { stdout } = await execAsync(`pwpolicy -u ${currentUser} -getaccountpolicies 2>/dev/null`);
-        // pwpolicy output is complex XML/plist format
-        // For simplicity, we'll look for password creation/modification dates
-        const creationMatch = stdout.match(/creationTime.*?(\d{4}-\d{2}-\d{2})/);
-        if (creationMatch) {
-          passwordLastSetTime = new Date(creationMatch[1]);
+        
+        // Try multiple date pattern matches for pwpolicy output
+        const patterns = [
+          /creationTime.*?(\d{4}-\d{2}-\d{2})/,
+          /passwordSetDate.*?(\d{4}-\d{2}-\d{2})/,
+          /lastPasswordChange.*?(\d{4}-\d{2}-\d{2})/,
+          /passwordLastSetTime.*?(\d{4}-\d{2}-\d{2})/
+        ];
+        
+        for (const pattern of patterns) {
+          const match = stdout.match(pattern);
+          if (match) {
+            passwordLastSetTime = new Date(match[1]);
+            method = 'pwpolicy account policies';
+            break;
+          }
         }
       } catch (error) {
-        // pwpolicy might not be available or might fail
+        // Continue to next method
       }
     }
     
-    // If we couldn't determine the password age, we'll assume it's compliant
-    // This prevents the security check from failing due to system limitations
+    // Method 4: Home directory creation time (filesystem-based approximation as final fallback)
+    if (!passwordLastSetTime) {
+      try {
+        const { stdout } = await execAsync(`stat -f "%SB" -t "%Y-%m-%d %H:%M:%S" /Users/${currentUser} 2>/dev/null`);
+        if (stdout.trim()) {
+          passwordLastSetTime = new Date(stdout.trim());
+          method = 'home directory creation time';
+        }
+      } catch (error) {
+        // Final fallback failed
+      }
+    }
+    
+    // If we couldn't determine the password age, return detailed message
     if (!passwordLastSetTime) {
       return {
         isValid: true,
-        message: 'Password age could not be determined - assuming compliant'
+        message: 'Password age could not be determined using any method (dscl, pwpolicy, or filesystem) - assuming compliant'
       };
     }
     
@@ -83,21 +109,20 @@ export async function checkPasswordExpiration(maxAgeDays: number = 180): Promise
     if (daysSincePasswordSet > maxAgeDays) {
       return {
         isValid: false,
-        message: `Password is ${daysSincePasswordSet} days old (maximum allowed: ${maxAgeDays} days)`
+        message: `Password is ${daysSincePasswordSet} days old (maximum allowed: ${maxAgeDays} days) - determined via ${method}`
       };
     }
     
     return {
       isValid: true,
-      message: `Password is ${daysSincePasswordSet} days old (within ${maxAgeDays} day limit)`
+      message: `Password is ${daysSincePasswordSet} days old (within ${maxAgeDays} day limit) - determined via ${method}`
     };
     
   } catch (error) {
-    // If there's any error checking password expiration, log it but don't fail validation
-    console.warn('Warning: Could not check password expiration:', error);
+    // If there's any error checking password expiration, provide clear message
     return {
       isValid: true,
-      message: 'Password expiration check failed - assuming compliant'
+      message: `Password expiration check failed: ${error instanceof Error ? error.message : 'Unknown error'} - assuming compliant`
     };
   }
 }
@@ -129,11 +154,70 @@ export function getPasswordRequirements(profile: string): PasswordRequirements {
 }
 
 /**
- * Validates password strength according to profile-specific requirements
+ * Validates password against configuration requirements and expiration
+ * This function does not throw errors - it returns validation results for audit reporting
  */
-export function validatePassword(password: string, profile: string = 'default'): PasswordValidationResult {
-  const requirements = getPasswordRequirements(profile);
+export async function validatePasswordConfiguration(password: string | undefined, passwordConfig: {
+  required: boolean;
+  minLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireNumber: boolean;
+  requireSpecialChar: boolean;
+  maxAgeDays: number;
+}): Promise<{
+  requirementsValid: boolean;
+  expirationValid: boolean;
+  requirementsMessage: string;
+  expirationMessage: string;
+  overallValid: boolean;
+}> {
+  // Check if password is required
+  if (!passwordConfig.required) {
+    return {
+      requirementsValid: true,
+      expirationValid: true,
+      requirementsMessage: 'Password validation is disabled',
+      expirationMessage: 'Password expiration checking is disabled',
+      overallValid: true
+    };
+  }
   
+  // Check password requirements
+  let requirementsValid = true;
+  let requirementsMessage = '';
+  
+  if (!password) {
+    requirementsValid = false;
+    requirementsMessage = 'Password is required but not provided';
+  } else {
+    const validation = validatePasswordStrength(password, passwordConfig);
+    requirementsValid = validation.isValid;
+    requirementsMessage = validation.message;
+  }
+  
+  // Check password expiration
+  const expirationCheck = await checkPasswordExpiration(passwordConfig.maxAgeDays);
+  
+  return {
+    requirementsValid,
+    expirationValid: expirationCheck.isValid,
+    requirementsMessage,
+    expirationMessage: expirationCheck.message,
+    overallValid: requirementsValid && expirationCheck.isValid
+  };
+}
+
+/**
+ * Validates password strength according to specific requirements (not profile-based)
+ */
+export function validatePasswordStrength(password: string, requirements: {
+  minLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireNumber: boolean;
+  requireSpecialChar: boolean;
+}): PasswordValidationResult {
   if (!password || password.length < requirements.minLength) {
     return {
       isValid: false,
@@ -167,6 +251,14 @@ export function validatePassword(password: string, profile: string = 'default'):
     isValid: true,
     message: 'Password meets security requirements'
   };
+}
+
+/**
+ * Validates password strength according to profile-specific requirements
+ */
+export function validatePassword(password: string, profile: string = 'default'): PasswordValidationResult {
+  const requirements = getPasswordRequirements(profile);
+  return validatePasswordStrength(password, requirements);
 }
 
 /**

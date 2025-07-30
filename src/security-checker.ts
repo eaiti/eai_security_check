@@ -654,4 +654,11 @@ export class MacOSSecurityChecker {
       };
     }
   }
+
+  /**
+   * Get the stored password for validation purposes
+   */
+  getPassword(): string | undefined {
+    return this.password;
+  }
 }

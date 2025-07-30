@@ -5,12 +5,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SecurityAuditor } from './auditor';
 import { SecurityConfig } from './types';
-import { promptForValidPassword, validatePassword, checkPasswordExpiration, getPasswordRequirements } from './password-utils';
 
 /**
  * Determines if password is needed based on configuration
  */
 function requiresPassword(config: SecurityConfig): boolean {
+  // Check if password validation is required
+  if (config.password?.required) {
+    return true;
+  }
+  
+  // Also check if any sudo operations are needed (backward compatibility)
   return !!(config.remoteLogin || config.remoteManagement);
 }
 
@@ -28,6 +33,15 @@ function getConfigByProfile(profile: string): SecurityConfig {
         passwordProtection: {
           enabled: true,
           requirePasswordImmediately: true
+        },
+        password: {
+          required: false,
+          minLength: 8,
+          requireUppercase: false,
+          requireLowercase: false,
+          requireNumber: false,
+          requireSpecialChar: false,
+          maxAgeDays: 180
         },
         autoLock: { maxTimeoutMinutes: 3 },
         firewall: { enabled: true, stealthMode: true },
@@ -55,6 +69,15 @@ function getConfigByProfile(profile: string): SecurityConfig {
           enabled: true,
           requirePasswordImmediately: false
         },
+        password: {
+          required: false,
+          minLength: 8,
+          requireUppercase: false,
+          requireLowercase: false,
+          requireNumber: false,
+          requireSpecialChar: false,
+          maxAgeDays: 180
+        },
         autoLock: { maxTimeoutMinutes: 15 },
         firewall: { enabled: true, stealthMode: false },
         remoteLogin: { enabled: false },
@@ -80,6 +103,15 @@ function getConfigByProfile(profile: string): SecurityConfig {
           enabled: true,
           requirePasswordImmediately: true
         },
+        password: {
+          required: true,
+          minLength: 8,
+          requireUppercase: true,
+          requireLowercase: true,
+          requireNumber: true,
+          requireSpecialChar: true,
+          maxAgeDays: 180
+        },
         autoLock: { maxTimeoutMinutes: 10 },
         firewall: { enabled: true, stealthMode: false },
         remoteLogin: { enabled: true },
@@ -102,8 +134,17 @@ function getConfigByProfile(profile: string): SecurityConfig {
           enabled: true,
           requirePasswordImmediately: true
         },
+        password: {
+          required: true,
+          minLength: 10,
+          requireUppercase: false,
+          requireLowercase: false,
+          requireNumber: false,
+          requireSpecialChar: false,
+          maxAgeDays: 180
+        },
         autoLock: { maxTimeoutMinutes: 7 },
-        remoteLogin: { enabled: false }, // Enable to require password validation
+        remoteLogin: { enabled: false },
         wifiSecurity: {
           bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi']
         }
@@ -115,6 +156,15 @@ function getConfigByProfile(profile: string): SecurityConfig {
         passwordProtection: {
           enabled: true,
           requirePasswordImmediately: true
+        },
+        password: {
+          required: false,
+          minLength: 8,
+          requireUppercase: false,
+          requireLowercase: false,
+          requireNumber: false,
+          requireSpecialChar: false,
+          maxAgeDays: 180
         },
         autoLock: { maxTimeoutMinutes: 7 },
         firewall: { enabled: true, stealthMode: true },
@@ -318,49 +368,25 @@ Security Profiles:
 
       // Prompt for password if needed for sudo operations
       let password: string | undefined;
-      let currentProfile = profile || 'default'; // Track the profile for password validation
       
       if (requiresPassword(config)) {
         if (options.password) {
-          // Use provided password, but validate it first
+          // Use provided password
           if (!options.quiet) {
             console.log('🔐 Using provided password for administrator privileges.');
           }
-          
-          // Validate the provided password with profile-specific requirements
-          const passwordValidation = validatePassword(options.password, currentProfile);
-          if (!passwordValidation.isValid) {
-            console.error(`❌ Password validation failed: ${passwordValidation.message}`);
-            process.exit(1);
-          }
-          
-          // Check password expiration with profile-specific age limit
-          const requirements = getPasswordRequirements(currentProfile);
-          const expirationCheck = await checkPasswordExpiration(requirements.maxAgeDays);
-          if (!expirationCheck.isValid) {
-            console.error(`❌ Password validation failed: ${expirationCheck.message}`);
-            process.exit(1);
-          }
-          
-          if (!options.quiet) {
-            if (expirationCheck.message.includes('could not be determined') || expirationCheck.message.includes('check failed')) {
-              console.log(`⚠️  ${expirationCheck.message}`);
-            } else {
-              console.log(`✅ ${expirationCheck.message}`);
-            }
-            console.log('✅ Password validation passed.\n');
-          }
-          
           password = options.password;
         } else {
-          // Prompt for password interactively with profile-specific requirements
+          // Prompt for password interactively
           if (!options.quiet) {
             console.log('🔐 Some security checks require administrator privileges.');
           }
           try {
-            password = await promptForValidPassword(3, currentProfile);
+            // Simple password prompt without validation (validation happens in audit)
+            const { promptForPassword } = await import('./password-utils');
+            password = await promptForPassword('🔐 Enter your macOS password: ');
             if (!options.quiet) {
-              console.log('✅ Password accepted.\n');
+              console.log('✅ Password collected.\n');
             }
           } catch (error) {
             console.error(`❌ ${error}`);

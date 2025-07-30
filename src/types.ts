@@ -6,6 +6,15 @@ export interface SecurityConfig {
     enabled: boolean;
     requirePasswordImmediately?: boolean;
   };
+  password?: {
+    required: boolean;
+    minLength: number;
+    requireUppercase: boolean;
+    requireLowercase: boolean;
+    requireNumber: boolean;
+    requireSpecialChar: boolean;
+    maxAgeDays: number;
+  };
   autoLock?: {
     maxTimeoutMinutes: number;
   };
