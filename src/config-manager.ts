@@ -92,20 +92,20 @@ export class ConfigManager {
   /**
    * Create all security profile configuration files
    */
-  static createAllSecurityConfigs(force: boolean = false): void {
+  static createAllSecurityConfigs(force: boolean = false, defaultProfile: string = 'default'): void {
     const configDir = this.ensureConfigDirectory();
     const profiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
     const createdProfiles: string[] = [];
     const skippedProfiles: string[] = [];
 
-    // Create main security config (default profile)
+    // Create main security config (using specified default profile)
     const mainConfigPath = this.getSecurityConfigPath();
     if (!fs.existsSync(mainConfigPath) || force) {
-      const defaultConfig = getConfigByProfile('default');
+      const defaultConfig = getConfigByProfile(defaultProfile);
       fs.writeFileSync(mainConfigPath, JSON.stringify(defaultConfig, null, 2));
-      createdProfiles.push('default (main)');
+      createdProfiles.push(`default (${defaultProfile} profile)`);
     } else {
-      skippedProfiles.push('default (main)');
+      skippedProfiles.push(`default (${defaultProfile} profile)`);
     }
 
     // Create profile-specific config files
@@ -133,7 +133,7 @@ export class ConfigManager {
   /**
    * Create a scheduling configuration file with interactive prompts
    */
-  static async createSchedulingConfigInteractive(): Promise<void> {
+  static async createSchedulingConfigInteractive(defaultProfile: string = 'default'): Promise<void> {
     const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
@@ -147,28 +147,49 @@ export class ConfigManager {
     };
 
     try {
-      console.log('\n🔧 Setting up daemon configuration...\n');
+      console.log('🔧 Setting up daemon configuration...\n');
       
       // Get user identification
       const userId = await question('Enter user/system identifier (e.g., user@company.com): ');
+      if (!userId.trim()) {
+        throw new Error('User identifier is required');
+      }
       
       // Get email settings
       console.log('\n📧 Email Configuration:');
       const smtpHost = await question('SMTP host (e.g., smtp.gmail.com): ');
-      const smtpPort = parseInt(await question('SMTP port (587 for TLS, 465 for SSL): ')) || 587;
+      if (!smtpHost.trim()) {
+        throw new Error('SMTP host is required');
+      }
+      
+      const smtpPortInput = await question('SMTP port (587 for TLS, 465 for SSL): ');
+      const smtpPort = parseInt(smtpPortInput) || 587;
       const smtpSecure = smtpPort === 465;
+      
       const smtpUser = await question('SMTP username/email: ');
+      if (!smtpUser.trim()) {
+        throw new Error('SMTP username is required');
+      }
+      
       const smtpPass = await question('SMTP password (use app-specific password for Gmail): ');
+      if (!smtpPass.trim()) {
+        throw new Error('SMTP password is required');
+      }
       
       const fromEmail = await question('From email address: ') || smtpUser;
       const toEmails = await question('To email addresses (comma-separated): ');
+      if (!toEmails.trim()) {
+        throw new Error('At least one recipient email is required');
+      }
       
       // Get scheduling settings
       console.log('\n⏰ Scheduling Configuration:');
-      const intervalDays = parseInt(await question('Check interval in days (default: 7): ')) || 7;
+      const intervalInput = await question('Check interval in days (default: 7): ');
+      const intervalDays = parseInt(intervalInput) || 7;
       
       // Get security profile
-      const securityProfile = await question('Security profile (default, strict, relaxed, developer, eai) [default]: ') || 'default';
+      const profileInput = await question(`Security profile (default, strict, relaxed, developer, eai) [${defaultProfile}]: `);
+      const securityProfile = profileInput.trim() || defaultProfile;
       
       const config: SchedulingConfig = {
         enabled: true,
@@ -189,7 +210,7 @@ export class ConfigManager {
           subject: 'Security Audit Report'
         },
         reportFormat: 'email',
-        securityProfile: securityProfile.trim()
+        securityProfile: securityProfile
       };
 
       const configDir = this.ensureConfigDirectory();
@@ -204,7 +225,9 @@ export class ConfigManager {
       }
 
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-      console.log(`\n✅ Scheduling configuration created: ${configPath}`);
+      console.log(`✅ Scheduling configuration created: ${configPath}`);
+      console.log(`🤖 Configured for ${intervalDays}-day intervals using '${securityProfile}' profile`);
+      console.log(`📧 Will send reports to: ${config.email.to.join(', ')}`);
       
     } finally {
       rl.close();
