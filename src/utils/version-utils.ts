@@ -89,10 +89,6 @@ export class VersionUtils {
     try {
       const currentVersion = this.getCurrentVersion();
 
-      // Get the current executable path to find similar executables
-      const currentExecutable = process.argv[0];
-      const executableName = path.basename(currentExecutable);
-
       // On Linux/macOS, use ps to find similar processes
       const { exec } = await import('child_process');
       const { promisify } = await import('util');
@@ -154,7 +150,7 @@ export class VersionUtils {
           process.kill(lockInfo.pid, 0);
           // Process exists, lock is valid
           return false;
-        } catch (error) {
+        } catch {
           // Process doesn't exist, remove stale lock
           fs.unlinkSync(lockFilePath);
         }

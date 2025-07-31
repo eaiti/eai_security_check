@@ -40,7 +40,7 @@ export async function checkPasswordExpiration(
         passwordLastSetTime = new Date(match[1].trim());
         method = 'dscl passwordLastSetTime';
       }
-    } catch (error) {
+    } catch {
       // Continue to next method
     }
 
@@ -59,7 +59,7 @@ export async function checkPasswordExpiration(
           passwordLastSetTime = new Date(unixTimestamp * 1000);
           method = 'dscl accountPolicyData';
         }
-      } catch (error) {
+      } catch {
         // Continue to next method
       }
     }
@@ -87,7 +87,7 @@ export async function checkPasswordExpiration(
             break;
           }
         }
-      } catch (error) {
+      } catch {
         // Continue to next method
       }
     }
@@ -102,7 +102,7 @@ export async function checkPasswordExpiration(
           passwordLastSetTime = new Date(stdout.trim());
           method = 'home directory creation time';
         }
-      } catch (error) {
+      } catch {
         // Final fallback failed
       }
     }
@@ -256,7 +256,7 @@ export function validatePasswordStrength(
   if (requirements.requireNumber && !/\d/.test(password)) {
     missingRequirements.push('number');
   }
-  if (requirements.requireSpecialChar && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  if (requirements.requireSpecialChar && !/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     missingRequirements.push('special character');
   }
 

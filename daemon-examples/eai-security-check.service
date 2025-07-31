@@ -1,0 +1,20 @@
+[Unit]
+Description=EAI Security Check Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/eai-security-check daemon
+Restart=always
+RestartSec=30
+User=%i
+WorkingDirectory=%h
+Environment=NODE_ENV=production
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=eai-security-check
+
+[Install]
+WantedBy=default.target

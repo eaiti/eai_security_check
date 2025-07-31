@@ -1,9 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as readline from 'readline';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { SecurityConfig, SchedulingConfig, ScpConfig } from '../types';
 import { getConfigByProfile } from './config-profiles';
 import { Platform, PlatformDetector } from '../utils/platform-detector';
+import { SchedulingService } from '../services/scheduling-service';
 
 /**
  * ConfigManager handles configuration directory setup and management
@@ -21,19 +25,22 @@ export class ConfigManager {
     switch (platform) {
       case 'darwin': // macOS
         return path.join(homeDir, 'Library', 'Application Support', this.APP_NAME);
-      case 'linux':
+      case 'linux': {
         // Use XDG_CONFIG_HOME if set, otherwise ~/.config
         const xdgConfigHome = process.env.XDG_CONFIG_HOME;
         if (xdgConfigHome) {
           return path.join(xdgConfigHome, this.APP_NAME);
         }
         return path.join(homeDir, '.config', this.APP_NAME);
-      case 'win32': // Windows
+      }
+      case 'win32': {
+        // Windows
         const appData = process.env.APPDATA;
         if (appData) {
           return path.join(appData, this.APP_NAME);
         }
         return path.join(homeDir, 'AppData', 'Roaming', this.APP_NAME);
+      }
       default:
         // Fallback to a hidden directory in home
         return path.join(homeDir, `.${this.APP_NAME}`);
@@ -78,7 +85,7 @@ export class ConfigManager {
    * Create a default security configuration file
    */
   static createSecurityConfig(profile: string = 'default'): void {
-    const configDir = this.ensureConfigDirectory();
+    this.ensureConfigDirectory();
     const configPath = this.getSecurityConfigPath();
 
     if (fs.existsSync(configPath)) {
@@ -139,7 +146,6 @@ export class ConfigManager {
   static async createSchedulingConfigInteractive(
     defaultProfile: string = 'default'
   ): Promise<void> {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -296,7 +302,7 @@ export class ConfigManager {
         securityProfile: securityProfile
       };
 
-      const configDir = this.ensureConfigDirectory();
+      this.ensureConfigDirectory();
       const configPath = this.getSchedulingConfigPath();
 
       if (fs.existsSync(configPath)) {
@@ -328,7 +334,6 @@ export class ConfigManager {
    * Ask user to select a security profile with explanations
    */
   static async promptForSecurityProfile(): Promise<string> {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -368,7 +373,7 @@ export class ConfigManager {
           return 'developer';
         case '5':
           return 'eai';
-        default:
+        default: {
           // Handle direct profile names
           const validProfiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
           if (validProfiles.includes(choice.toLowerCase())) {
@@ -377,6 +382,7 @@ export class ConfigManager {
           // Invalid choice, default to 'default'
           console.log(`⚠️  Invalid choice "${choice}", using default profile`);
           return 'default';
+        }
       }
     } finally {
       rl.close();
@@ -387,7 +393,6 @@ export class ConfigManager {
    * Ask user if they want to setup daemon configuration
    */
   static async promptForDaemonSetup(): Promise<boolean> {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -399,8 +404,25 @@ export class ConfigManager {
         'The daemon can automatically run security checks on a schedule and email results.'
       );
       console.log(
-        'This is optional - you can always run checks manually with "eai-security-check check".\n'
+        'This is optional - you can always run checks manually with "eai-security-check check".'
       );
+
+      // Show platform-specific capabilities
+      const platformInfo = SchedulingService.getDaemonPlatformInfo();
+
+      console.log(`\n📱 Platform: ${platformInfo.platform}`);
+      console.log(
+        `✅ Supports scheduled execution: ${platformInfo.supportsScheduling ? 'Yes' : 'No'}`
+      );
+      console.log(`✅ Supports manual restart: ${platformInfo.supportsRestart ? 'Yes' : 'No'}`);
+      console.log(
+        `⚠️  Auto-starts on boot: ${platformInfo.supportsAutoStart ? 'Yes' : 'Requires manual setup'}`
+      );
+
+      if (!platformInfo.supportsAutoStart) {
+        console.log('💡 Note: Daemon runs as user process, not system service');
+        console.log('💡 For auto-start on boot, see platform-specific setup in daemon --help\n');
+      }
 
       const answer = await new Promise<string>(resolve => {
         rl.question('Would you like to set up automated scheduling (daemon)? (y/N): ', resolve);
@@ -413,10 +435,226 @@ export class ConfigManager {
   }
 
   /**
+   * Copy daemon service template files to user's config directory
+   */
+  static copyDaemonServiceTemplates(): {
+    templatesCopied: string[];
+    instructions: string[];
+    platform: string;
+  } {
+    const platform = PlatformDetector.getSimplePlatform();
+    const configDir = this.getConfigDirectory();
+    const templatesCopied: string[] = [];
+    const instructions: string[] = [];
+
+    // Ensure daemon-templates subdirectory exists
+    const templatesDir = path.join(configDir, 'daemon-templates');
+    if (!fs.existsSync(templatesDir)) {
+      fs.mkdirSync(templatesDir, { recursive: true });
+    }
+
+    try {
+      // Find daemon-examples directory - check multiple possible locations
+      let daemonExamplesDir: string | null = null;
+
+      // For development/npm environments
+      const devPath = path.join(__dirname, '..', '..', 'daemon-examples');
+      if (fs.existsSync(devPath)) {
+        daemonExamplesDir = devPath;
+      } else {
+        // For pkg environments - check relative to executable
+        const pkgPath = path.join(path.dirname(process.execPath), 'daemon-examples');
+        if (fs.existsSync(pkgPath)) {
+          daemonExamplesDir = pkgPath;
+        } else {
+          // For npm global installs
+          const globalPath = path.join(__dirname, '..', '..', '..', 'daemon-examples');
+          if (fs.existsSync(globalPath)) {
+            daemonExamplesDir = globalPath;
+          }
+        }
+      }
+
+      if (!daemonExamplesDir) {
+        console.log('⚠️  Daemon template files not found - providing manual instructions only');
+        return this.getManualDaemonInstructions(platform);
+      }
+
+      // Copy platform-specific templates
+      switch (platform) {
+        case Platform.LINUX:
+          this.copyLinuxTemplates(daemonExamplesDir, templatesDir, templatesCopied, instructions);
+          break;
+        case Platform.MACOS:
+          this.copyMacOSTemplates(daemonExamplesDir, templatesDir, templatesCopied, instructions);
+          break;
+        case Platform.WINDOWS:
+          this.copyWindowsTemplates(daemonExamplesDir, templatesDir, templatesCopied, instructions);
+          break;
+        default:
+          console.log('⚠️  Platform not supported for automated daemon setup');
+          return {
+            templatesCopied: [],
+            instructions: ['Platform not supported'],
+            platform: 'Unknown'
+          };
+      }
+
+      // Copy common files
+      const commonFiles = ['README.md', 'schedule-config-example.json'];
+      for (const file of commonFiles) {
+        const srcPath = path.join(daemonExamplesDir, file);
+        const destPath = path.join(templatesDir, file);
+        if (fs.existsSync(srcPath)) {
+          fs.copyFileSync(srcPath, destPath);
+          templatesCopied.push(file);
+        }
+      }
+    } catch (error) {
+      console.log(`⚠️  Error copying daemon templates: ${error}`);
+      return this.getManualDaemonInstructions(platform);
+    }
+
+    return { templatesCopied, instructions, platform };
+  }
+
+  private static copyLinuxTemplates(
+    srcDir: string,
+    destDir: string,
+    templatesCopied: string[],
+    instructions: string[]
+  ): void {
+    const serviceFile = 'eai-security-check.service';
+    const srcPath = path.join(srcDir, serviceFile);
+    const destPath = path.join(destDir, serviceFile);
+
+    if (fs.existsSync(srcPath)) {
+      fs.copyFileSync(srcPath, destPath);
+      templatesCopied.push(serviceFile);
+
+      instructions.push('🐧 Linux systemd Service Setup:');
+      instructions.push(`1. Copy service file: cp "${destPath}" ~/.config/systemd/user/`);
+      instructions.push('2. Reload systemd: systemctl --user daemon-reload');
+      instructions.push('3. Enable service: systemctl --user enable eai-security-check.service');
+      instructions.push('4. Start service: systemctl --user start eai-security-check.service');
+      instructions.push('5. Enable auto-start: sudo loginctl enable-linger $USER');
+      instructions.push('6. Check status: systemctl --user status eai-security-check.service');
+    }
+  }
+
+  private static copyMacOSTemplates(
+    srcDir: string,
+    destDir: string,
+    templatesCopied: string[],
+    instructions: string[]
+  ): void {
+    const plistFile = 'com.eai.security-check.plist';
+    const srcPath = path.join(srcDir, plistFile);
+    const destPath = path.join(destDir, plistFile);
+
+    if (fs.existsSync(srcPath)) {
+      fs.copyFileSync(srcPath, destPath);
+      templatesCopied.push(plistFile);
+
+      instructions.push('🍎 macOS launchd Service Setup:');
+      instructions.push(`1. Copy plist file: cp "${destPath}" ~/Library/LaunchAgents/`);
+      instructions.push(
+        '2. Load service: launchctl load ~/Library/LaunchAgents/com.eai.security-check.plist'
+      );
+      instructions.push('3. Start service: launchctl start com.eai.security-check');
+      instructions.push('4. Check status: launchctl list | grep com.eai.security-check');
+      instructions.push('5. Auto-starts on login (no additional setup needed)');
+    }
+  }
+
+  private static copyWindowsTemplates(
+    srcDir: string,
+    destDir: string,
+    templatesCopied: string[],
+    instructions: string[]
+  ): void {
+    const scriptFile = 'windows-task-scheduler.ps1';
+    const srcPath = path.join(srcDir, scriptFile);
+    const destPath = path.join(destDir, scriptFile);
+
+    if (fs.existsSync(srcPath)) {
+      // Read the template and customize it with the actual executable path
+      let scriptContent = fs.readFileSync(srcPath, 'utf-8');
+
+      // Try to determine the executable path
+      let exePath = process.execPath;
+      if (typeof (process as any).pkg !== 'undefined') {
+        // Running as pkg executable
+        exePath = process.execPath;
+      } else {
+        // Running with Node.js - provide example path
+        exePath = 'C:\\path\\to\\eai-security-check.exe';
+        scriptContent = scriptContent.replace(
+          /\$ExePath = "C:\\path\\to\\eai-security-check\.exe"/,
+          `# Update this path to your actual executable location\n$ExePath = "${exePath}"`
+        );
+      }
+
+      fs.writeFileSync(destPath, scriptContent);
+      templatesCopied.push(scriptFile);
+
+      instructions.push('🪟 Windows Task Scheduler Setup:');
+      instructions.push(`1. Edit script: Update the path in "${destPath}"`);
+      instructions.push('2. Run PowerShell as Administrator');
+      instructions.push(`3. Execute script: & "${destPath}"`);
+      instructions.push('4. Check task: Get-ScheduledTask -TaskName "EAI Security Check Daemon"');
+      instructions.push(
+        '5. Manual start: Start-ScheduledTask -TaskName "EAI Security Check Daemon"'
+      );
+    }
+  }
+
+  private static getManualDaemonInstructions(platform: Platform): {
+    templatesCopied: string[];
+    instructions: string[];
+    platform: string;
+  } {
+    const instructions: string[] = [];
+
+    switch (platform) {
+      case Platform.LINUX:
+        instructions.push('🐧 Linux Manual Setup:');
+        instructions.push(
+          '1. Create systemd user service file at ~/.config/systemd/user/eai-security-check.service'
+        );
+        instructions.push('2. Use "eai-security-check daemon --help" for service file template');
+        instructions.push(
+          '3. Run: systemctl --user daemon-reload && systemctl --user enable eai-security-check.service'
+        );
+        break;
+      case Platform.MACOS:
+        instructions.push('🍎 macOS Manual Setup:');
+        instructions.push(
+          '1. Create LaunchAgent plist at ~/Library/LaunchAgents/com.eai.security-check.plist'
+        );
+        instructions.push('2. Use "eai-security-check daemon --help" for plist template');
+        instructions.push(
+          '3. Run: launchctl load ~/Library/LaunchAgents/com.eai.security-check.plist'
+        );
+        break;
+      case Platform.WINDOWS:
+        instructions.push('🪟 Windows Manual Setup:');
+        instructions.push('1. Use Task Scheduler to create a startup task');
+        instructions.push('2. Set program: path\\to\\eai-security-check.exe');
+        instructions.push('3. Set arguments: daemon');
+        instructions.push('4. Configure to run at startup');
+        break;
+      default:
+        instructions.push('Platform not supported for daemon setup');
+    }
+
+    return { templatesCopied: [], instructions, platform: platform || 'Unknown' };
+  }
+
+  /**
    * Ask user if they want to force overwrite existing configurations
    */
   static async promptForForceOverwrite(): Promise<boolean> {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -437,7 +675,6 @@ export class ConfigManager {
    * Ask user if they want to start the daemon now
    */
   static async promptToStartDaemon(): Promise<boolean> {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -523,5 +760,199 @@ export class ConfigManager {
       securityConfigPath: this.getSecurityConfigPath(),
       schedulingConfigPath: this.getSchedulingConfigPath()
     };
+  }
+
+  /**
+   * Prompt user if they want global installation
+   */
+  static async promptForGlobalInstall(): Promise<boolean> {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    const platform = os.platform();
+    let installationDescription = '';
+
+    switch (platform) {
+      case 'win32':
+        installationDescription =
+          'Add to PATH or create desktop shortcuts (requires admin privileges)';
+        break;
+      case 'darwin':
+      case 'linux':
+        installationDescription = 'Create symbolic link in /usr/local/bin (requires sudo)';
+        break;
+      default:
+        installationDescription = 'Enable system-wide access';
+    }
+
+    return new Promise(resolve => {
+      console.log('🌍 Global Installation Setup');
+      console.log(
+        `   Platform: ${platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'macOS' : 'Linux'}`
+      );
+      console.log(`   Action: ${installationDescription}`);
+      console.log('');
+
+      rl.question(
+        'Would you like to install globally for system-wide access? (y/N): ',
+        (answer: string) => {
+          rl.close();
+          resolve(answer.toLowerCase().startsWith('y'));
+        }
+      );
+    });
+  }
+
+  /**
+   * Setup global installation across platforms
+   */
+  static async setupGlobalInstallation(): Promise<void> {
+    const platform = os.platform();
+    const executablePath = process.execPath;
+    const executableFile = path.basename(executablePath);
+
+    const execAsync = promisify(exec);
+
+    switch (platform) {
+      case 'win32':
+        await this.setupWindowsGlobalInstall(executablePath, executableFile, execAsync);
+        break;
+      case 'darwin':
+      case 'linux':
+        await this.setupUnixGlobalInstall(executablePath, executableFile, execAsync);
+        break;
+      default:
+        throw new Error(`Global installation not supported on platform: ${platform}`);
+    }
+  }
+
+  /**
+   * Setup global installation on Windows
+   */
+  private static async setupWindowsGlobalInstall(
+    executablePath: string,
+    executableFile: string,
+    execAsync: any
+  ): Promise<void> {
+    // Strategy 1: Try to add to PATH via environment variables
+    try {
+      const binDir = path.dirname(executablePath);
+
+      // Check if already in PATH
+      const currentPath = process.env.PATH || '';
+      if (currentPath.includes(binDir)) {
+        console.log('✅ Executable directory already in PATH');
+        return;
+      }
+
+      // Try to add to user PATH (doesn't require admin)
+      console.log('💡 Adding to user PATH environment variable...');
+
+      await execAsync(
+        `powershell -Command "[Environment]::SetEnvironmentVariable('PATH', [Environment]::GetEnvironmentVariable('PATH', 'User') + ';${binDir}', 'User')"`
+      );
+
+      console.log(
+        '✅ Added to user PATH - restart terminal or log out/in for changes to take effect'
+      );
+      console.log(`📁 Executable location: ${executablePath}`);
+    } catch (pathError) {
+      // Strategy 2: Create a batch file wrapper in a common location
+      try {
+        console.log('💡 Creating batch file wrapper...');
+
+        const userProfile = process.env.USERPROFILE;
+        if (!userProfile) {
+          throw new Error('USERPROFILE environment variable not found');
+        }
+        const binDir = path.join(userProfile, 'AppData', 'Local', 'Microsoft', 'WindowsApps');
+
+        if (fs.existsSync(binDir)) {
+          const batchFile = path.join(binDir, 'eai-security-check.bat');
+          const batchContent = `@echo off\n"${executablePath}" %*`;
+
+          fs.writeFileSync(batchFile, batchContent);
+          console.log('✅ Created batch file wrapper');
+          console.log(`📁 Wrapper location: ${batchFile}`);
+        } else {
+          throw new Error('Windows Apps directory not found');
+        }
+      } catch (batchError) {
+        throw new Error(
+          `Failed to setup global installation: ${pathError}. Batch file creation also failed: ${batchError}`
+        );
+      }
+    }
+  }
+
+  /**
+   * Setup global installation on Unix-like systems (macOS/Linux)
+   */
+  private static async setupUnixGlobalInstall(
+    executablePath: string,
+    executableFile: string,
+    execAsync: any
+  ): Promise<void> {
+    const targetDir = '/usr/local/bin';
+    const targetPath = path.join(targetDir, 'eai-security-check');
+
+    // Check if target directory exists and is writable
+    if (!fs.existsSync(targetDir)) {
+      throw new Error(`Target directory ${targetDir} does not exist`);
+    }
+
+    // Check if symlink already exists
+    if (fs.existsSync(targetPath)) {
+      try {
+        const stats = fs.lstatSync(targetPath);
+        if (stats.isSymbolicLink()) {
+          const linkTarget = fs.readlinkSync(targetPath);
+          if (linkTarget === executablePath) {
+            console.log('✅ Symbolic link already exists and points to current executable');
+            return;
+          } else {
+            console.log('⚠️  Existing symbolic link points to different executable, removing...');
+            await execAsync(`sudo rm "${targetPath}"`);
+          }
+        } else {
+          throw new Error(`File ${targetPath} exists but is not a symbolic link`);
+        }
+      } catch (statError) {
+        throw new Error(`Error checking existing installation: ${statError}`);
+      }
+    }
+
+    // Create symbolic link
+    try {
+      console.log('💡 Creating symbolic link (requires sudo)...');
+      await execAsync(`sudo ln -s "${executablePath}" "${targetPath}"`);
+
+      // Verify the link was created
+      if (fs.existsSync(targetPath)) {
+        const linkTarget = fs.readlinkSync(targetPath);
+        if (linkTarget === executablePath) {
+          console.log('✅ Symbolic link created successfully');
+          console.log(`🔗 ${targetPath} -> ${executablePath}`);
+        } else {
+          throw new Error('Symbolic link verification failed');
+        }
+      } else {
+        throw new Error('Symbolic link was not created');
+      }
+    } catch (symlinkError) {
+      // Fallback: try creating without sudo (if user has write access)
+      try {
+        console.log('💡 Attempting to create link without sudo...');
+        fs.symlinkSync(executablePath, targetPath);
+        console.log('✅ Symbolic link created successfully');
+        console.log(`🔗 ${targetPath} -> ${executablePath}`);
+      } catch (fallbackError) {
+        throw new Error(
+          `Failed to create symbolic link with sudo: ${symlinkError}. Fallback also failed: ${fallbackError}`
+        );
+      }
+    }
   }
 }

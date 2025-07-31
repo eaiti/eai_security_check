@@ -3,6 +3,10 @@
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
+import * as readline from 'readline';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { SecurityAuditor } from '../services/auditor';
 import { SecurityConfig } from '../types';
 import { OutputUtils, OutputFormat } from '../utils/output-utils';
@@ -11,19 +15,6 @@ import { PlatformDetector, Platform } from '../utils/platform-detector';
 import { SchedulingService } from '../services/scheduling-service';
 import { getConfigByProfile, isValidProfile, VALID_PROFILES } from '../config/config-profiles';
 import { ConfigManager } from '../config/config-manager';
-
-/**
- * Determines if password is needed based on configuration
- */
-function requiresPassword(config: SecurityConfig): boolean {
-  // Check if password validation is required
-  if (config.password?.required) {
-    return true;
-  }
-
-  // Also check if any sudo operations are needed (backward compatibility)
-  return !!(config.remoteLogin || config.remoteManagement);
-}
 
 /**
  * Gets configuration by profile name, either from file or generated dynamically
@@ -39,7 +30,7 @@ function getConfigForProfile(profile: string): SecurityConfig | null {
     try {
       const configContent = fs.readFileSync(configPath, 'utf-8');
       return JSON.parse(configContent);
-    } catch (error) {
+    } catch {
       // If file read fails, fall back to generated config
     }
   }
@@ -102,6 +93,151 @@ function resolveProfileConfigPath(profile: string): string | null {
   return null;
 }
 
+/**
+ * Prompt user if they want to attempt automatic service setup
+ */
+async function promptForAutoServiceSetup(platform: string): Promise<boolean> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  try {
+    let canAutoSetup = false;
+    let setupDescription = '';
+
+    switch (platform) {
+      case 'Linux':
+        canAutoSetup = true;
+        setupDescription = 'copy the systemd service file to the correct location';
+        break;
+      case 'macOS':
+        canAutoSetup = true;
+        setupDescription = 'copy the LaunchAgent plist file to the correct location';
+        break;
+      case 'Windows':
+        canAutoSetup = false;
+        setupDescription = 'setup requires Administrator privileges (manual setup recommended)';
+        break;
+      default:
+        return false;
+    }
+
+    if (!canAutoSetup) {
+      console.log(`💡 Note: Automatic setup not available for ${platform} - ${setupDescription}`);
+      return false;
+    }
+
+    console.log(`🤖 Auto-Setup Available: I can ${setupDescription} for you.\n`);
+
+    const answer = await new Promise<string>(resolve => {
+      rl.question('Would you like me to attempt automatic service setup? (y/N): ', resolve);
+    });
+
+    return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+  } finally {
+    rl.close();
+  }
+}
+
+/**
+ * Attempt automatic service setup where possible
+ */
+async function attemptAutoServiceSetup(serviceSetup: any): Promise<void> {
+  const configDir = ConfigManager.getConfigDirectory();
+  const templatesDir = path.join(configDir, 'daemon-templates');
+
+  try {
+    switch (serviceSetup.platform) {
+      case 'Linux':
+        await attemptLinuxServiceSetup(templatesDir);
+        break;
+      case 'macOS':
+        await attemptMacOSServiceSetup(templatesDir);
+        break;
+      default:
+        console.log('⚠️  Automatic setup not supported for this platform');
+    }
+  } catch (error) {
+    console.error(`❌ Automatic setup failed: ${error}`);
+    console.log('💡 Please follow the manual setup instructions above');
+  }
+}
+
+/**
+ * Attempt Linux systemd service setup
+ */
+async function attemptLinuxServiceSetup(templatesDir: string): Promise<void> {
+  const execAsync = promisify(exec);
+
+  const serviceFile = path.join(templatesDir, 'eai-security-check.service');
+  const userSystemdDir = path.join(os.homedir(), '.config', 'systemd', 'user');
+  const destServiceFile = path.join(userSystemdDir, 'eai-security-check.service');
+
+  try {
+    // Create systemd user directory if it doesn't exist
+    if (!fs.existsSync(userSystemdDir)) {
+      fs.mkdirSync(userSystemdDir, { recursive: true });
+      console.log('✅ Created systemd user directory');
+    }
+
+    // Copy service file
+    if (fs.existsSync(serviceFile)) {
+      fs.copyFileSync(serviceFile, destServiceFile);
+      console.log('✅ Copied service file to systemd directory');
+
+      // Reload systemd
+      await execAsync('systemctl --user daemon-reload');
+      console.log('✅ Systemd daemon reloaded');
+
+      // Enable service
+      await execAsync('systemctl --user enable eai-security-check.service');
+      console.log('✅ Service enabled for auto-start');
+
+      console.log('\n🎉 Linux systemd service setup completed successfully!');
+      console.log('💡 To start now: systemctl --user start eai-security-check.service');
+      console.log('💡 To enable login-less start: sudo loginctl enable-linger $USER');
+    } else {
+      throw new Error('Service template file not found');
+    }
+  } catch (error) {
+    throw new Error(`Linux service setup failed: ${error}`);
+  }
+}
+
+/**
+ * Attempt macOS LaunchAgent setup
+ */
+async function attemptMacOSServiceSetup(templatesDir: string): Promise<void> {
+  const plistFile = path.join(templatesDir, 'com.eai.security-check.plist');
+  const launchAgentsDir = path.join(os.homedir(), 'Library', 'LaunchAgents');
+  const destPlistFile = path.join(launchAgentsDir, 'com.eai.security-check.plist');
+
+  try {
+    // Create LaunchAgents directory if it doesn't exist
+    if (!fs.existsSync(launchAgentsDir)) {
+      fs.mkdirSync(launchAgentsDir, { recursive: true });
+      console.log('✅ Created LaunchAgents directory');
+    }
+
+    // Copy plist file
+    if (fs.existsSync(plistFile)) {
+      fs.copyFileSync(plistFile, destPlistFile);
+      console.log('✅ Copied plist file to LaunchAgents directory');
+
+      console.log('\n🎉 macOS LaunchAgent setup completed successfully!');
+      console.log(
+        '💡 To load now: launchctl load ~/Library/LaunchAgents/com.eai.security-check.plist'
+      );
+      console.log('💡 Service will auto-start on next login');
+    } else {
+      throw new Error('plist template file not found');
+    }
+  } catch (error) {
+    throw new Error(`macOS service setup failed: ${error}`);
+  }
+}
+
 const program = new Command();
 
 program
@@ -115,13 +251,13 @@ program
     `
 🔒 EAI Security Check - Cross-Platform Security Audit Tool
 
-This tool audits your macOS or Linux system against security best practices and generates
+This tool audits your macOS, Linux, or Windows system against security best practices and generates
 detailed reports with actionable recommendations.
 
 SECURITY CHECKS PERFORMED:
-  🔒 Disk Encryption (FileVault/LUKS)    🔥 Firewall (App Firewall/ufw/firewalld)
-  🔑 Password Protection                  🛡️  Package Verification (Gatekeeper/GPG)
-  ⏰ Auto-lock Timeout                    🔐 System Integrity Protection (SIP/SELinux)
+  🔒 Disk Encryption (FileVault/LUKS/BitLocker)    🔥 Firewall (App Firewall/ufw/Windows Defender)
+  🔑 Password Protection                         🛡️  Package Verification (Gatekeeper/GPG/SmartScreen)
+  ⏰ Auto-lock Timeout                           🔐 System Integrity (SIP/SELinux/Windows Defender)
   🌐 Remote Login/SSH                     📱 Remote Management/VNC
   🔄 Automatic Updates                    📡 Sharing Services (File/Screen/Network)
 
@@ -444,14 +580,21 @@ program
     'after',
     `
 Examples:
-  $ eai-security-check init                           # Interactive setup
+  $ eai-security-check init                           # Interactive setup with all options
 
 Interactive Setup:
   The init command will guide you through:
   1. Choosing a default security profile with explanations
   2. Setting up configuration directory and files
   3. Optionally configuring automated daemon scheduling with email and SCP
-  4. Providing next steps for using the tool
+  4. Optionally installing executable globally for system-wide access
+  5. Providing next steps for using the tool
+
+Global Installation:
+  During interactive setup, you can choose to install globally:
+  - macOS/Linux: Create symbolic links in /usr/local/bin for system-wide access  
+  - Windows: Add executable to PATH or create shortcuts
+  - Requires appropriate permissions (sudo on macOS/Linux, admin on Windows)
 
 Configuration Directory:
   The init command creates an OS-appropriate configuration directory:
@@ -544,6 +687,44 @@ After running init, you can use any profile with:
 
             await ConfigManager.createSchedulingConfigInteractive(selectedProfile);
 
+            // Enhanced daemon setup - copy service templates and provide instructions
+            console.log('\n🛠️  Setting up system service templates...\n');
+            const serviceSetup = ConfigManager.copyDaemonServiceTemplates();
+
+            if (serviceSetup.templatesCopied.length > 0) {
+              console.log('✅ Service template files copied to your config directory:');
+              for (const file of serviceSetup.templatesCopied) {
+                const fullPath = path.join(
+                  ConfigManager.getConfigDirectory(),
+                  'daemon-templates',
+                  file
+                );
+                console.log(`   📄 ${fullPath}`);
+              }
+              console.log('');
+            }
+
+            // Show platform-specific setup instructions
+            console.log('🔧 Platform-Specific Setup Instructions:\n');
+            for (const instruction of serviceSetup.instructions) {
+              if (
+                instruction.startsWith('🐧') ||
+                instruction.startsWith('🍎') ||
+                instruction.startsWith('🪟')
+              ) {
+                console.log(instruction);
+              } else {
+                console.log(`   ${instruction}`);
+              }
+            }
+            console.log('');
+
+            // Offer automatic setup help where possible
+            const shouldAttemptAutoSetup = await promptForAutoServiceSetup(serviceSetup.platform);
+            if (shouldAttemptAutoSetup) {
+              await attemptAutoServiceSetup(serviceSetup);
+            }
+
             // Offer to start daemon
             const shouldStartDaemon = await ConfigManager.promptToStartDaemon();
             if (shouldStartDaemon) {
@@ -627,6 +808,22 @@ After running init, you can use any profile with:
       console.log('  • Verify reports: eai-security-check verify <file>');
       console.log('  • View all options: eai-security-check check --help');
       console.log('  • Reconfigure anytime: Run this init command again');
+
+      // Global installation option - always ask during interactive setup
+      const wantsGlobalInstall = await ConfigManager.promptForGlobalInstall();
+
+      if (wantsGlobalInstall) {
+        console.log('\n🌍 Setting up global installation...\n');
+        try {
+          await ConfigManager.setupGlobalInstallation();
+          console.log('✅ Global installation completed successfully!');
+          console.log('💡 You can now run "eai-security-check" from any directory');
+        } catch (error) {
+          console.error(`⚠️  Global installation failed: ${error}`);
+          console.log('💡 You can still use the tool from this directory');
+        }
+        console.log('');
+      }
 
       console.log(
         '\n🔒 Ready to secure your system! Run "eai-security-check check" to get started.'
@@ -722,7 +919,9 @@ Exit codes: 0 = all verifications passed, 1 = any verification failed or file er
                   `   🔐 Hash: ${CryptoUtils.createShortHash(verification.originalHash)}`
                 );
                 if (signature) {
-                  console.log(`   📅 Generated: ${new Date(signature.timestamp).toLocaleString()}`);
+                  console.log(
+                    `   📅 Generated: ${new Date(signature.timestamp as string).toLocaleString()}`
+                  );
                 }
                 console.log();
               }
@@ -777,9 +976,12 @@ Exit codes: 0 = all verifications passed, 1 = any verification failed or file er
           console.log(`🔐 Hash: ${CryptoUtils.createShortHash(verification.originalHash)}`);
 
           if (signature) {
-            console.log(`📅 Generated: ${new Date(signature.timestamp).toLocaleString()}`);
-            console.log(`💻 Platform: ${signature.metadata.platform}`);
-            console.log(`🖥️  Hostname: ${signature.metadata.hostname}`);
+            console.log(
+              `📅 Generated: ${new Date(signature.timestamp as string).toLocaleString()}`
+            );
+            const metadata = signature.metadata as Record<string, unknown>;
+            console.log(`💻 Platform: ${metadata.platform}`);
+            console.log(`🖥️  Hostname: ${metadata.hostname}`);
           }
         } else {
           console.error('❌ Report verification FAILED');
@@ -792,7 +994,7 @@ Exit codes: 0 = all verifications passed, 1 = any verification failed or file er
         }
 
         if (options.verbose) {
-          console.log(CryptoUtils.createVerificationSummary(verification, signature));
+          console.log(CryptoUtils.createVerificationSummary(verification, signature || undefined));
         }
 
         process.exit(verification.isValid ? 0 : 1);
@@ -875,10 +1077,19 @@ SCP File Transfer:
   - Password authentication requires 'sshpass' utility to be installed
 
 Service Setup:
-  To run as a system service that restarts automatically:
-  - Linux: Create systemd service unit file
-  - macOS: Create launchd plist file
-  - See documentation for platform-specific setup instructions
+  Cross-platform daemon capabilities:
+  ✅ Scheduled execution: All platforms (cron-based scheduling)
+  ✅ Manual restart: All platforms via --restart option
+  ⚠️  Auto-start on boot: Requires manual OS-specific setup
+
+  Platform-specific auto-start setup (optional):
+  - Windows: Use Task Scheduler to run on startup/login
+  - macOS: Create LaunchAgent plist in ~/Library/LaunchAgents/
+  - Linux: Create systemd user service in ~/.config/systemd/user/
+
+  📁 See daemon-examples/ directory for sample configuration files.
+  Current implementation runs as user process, not system service.
+  Use "eai-security-check daemon --status" to check daemon capabilities on your platform.
 `
   )
   .action(async options => {
@@ -968,6 +1179,8 @@ Service Setup:
       // Handle status option
       if (options.status) {
         const status = schedulingService.getDaemonStatus();
+        const platformInfo = SchedulingService.getDaemonPlatformInfo();
+
         console.log('📊 Daemon Status:');
         console.log(`  Running: ${status.running}`);
         console.log(`  Last Report: ${status.state.lastReportSent || 'Never'}`);
@@ -979,6 +1192,29 @@ Service Setup:
         console.log(`  Security Profile: ${status.config.securityProfile}`);
         console.log(`  Config Path: ${configPath}`);
         console.log(`  State Path: ${statePath}`);
+
+        console.log('\n🔧 Platform Capabilities:');
+        console.log(`  Platform: ${platformInfo.platform}`);
+        console.log(`  Scheduled Execution: ${platformInfo.supportsScheduling ? '✅' : '❌'}`);
+        console.log(`  Manual Restart: ${platformInfo.supportsRestart ? '✅' : '❌'}`);
+        console.log(
+          `  Auto-start on Boot: ${platformInfo.supportsAutoStart ? '✅' : '⚠️  Manual setup required'}`
+        );
+
+        if (platformInfo.limitations.length > 0) {
+          console.log('\n⚠️  Current Limitations:');
+          platformInfo.limitations.forEach(limitation => {
+            console.log(`  • ${limitation}`);
+          });
+        }
+
+        if (platformInfo.setupInstructions.length > 0) {
+          console.log('\n💡 Setup Information:');
+          platformInfo.setupInstructions.forEach(instruction => {
+            console.log(`  • ${instruction}`);
+          });
+        }
+
         return;
       }
 
@@ -1055,9 +1291,9 @@ COMMON WORKFLOWS:
     $ eai-security-check check --quiet
 
 SECURITY AREAS CHECKED:
-  🔒 Disk Encryption (FileVault/LUKS)   🔥 Network Firewall (App/ufw/firewalld)
-  🔑 Login Security                      🛡️  Package Verification (Gatekeeper/GPG)
-  ⏰ Session Timeouts                    🔐 System Protection (SIP/SELinux)
+  🔒 Disk Encryption (FileVault/LUKS/BitLocker)   🔥 Network Firewall (macOS/Linux/Windows)
+  🔑 Login Security                                🛡️  Package Verification (Gatekeeper/GPG/SmartScreen)
+  ⏰ Session Timeouts                              🔐 System Protection (SIP/SELinux/Defender)
   🌐 Remote Access Controls              📱 Management Services
   🔄 Update Policies                     📡 Network Sharing
 

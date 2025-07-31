@@ -217,9 +217,10 @@ describe('CryptoUtils', () => {
       const signature = CryptoUtils.extractSignature(signedContent);
 
       expect(signature).toBeDefined();
-      expect(signature.hash).toBe(hashedReport.hash);
-      expect(signature.algorithm).toBe(hashedReport.algorithm);
-      expect(signature.timestamp).toBe(hashedReport.timestamp);
+      expect(signature).not.toBeNull();
+      expect(signature!.hash).toBe(hashedReport.hash);
+      expect(signature!.algorithm).toBe(hashedReport.algorithm);
+      expect(signature!.timestamp).toBe(hashedReport.timestamp);
     });
 
     it('should return null for unsigned content', () => {

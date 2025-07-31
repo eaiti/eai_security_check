@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
-import * as path from 'path';
+import * as os from 'os';
 
 export interface HashedReport {
   content: string;
@@ -65,10 +65,10 @@ export class CryptoUtils {
   /**
    * Create a hashed report with verification signature
    */
-  static createHashedReport(content: string, metadata?: any): HashedReport {
+  static createHashedReport(content: string, metadata?: Record<string, unknown>): HashedReport {
     const timestamp = new Date().toISOString();
     const platform = process.platform;
-    const hostname = require('os').hostname();
+    const hostname = os.hostname();
     const version = '1.0.0'; // Should match package.json version
 
     const reportMetadata = {
@@ -145,7 +145,7 @@ export class CryptoUtils {
       let signature;
       try {
         signature = JSON.parse(signatureJson);
-      } catch (parseError) {
+      } catch {
         return {
           isValid: false,
           originalHash: '',
@@ -213,7 +213,7 @@ export class CryptoUtils {
   /**
    * Extract signature information from signed content
    */
-  static extractSignature(signedContent: string): any | null {
+  static extractSignature(signedContent: string): Record<string, unknown> | null {
     try {
       const parts = signedContent.split(this.SIGNATURE_SEPARATOR);
       if (parts.length !== 3) {
@@ -222,7 +222,7 @@ export class CryptoUtils {
 
       const signatureJson = parts[1].trim();
       return JSON.parse(signatureJson);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -283,7 +283,10 @@ export class CryptoUtils {
   /**
    * Create a verification summary for display
    */
-  static createVerificationSummary(verification: VerificationResult, signature?: any): string {
+  static createVerificationSummary(
+    verification: VerificationResult,
+    signature?: Record<string, unknown>
+  ): string {
     let summary = '\n🔒 Report Verification\n';
     summary += '='.repeat(50) + '\n';
 
@@ -300,10 +303,11 @@ export class CryptoUtils {
     }
 
     if (signature) {
-      summary += `📅 Generated: ${new Date(signature.timestamp).toLocaleString()}\n`;
-      summary += `💻 Platform: ${signature.metadata.platform}\n`;
-      summary += `🖥️  Hostname: ${signature.metadata.hostname}\n`;
-      summary += `📦 Version: ${signature.metadata.version}\n`;
+      summary += `📅 Generated: ${new Date(signature.timestamp as string).toLocaleString()}\n`;
+      const metadata = signature.metadata as Record<string, unknown>;
+      summary += `💻 Platform: ${metadata.platform}\n`;
+      summary += `🖥️  Hostname: ${metadata.hostname}\n`;
+      summary += `📦 Version: ${metadata.version}\n`;
     }
 
     summary += '='.repeat(50) + '\n';
@@ -316,7 +320,7 @@ export class CryptoUtils {
    */
   static createTamperEvidentReport(
     content: string,
-    metadata?: any
+    metadata?: Record<string, unknown>
   ): { signedContent: string; hashedReport: HashedReport } {
     const hashedReport = this.createHashedReport(content, metadata);
     const signedContent = this.signReport(hashedReport);

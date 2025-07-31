@@ -68,7 +68,8 @@ export class MacOSSecurityChecker implements ISecurityChecker {
           const { stdout: passwordDelay } = await execAsync(
             'defaults read com.apple.screensaver askForPasswordDelay 2>/dev/null || echo "0"'
           );
-          passwordRequiredAfterLock = screenSaverPassword.trim() === '1';
+          const delay = parseInt(passwordDelay.trim());
+          passwordRequiredAfterLock = screenSaverPassword.trim() === '1' && delay <= 5; // Must be immediate or within 5 seconds
         } catch (fallbackError) {
           console.warn('Fallback defaults method also failed:', fallbackError);
           passwordRequiredAfterLock = false;
@@ -118,7 +119,7 @@ export class MacOSSecurityChecker implements ISecurityChecker {
     try {
       const { stdout } = await execAsync('sw_vers -productVersion');
       return `macOS ${stdout.trim()}`;
-    } catch (error) {
+    } catch {
       return 'Unknown macOS version';
     }
   }
@@ -145,7 +146,7 @@ export class MacOSSecurityChecker implements ISecurityChecker {
       if (detectedVersion && this.isValidVersion(detectedVersion)) {
         return detectedVersion;
       }
-    } catch (error) {
+    } catch {
       // Fallback if Apple query fails
     }
 
@@ -689,26 +690,21 @@ export class MacOSSecurityChecker implements ISecurityChecker {
   }
 
   async checkCurrentWifiNetwork(): Promise<{ networkName: string | null; connected: boolean }> {
+    // Primary method: Use system_profiler with awk for clean network name extraction
     try {
-      // Primary method: Use system_profiler with awk for clean network name extraction
-      try {
-        const { stdout } = await execAsync(
-          `system_profiler SPAirPortDataType | awk '/Current Network/ {getline;$1=$1;print $0 | "tr -d ':'";exit}' 2>/dev/null`
-        );
-        const networkName = stdout.trim();
+      const { stdout } = await execAsync(
+        `system_profiler SPAirPortDataType | awk '/Current Network/ {getline;$1=$1;print $0 | "tr -d ':'";exit}' 2>/dev/null`
+      );
+      const networkName = stdout.trim();
 
-        if (networkName && networkName.length > 0) {
-          return { networkName, connected: true };
-        }
-      } catch {
-        // Primary method failed, try fallbacks
+      if (networkName && networkName.length > 0) {
+        return { networkName, connected: true };
       }
-
-      return { networkName: null, connected: false };
-    } catch (error) {
-      console.warn('Error checking WiFi network:', error);
-      return { networkName: null, connected: false };
+    } catch {
+      // Primary method failed, will return default below
     }
+
+    return { networkName: null, connected: false };
   }
 
   async checkInstalledApplications(): Promise<{

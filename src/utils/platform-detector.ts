@@ -7,6 +7,7 @@ const execAsync = promisify(exec);
 export enum Platform {
   MACOS = 'macos',
   LINUX = 'linux',
+  WINDOWS = 'windows',
   UNSUPPORTED = 'unsupported'
 }
 
@@ -30,12 +31,14 @@ export class PlatformDetector {
       return await this.detectMacOS();
     } else if (platform === 'linux') {
       return await this.detectLinux();
+    } else if (platform === 'win32') {
+      return await this.detectWindows();
     } else {
       return {
         platform: Platform.UNSUPPORTED,
         version: 'unknown',
         isSupported: false,
-        warningMessage: `❌ Platform ${platform} is not supported. This tool supports macOS and Linux only.`
+        warningMessage: `❌ Platform ${platform} is not supported. This tool supports macOS, Linux, and Windows only.`
       };
     }
   }
@@ -97,14 +100,14 @@ export class PlatformDetector {
             version = line.split('=')[1].replace(/"/g, '');
           }
         }
-      } catch (error) {
+      } catch {
         // Fallback to lsb_release if available
         try {
           const { stdout: distStdout } = await execAsync('lsb_release -is');
           distribution = distStdout.trim().toLowerCase();
           const { stdout: versionStdout } = await execAsync('lsb_release -rs');
           version = versionStdout.trim();
-        } catch (lsbError) {
+        } catch {
           // Use uname as final fallback
           const { stdout: unameStdout } = await execAsync('uname -r');
           version = unameStdout.trim();
@@ -145,6 +148,98 @@ export class PlatformDetector {
   }
 
   /**
+   * Detect Windows version information
+   */
+  private static async detectWindows(): Promise<PlatformInfo> {
+    try {
+      // Get Windows version using wmic
+      const { stdout } = await execAsync('wmic os get Version /format:list');
+      const versionLine = stdout.split('\n').find(line => line.startsWith('Version='));
+      let version = 'unknown';
+
+      if (versionLine) {
+        version = versionLine.split('=')[1].trim();
+      }
+
+      // Try alternative method using PowerShell if wmic fails
+      if (version === 'unknown') {
+        try {
+          const { stdout: psStdout } = await execAsync(
+            'powershell -Command "[System.Environment]::OSVersion.Version.ToString()"'
+          );
+          version = psStdout.trim();
+        } catch {
+          // Final fallback to registry query
+          try {
+            const { stdout: regStdout } = await execAsync(
+              'reg query "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion" /v ReleaseId'
+            );
+            const releaseMatch = regStdout.match(/ReleaseId\s+REG_SZ\s+(.+)/);
+            if (releaseMatch) {
+              version = releaseMatch[1].trim();
+            }
+          } catch {
+            // Keep version as 'unknown'
+          }
+        }
+      }
+
+      // Check if version is supported (Windows 10 build 1903+ or Windows 11)
+      const isSupported = this.isWindowsVersionSupported(version);
+      const approvedVersions = [
+        '10.0.19041',
+        '10.0.19042',
+        '10.0.19043',
+        '10.0.19044',
+        '10.0.22000'
+      ];
+      const isApproved = approvedVersions.some(av => version.startsWith(av));
+
+      let warningMessage: string | undefined;
+      if (!isSupported) {
+        warningMessage = `⚠️  Windows version ${version} may not be fully supported. Windows 10 (build 1903+) or Windows 11 recommended.`;
+      } else if (!isApproved) {
+        warningMessage = `⚠️  Windows version ${version} has not been fully tested. Tested versions include Windows 10 builds 19041+ and Windows 11.`;
+      }
+
+      return {
+        platform: Platform.WINDOWS,
+        version,
+        isSupported,
+        isApproved,
+        warningMessage
+      };
+    } catch (error) {
+      return {
+        platform: Platform.WINDOWS,
+        version: 'unknown',
+        isSupported: false,
+        warningMessage: `❌ Unable to detect Windows version: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Check if Windows version is supported
+   */
+  private static isWindowsVersionSupported(version: string): boolean {
+    if (version === 'unknown') return false;
+
+    // Support Windows 10 build 1903 (10.0.18362) and later, and Windows 11
+    if (version.startsWith('10.0.')) {
+      const build = parseInt(version.split('.')[2] || '0');
+      return build >= 18362; // Windows 10 build 1903
+    }
+
+    // Windows 11 starts with build 22000
+    if (version.startsWith('11.') || version.includes('22000')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Compare version strings (e.g., "15.6" vs "15.0")
    * Returns: -1 if version1 < version2, 0 if equal, 1 if version1 > version2
    */
@@ -182,10 +277,35 @@ export class PlatformDetector {
   }
 
   /**
+   * Check if the current platform is Windows
+   */
+  static async isWindows(): Promise<boolean> {
+    const info = await this.detectPlatform();
+    return info.platform === Platform.WINDOWS;
+  }
+
+  /**
    * Check if the current platform is supported
    */
   static async isSupported(): Promise<boolean> {
     const info = await this.detectPlatform();
     return info.isSupported;
+  }
+
+  /**
+   * Get simple platform name synchronously (for basic platform detection)
+   */
+  static getSimplePlatform(): Platform {
+    const platform = os.platform();
+
+    if (platform === 'darwin') {
+      return Platform.MACOS;
+    } else if (platform === 'linux') {
+      return Platform.LINUX;
+    } else if (platform === 'win32') {
+      return Platform.WINDOWS;
+    } else {
+      return Platform.UNSUPPORTED;
+    }
   }
 }

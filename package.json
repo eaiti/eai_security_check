@@ -28,6 +28,8 @@
   },
   "keywords": [
     "macos",
+    "linux",
+    "windows",
     "security",
     "audit",
     "diskEncryption",
