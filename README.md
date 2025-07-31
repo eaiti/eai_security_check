@@ -55,7 +55,29 @@ chmod +x eai-security-check
 curl -L -o eai-security-check https://github.com/eaiti/eai_security_check/releases/latest/download/eai-security-check-linux
 chmod +x eai-security-check
 ./eai-security-check --help
+
+# Windows (PowerShell)
+Invoke-WebRequest -Uri "https://github.com/eaiti/eai_security_check/releases/latest/download/eai-security-check-windows.exe" -OutFile "eai-security-check.exe"
+./eai-security-check.exe --help
 ```
+
+#### 🔐 Security & Code Signing
+
+All executables are code-signed to reduce security warnings:
+- **macOS**: Code signed with Apple Developer certificate
+- **Linux**: GPG signatures provided (`.sig` files) with SHA256 checksums
+- **Windows**: Authenticode signed executables with SHA256 checksums
+
+To verify signatures and checksums:
+```bash
+# Download verification script
+curl -fsSL https://raw.githubusercontent.com/eaiti/eai_security_check/main/scripts/verify-signatures.js -o verify-signatures.js
+
+# Verify your download (replace with actual filename)
+node verify-signatures.js eai-security-check-macos-v1.0.0
+```
+
+See [scripts/SIGNING_GUIDE.md](scripts/SIGNING_GUIDE.md) for detailed verification instructions.
 
 ### For End Users (NPM Global Installation)
 

@@ -94,3 +94,15 @@ temp/
 # Sublime Text
 *.sublime-project
 *.sublime-workspace
+
+# Code signing and certificate files
+*.p12
+*.pfx
+*.pem
+*.crt
+*.key
+*.keychain
+certificate.*
+signing-key.*
+*.sig
+*.sha256
