@@ -25,7 +25,7 @@ export class PlatformDetector {
    */
   static async detectPlatform(): Promise<PlatformInfo> {
     const platform = os.platform();
-    
+
     if (platform === 'darwin') {
       return await this.detectMacOS();
     } else if (platform === 'linux') {
@@ -47,19 +47,19 @@ export class PlatformDetector {
     try {
       const { stdout } = await execAsync('sw_vers -productVersion');
       const version = stdout.trim();
-      
+
       // Check if version is supported (15.0+)
       const isSupported = this.compareVersions(version, '15.0') >= 0;
       const approvedVersions = ['15.5', '15.6'];
       const isApproved = approvedVersions.includes(version);
-      
+
       let warningMessage: string | undefined;
       if (!isSupported) {
         warningMessage = `⚠️  macOS ${version} is below version 15.0. Security checks may not work correctly.`;
       } else if (!isApproved) {
         warningMessage = `⚠️  macOS ${version} has not been fully tested. Tested versions: ${approvedVersions.join(', ')}.`;
       }
-      
+
       return {
         platform: Platform.MACOS,
         version,
@@ -85,11 +85,11 @@ export class PlatformDetector {
       // Try to detect distribution from /etc/os-release
       let distribution = 'unknown';
       let version = 'unknown';
-      
+
       try {
         const { stdout } = await execAsync('cat /etc/os-release');
         const lines = stdout.split('\n');
-        
+
         for (const line of lines) {
           if (line.startsWith('ID=')) {
             distribution = line.split('=')[1].replace(/"/g, '');
@@ -110,21 +110,21 @@ export class PlatformDetector {
           version = unameStdout.trim();
         }
       }
-      
+
       // Check if this is a supported distribution
       const supportedDistributions = ['fedora', 'ubuntu', 'debian', 'centos', 'rhel'];
       const isSupported = supportedDistributions.includes(distribution.toLowerCase());
-      
+
       // Primary support is for Fedora
       const isApproved = distribution.toLowerCase() === 'fedora';
-      
+
       let warningMessage: string | undefined;
       if (!isSupported) {
         warningMessage = `⚠️  Linux distribution '${distribution}' is not officially supported. Supported: ${supportedDistributions.join(', ')}. Security checks may not work correctly.`;
       } else if (!isApproved) {
         warningMessage = `⚠️  Linux distribution '${distribution}' has limited testing. Primary support is for Fedora. Some checks may not work correctly.`;
       }
-      
+
       return {
         platform: Platform.LINUX,
         version,
@@ -151,17 +151,17 @@ export class PlatformDetector {
   private static compareVersions(version1: string, version2: string): number {
     const v1Parts = version1.split('.').map(Number);
     const v2Parts = version2.split('.').map(Number);
-    
+
     const maxLength = Math.max(v1Parts.length, v2Parts.length);
-    
+
     for (let i = 0; i < maxLength; i++) {
       const v1Part = v1Parts[i] || 0;
       const v2Part = v2Parts[i] || 0;
-      
+
       if (v1Part < v2Part) return -1;
       if (v1Part > v2Part) return 1;
     }
-    
+
     return 0;
   }
 

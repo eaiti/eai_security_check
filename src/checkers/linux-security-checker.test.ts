@@ -1,4 +1,4 @@
-import { LinuxSecurityChecker } from '../linux-security-checker';
+import { LinuxSecurityChecker } from './linux-security-checker';
 
 describe('LinuxSecurityChecker', () => {
   let checker: LinuxSecurityChecker;

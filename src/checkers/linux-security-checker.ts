@@ -35,14 +35,16 @@ export class LinuxSecurityChecker implements ISecurityChecker {
       // Check for LUKS encrypted devices
       const { stdout } = await execAsync('lsblk -f');
       const hasLuks = stdout.includes('crypto_LUKS');
-      
+
       if (hasLuks) {
         return true;
       }
-      
+
       // Alternative check using dmsetup
       try {
-        const { stdout: dmStdout } = await execAsync('dmsetup ls --target crypt 2>/dev/null || echo ""');
+        const { stdout: dmStdout } = await execAsync(
+          'dmsetup ls --target crypt 2>/dev/null || echo ""'
+        );
         return dmStdout.trim().length > 0;
       } catch (error) {
         return false;
@@ -57,7 +59,11 @@ export class LinuxSecurityChecker implements ISecurityChecker {
    * Check password protection and screen lock settings
    * Linux equivalent of macOS password protection
    */
-  async checkPasswordProtection(): Promise<{ enabled: boolean; requirePasswordImmediately: boolean; passwordRequiredAfterLock: boolean }> {
+  async checkPasswordProtection(): Promise<{
+    enabled: boolean;
+    requirePasswordImmediately: boolean;
+    passwordRequiredAfterLock: boolean;
+  }> {
     try {
       let passwordEnabled = false;
       let requirePasswordImmediately = false;
@@ -75,7 +81,9 @@ export class LinuxSecurityChecker implements ISecurityChecker {
       // Check screen lock settings (GNOME/KDE)
       try {
         // GNOME settings
-        const { stdout: gnomeTimeout } = await execAsync('gsettings get org.gnome.desktop.screensaver lock-delay 2>/dev/null || echo "not-found"');
+        const { stdout: gnomeTimeout } = await execAsync(
+          'gsettings get org.gnome.desktop.screensaver lock-delay 2>/dev/null || echo "not-found"'
+        );
         if (!gnomeTimeout.includes('not-found')) {
           const delay = parseInt(gnomeTimeout.replace(/[^0-9]/g, ''));
           requirePasswordImmediately = delay === 0;
@@ -118,7 +126,9 @@ export class LinuxSecurityChecker implements ISecurityChecker {
     try {
       // GNOME screen timeout
       try {
-        const { stdout } = await execAsync('gsettings get org.gnome.desktop.session idle-delay 2>/dev/null');
+        const { stdout } = await execAsync(
+          'gsettings get org.gnome.desktop.session idle-delay 2>/dev/null'
+        );
         const seconds = parseInt(stdout.replace(/[^0-9]/g, ''));
         if (!isNaN(seconds)) {
           return Math.round(seconds / 60); // Convert to minutes
@@ -167,18 +177,24 @@ export class LinuxSecurityChecker implements ISecurityChecker {
         try {
           const { stdout } = await execAsync('firewall-cmd --state 2>/dev/null');
           enabled = stdout.trim() === 'running';
-          
+
           if (enabled) {
             // Check for drop vs reject policy
-            const { stdout: policy } = await execAsync('firewall-cmd --get-default-zone 2>/dev/null');
+            const { stdout: policy } = await execAsync(
+              'firewall-cmd --get-default-zone 2>/dev/null'
+            );
             const zone = policy.trim();
-            const { stdout: target } = await execAsync(`firewall-cmd --zone=${zone} --query-target 2>/dev/null || echo "default"`);
+            const { stdout: target } = await execAsync(
+              `firewall-cmd --zone=${zone} --query-target 2>/dev/null || echo "default"`
+            );
             stealthMode = target.includes('DROP');
           }
         } catch (firewalldError) {
           // Check iptables directly
           try {
-            const { stdout } = await this.execWithSudo('iptables -L 2>/dev/null || echo "not-available"');
+            const { stdout } = await this.execWithSudo(
+              'iptables -L 2>/dev/null || echo "not-available"'
+            );
             enabled = !stdout.includes('not-available') && stdout.includes('Chain');
             stealthMode = stdout.includes('DROP');
           } catch (iptablesError) {
@@ -201,17 +217,21 @@ export class LinuxSecurityChecker implements ISecurityChecker {
   async checkPackageVerification(): Promise<boolean> {
     try {
       // Check based on package manager
-      
+
       // DNF (Fedora)
       try {
-        const { stdout } = await execAsync('dnf config-manager --dump 2>/dev/null | grep gpgcheck || echo "not-found"');
+        const { stdout } = await execAsync(
+          'dnf config-manager --dump 2>/dev/null | grep gpgcheck || echo "not-found"'
+        );
         if (!stdout.includes('not-found')) {
           return stdout.includes('gpgcheck = 1') || stdout.includes('gpgcheck=1');
         }
       } catch (dnfError) {
         // APT (Ubuntu/Debian)
         try {
-          const { stdout } = await execAsync('apt-config dump | grep -i gpg 2>/dev/null || echo "not-found"');
+          const { stdout } = await execAsync(
+            'apt-config dump | grep -i gpg 2>/dev/null || echo "not-found"'
+          );
           if (!stdout.includes('not-found')) {
             // APT generally has GPG verification enabled by default
             return true;
@@ -282,7 +302,9 @@ export class LinuxSecurityChecker implements ISecurityChecker {
     try {
       // Check if SSH service is running
       try {
-        const { stdout } = await execAsync('systemctl is-active ssh 2>/dev/null || systemctl is-active sshd 2>/dev/null || echo "inactive"');
+        const { stdout } = await execAsync(
+          'systemctl is-active ssh 2>/dev/null || systemctl is-active sshd 2>/dev/null || echo "inactive"'
+        );
         return stdout.trim() === 'active';
       } catch (systemctlError) {
         // Fallback to checking if SSH daemon is running
@@ -307,7 +329,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
     try {
       // Check for VNC services
       const vncServices = ['vncserver', 'x11vnc', 'tigervnc', 'realvnc'];
-      
+
       for (const service of vncServices) {
         try {
           const { stdout } = await execAsync(`pgrep ${service} 2>/dev/null || echo "not-running"`);
@@ -362,10 +384,11 @@ export class LinuxSecurityChecker implements ISecurityChecker {
         const dnfAutoConfigPath = '/etc/dnf/automatic.conf';
         if (fs.existsSync(dnfAutoConfigPath)) {
           const dnfConfig = fs.readFileSync(dnfAutoConfigPath, 'utf-8');
-          enabled = dnfConfig.includes('apply_updates = yes') || dnfConfig.includes('apply_updates=yes');
+          enabled =
+            dnfConfig.includes('apply_updates = yes') || dnfConfig.includes('apply_updates=yes');
           downloadOnly = dnfConfig.includes('download_updates = yes') && !enabled;
           automaticInstall = enabled;
-          
+
           // Check if only security updates
           securityUpdatesOnly = dnfConfig.includes('upgrade_type = security');
           automaticSecurityInstall = securityUpdatesOnly && automaticInstall;
@@ -376,7 +399,9 @@ export class LinuxSecurityChecker implements ISecurityChecker {
           const unattendedConfigPath = '/etc/apt/apt.conf.d/50unattended-upgrades';
           if (fs.existsSync(unattendedConfigPath)) {
             const aptConfig = fs.readFileSync(unattendedConfigPath, 'utf-8');
-            enabled = !aptConfig.includes('//') || aptConfig.includes('Unattended-Upgrade::Automatic-Reboot "true"');
+            enabled =
+              !aptConfig.includes('//') ||
+              aptConfig.includes('Unattended-Upgrade::Automatic-Reboot "true"');
             securityUpdatesOnly = aptConfig.includes('security') || aptConfig.includes('Security');
             automaticInstall = enabled;
             automaticSecurityInstall = securityUpdatesOnly;
@@ -421,16 +446,25 @@ export class LinuxSecurityChecker implements ISecurityChecker {
    * Check file and screen sharing services
    * Linux equivalent of sharing services
    */
-  async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean; mediaSharing: boolean }> {
+  async checkSharingServices(): Promise<{
+    fileSharing: boolean;
+    screenSharing: boolean;
+    remoteLogin: boolean;
+    mediaSharing: boolean;
+  }> {
     try {
       // File sharing - check Samba, NFS
       let fileSharing = false;
       try {
-        const { stdout: sambaStatus } = await execAsync('systemctl is-active smbd 2>/dev/null || systemctl is-active nmbd 2>/dev/null || echo "inactive"');
+        const { stdout: sambaStatus } = await execAsync(
+          'systemctl is-active smbd 2>/dev/null || systemctl is-active nmbd 2>/dev/null || echo "inactive"'
+        );
         fileSharing = sambaStatus.includes('active');
-        
+
         if (!fileSharing) {
-          const { stdout: nfsStatus } = await execAsync('systemctl is-active nfs-server 2>/dev/null || echo "inactive"');
+          const { stdout: nfsStatus } = await execAsync(
+            'systemctl is-active nfs-server 2>/dev/null || echo "inactive"'
+          );
           fileSharing = nfsStatus.includes('active');
         }
       } catch (error) {
@@ -477,7 +511,9 @@ export class LinuxSecurityChecker implements ISecurityChecker {
    */
   async getCurrentLinuxVersion(): Promise<string> {
     try {
-      const { stdout } = await execAsync('cat /etc/os-release | grep VERSION_ID | cut -d= -f2 | tr -d \'"\'');
+      const { stdout } = await execAsync(
+        "cat /etc/os-release | grep VERSION_ID | cut -d= -f2 | tr -d '\"'"
+      );
       return stdout.trim();
     } catch (error) {
       try {
@@ -494,7 +530,9 @@ export class LinuxSecurityChecker implements ISecurityChecker {
    */
   async getCurrentLinuxDistribution(): Promise<string> {
     try {
-      const { stdout } = await execAsync('cat /etc/os-release | grep "^ID=" | cut -d= -f2 | tr -d \'"\'');
+      const { stdout } = await execAsync(
+        'cat /etc/os-release | grep "^ID=" | cut -d= -f2 | tr -d \'"\''
+      );
       return stdout.trim();
     } catch (error) {
       try {

@@ -2,10 +2,10 @@
  * Predefined security configuration profiles
  */
 
-import { SecurityConfig } from './types';
+import { SecurityConfig } from '../types';
 
 export const VALID_PROFILES = ['default', 'strict', 'relaxed', 'developer', 'eai'] as const;
-export type SecurityProfile = typeof VALID_PROFILES[number];
+export type SecurityProfile = (typeof VALID_PROFILES)[number];
 
 /**
  * Base configuration shared across all profiles
@@ -56,7 +56,14 @@ export function getConfigByProfile(profile: string): SecurityConfig {
           bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi', 'Free WiFi']
         },
         installedApps: {
-          bannedApplications: ['BitTorrent', 'uTorrent', 'Limewire', 'TeamViewer', 'AnyDesk', 'Skype']
+          bannedApplications: [
+            'BitTorrent',
+            'uTorrent',
+            'Limewire',
+            'TeamViewer',
+            'AnyDesk',
+            'Skype'
+          ]
         }
       };
 
@@ -158,7 +165,15 @@ export function getConfigByProfile(profile: string): SecurityConfig {
         },
         osVersion: { targetVersion: 'latest' },
         installedApps: {
-          bannedApplications: ['BitTorrent', 'uTorrent', 'Limewire', 'TeamViewer', 'AnyDesk', 'Skype', 'Steam']
+          bannedApplications: [
+            'BitTorrent',
+            'uTorrent',
+            'Limewire',
+            'TeamViewer',
+            'AnyDesk',
+            'Skype',
+            'Steam'
+          ]
         },
         wifiSecurity: {
           bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi']

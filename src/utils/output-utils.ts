@@ -30,28 +30,28 @@ export class OutputUtils {
           format,
           filename: 'security-report.txt'
         };
-      
+
       case OutputFormat.MARKDOWN:
         return {
           content: this.convertToMarkdown(report),
           format,
           filename: 'security-report.md'
         };
-      
+
       case OutputFormat.JSON:
         return {
           content: this.convertToJson(report, metadata),
           format,
           filename: 'security-report.json'
         };
-      
+
       case OutputFormat.EMAIL:
         return {
           content: this.formatForEmail(report),
           format,
           filename: 'security-report-email.txt'
         };
-      
+
       default: // CONSOLE
         return {
           content: report,
@@ -66,7 +66,7 @@ export class OutputUtils {
   static async copyToClipboard(content: string): Promise<boolean> {
     try {
       const platform = os.platform();
-      
+
       if (platform === 'darwin') {
         // macOS
         await execAsync(`echo "${content.replace(/"/g, '\\"')}" | pbcopy`);
@@ -88,7 +88,7 @@ export class OutputUtils {
       } else {
         throw new Error(`Clipboard not supported on platform: ${platform}`);
       }
-      
+
       return true;
     } catch (error) {
       console.error('Error copying to clipboard:', error);
@@ -110,17 +110,17 @@ export class OutputUtils {
   private static convertToMarkdown(report: string): string {
     let markdown = '# Security Audit Report\n\n';
     markdown += `**Generated:** ${new Date().toLocaleString()}\n\n`;
-    
+
     // Strip ANSI codes first
     const cleanReport = this.stripAnsiCodes(report);
-    
+
     // Convert sections
     const lines = cleanReport.split('\n');
     let inResults = false;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      
+
       // Convert headers
       if (line.includes('Security Audit Report') || line.includes('EAI Security Check')) {
         continue; // Skip, we already have a header
@@ -129,7 +129,11 @@ export class OutputUtils {
       } else if (line.includes('SECURITY CHECKS:') || line.includes('SUMMARY:')) {
         markdown += `## ${line.replace(':', '')}\n\n`;
         inResults = true;
-      } else if (line.trim().startsWith('✅') || line.trim().startsWith('❌') || line.trim().startsWith('⚠️')) {
+      } else if (
+        line.trim().startsWith('✅') ||
+        line.trim().startsWith('❌') ||
+        line.trim().startsWith('⚠️')
+      ) {
         // Security check results
         markdown += `- ${line.trim()}\n`;
       } else if (line.trim().length > 0) {
@@ -143,7 +147,7 @@ export class OutputUtils {
         markdown += '\n';
       }
     }
-    
+
     return markdown;
   }
 
@@ -153,11 +157,11 @@ export class OutputUtils {
   private static convertToJson(report: string, metadata?: any): string {
     const cleanReport = this.stripAnsiCodes(report);
     const lines = cleanReport.split('\n');
-    
+
     const results: any[] = [];
     let summary = '';
     let overallPassed = false;
-    
+
     for (const line of lines) {
       if (line.trim().startsWith('✅')) {
         results.push({
@@ -182,7 +186,7 @@ export class OutputUtils {
         overallPassed = line.includes('0 failed');
       }
     }
-    
+
     const jsonReport = {
       timestamp: new Date().toISOString(),
       summary,
@@ -194,7 +198,7 @@ export class OutputUtils {
       results,
       metadata: metadata || {}
     };
-    
+
     return JSON.stringify(jsonReport, null, 2);
   }
 
@@ -203,19 +207,20 @@ export class OutputUtils {
    */
   private static formatForEmail(report: string): string {
     const cleanReport = this.stripAnsiCodes(report);
-    
+
     let emailBody = 'Subject: Security Audit Report\n\n';
     emailBody += 'Dear Recipient,\n\n';
     emailBody += 'Please find the security audit report below:\n\n';
-    emailBody += '=' .repeat(60) + '\n';
+    emailBody += '='.repeat(60) + '\n';
     emailBody += cleanReport;
     emailBody += '\n' + '='.repeat(60) + '\n\n';
     emailBody += 'This report was generated automatically by the EAI Security Check tool.\n';
     emailBody += `Generated on: ${new Date().toLocaleString()}\n\n`;
-    emailBody += 'Please review the findings and take appropriate action for any failed checks.\n\n';
+    emailBody +=
+      'Please review the findings and take appropriate action for any failed checks.\n\n';
     emailBody += 'Best regards,\n';
     emailBody += 'Security Audit System\n';
-    
+
     return emailBody;
   }
 
@@ -225,12 +230,12 @@ export class OutputUtils {
   static async getAvailableClipboardUtilities(): Promise<string[]> {
     const utilities = [];
     const platform = os.platform();
-    
+
     if (platform === 'darwin') {
       utilities.push('pbcopy');
     } else if (platform === 'linux') {
       const linuxUtils = ['xclip', 'xsel', 'wl-copy'];
-      
+
       for (const util of linuxUtils) {
         try {
           await execAsync(`which ${util}`);
@@ -242,7 +247,7 @@ export class OutputUtils {
     } else if (platform === 'win32') {
       utilities.push('clip');
     }
-    
+
     return utilities;
   }
 
@@ -251,7 +256,7 @@ export class OutputUtils {
    */
   static getClipboardInstallSuggestion(): string {
     const platform = os.platform();
-    
+
     if (platform === 'linux') {
       return `
 To enable clipboard functionality, install one of these packages:
@@ -282,20 +287,20 @@ To enable clipboard functionality, install one of these packages:
   static createSummaryLine(report: string): string {
     const cleanReport = this.stripAnsiCodes(report);
     const lines = cleanReport.split('\n');
-    
+
     let passed = 0;
     let failed = 0;
     let warnings = 0;
-    
+
     for (const line of lines) {
       if (line.trim().startsWith('✅')) passed++;
       else if (line.trim().startsWith('❌')) failed++;
       else if (line.trim().startsWith('⚠️')) warnings++;
     }
-    
+
     const total = passed + failed + warnings;
     const timestamp = new Date().toLocaleString();
-    
+
     return `Security Audit: ${passed}/${total} passed, ${failed} failed, ${warnings} warnings (${timestamp})`;
   }
 }

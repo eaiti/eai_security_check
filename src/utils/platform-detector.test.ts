@@ -1,4 +1,4 @@
-import { PlatformDetector, Platform } from '../platform-detector';
+import { PlatformDetector, Platform } from './platform-detector';
 
 // Mock os and exec
 jest.mock('os');

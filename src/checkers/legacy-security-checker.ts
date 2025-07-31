@@ -6,12 +6,15 @@ import { MacOSSecurityChecker } from './security-checker';
  * that the checks are not supported on legacy macOS versions.
  */
 export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
-
   async checkFileVault(): Promise<boolean> {
     return false;
   }
 
-  async checkPasswordProtection(): Promise<{ enabled: boolean; requirePasswordImmediately: boolean; passwordRequiredAfterLock: boolean }> {
+  async checkPasswordProtection(): Promise<{
+    enabled: boolean;
+    requirePasswordImmediately: boolean;
+    passwordRequiredAfterLock: boolean;
+  }> {
     return { enabled: false, requirePasswordImmediately: false, passwordRequiredAfterLock: false };
   }
 
@@ -39,8 +42,8 @@ export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
     return false;
   }
 
-  async checkAutomaticUpdates(): Promise<{ 
-    enabled: boolean; 
+  async checkAutomaticUpdates(): Promise<{
+    enabled: boolean;
     securityUpdatesOnly: boolean;
     automaticDownload: boolean;
     automaticInstall: boolean;
@@ -48,8 +51,8 @@ export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
     configDataInstall: boolean;
     updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
   }> {
-    return { 
-      enabled: false, 
+    return {
+      enabled: false,
       securityUpdatesOnly: false,
       automaticDownload: false,
       automaticInstall: false,
@@ -59,7 +62,12 @@ export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
     };
   }
 
-  async checkSharingServices(): Promise<{ fileSharing: boolean; screenSharing: boolean; remoteLogin: boolean; mediaSharing: boolean }> {
+  async checkSharingServices(): Promise<{
+    fileSharing: boolean;
+    screenSharing: boolean;
+    remoteLogin: boolean;
+    mediaSharing: boolean;
+  }> {
     return { fileSharing: false, screenSharing: false, remoteLogin: false, mediaSharing: false };
   }
 
@@ -67,24 +75,30 @@ export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
     return { networkName: null, connected: false };
   }
 
-  async checkInstalledApplications(): Promise<{ 
-    installedApps: string[]; 
-    bannedAppsFound: string[]; 
-    sources: { applications: string[]; homebrew: string[]; npm: string[] }; 
+  async checkInstalledApplications(): Promise<{
+    installedApps: string[];
+    bannedAppsFound: string[];
+    sources: { applications: string[]; homebrew: string[]; npm: string[] };
   }> {
-    return { 
-      installedApps: [], 
-      bannedAppsFound: [], 
-      sources: { applications: [], homebrew: [], npm: [] } 
+    return {
+      installedApps: [],
+      bannedAppsFound: [],
+      sources: { applications: [], homebrew: [], npm: [] }
     };
   }
 
-  getSecurityExplanations(): Record<string, { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }> {
+  getSecurityExplanations(): Record<
+    string,
+    { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }
+  > {
     const baseExplanations = super.getSecurityExplanations();
-    
+
     // Override explanations to indicate legacy macOS limitations
-    const legacyExplanations: Record<string, { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }> = {};
-    
+    const legacyExplanations: Record<
+      string,
+      { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }
+    > = {};
+
     for (const [key, value] of Object.entries(baseExplanations)) {
       legacyExplanations[key] = {
         ...value,
@@ -92,7 +106,7 @@ export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
         recommendation: `${value.recommendation} However, automated checking is not available on your macOS version - please verify settings manually.`
       };
     }
-    
+
     return legacyExplanations;
   }
 }

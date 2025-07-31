@@ -1,4 +1,4 @@
-import { LegacyMacOSSecurityChecker } from '../legacy-security-checker';
+import { LegacyMacOSSecurityChecker } from './legacy-security-checker';
 
 describe('LegacyMacOSSecurityChecker', () => {
   let checker: LegacyMacOSSecurityChecker;

@@ -1,4 +1,4 @@
-import { OutputUtils, OutputFormat } from '../output-utils';
+import { OutputUtils, OutputFormat } from './output-utils';
 
 // Mock os and exec
 jest.mock('os');

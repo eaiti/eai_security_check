@@ -200,23 +200,28 @@ Interactive setup wizard that guides you through configuration. **No options nee
 ### Verify Command
 
 ```bash
-./eai-security-check verify [options] <file>
+./eai-security-check verify [options] <path>
 ```
 
-Verify the integrity of a tamper-evident security report generated with `--hash`.
+Verify the integrity of tamper-evident security reports generated with `--hash`. 
+Supports both single files and directories containing multiple reports.
 
 **Options:**
 - `--verbose` - Show detailed verification information
 
 **Examples:**
 ```bash
-./eai-security-check verify security-report.txt     # Verify report integrity
+./eai-security-check verify security-report.txt     # Verify single report integrity
 ./eai-security-check verify --verbose report.txt    # Show detailed verification info
+./eai-security-check verify ./reports/              # Verify all reports in directory
 ./eai-security-check verify report.json             # Works with all formats (JSON, markdown, etc.)
 ```
 
+**Directory Verification:**
+When verifying a directory, all files are checked and a summary is provided. Only files with valid security report signatures are processed. Files without signatures are automatically skipped.
+
 **Supported Formats:** All output formats support verification (plain, markdown, json, email)
-**Exit Codes:** 0 = verification passed, 1 = verification failed or file error
+**Exit Codes:** 0 = all verifications passed, 1 = any verification failed or file error
 
 ### Daemon Command
 

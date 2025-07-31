@@ -1,4 +1,4 @@
-import { SchedulingService } from '../scheduling-service';
+import { SchedulingService } from './scheduling-service';
 import { SchedulingConfig, DaemonState } from '../types';
 import * as fs from 'fs';
 
@@ -6,8 +6,8 @@ import * as fs from 'fs';
 jest.mock('node-cron');
 jest.mock('nodemailer');
 jest.mock('fs');
-jest.mock('../auditor');
-jest.mock('../platform-detector');
+jest.mock('./auditor');
+jest.mock('../utils/platform-detector');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 

@@ -1,10 +1,10 @@
-import { SecurityAuditor, VersionCompatibilityInfo } from '../auditor';
+import { SecurityAuditor, VersionCompatibilityInfo } from './auditor';
 import { SecurityConfig } from '../types';
 import { MockMacOSSecurityChecker } from '../test-utils/mocks';
-import { PlatformDetector, Platform } from '../platform-detector';
+import { PlatformDetector, Platform } from '../utils/platform-detector';
 
 // Mock platform detection to always return macOS
-jest.mock('../platform-detector');
+jest.mock('../utils/platform-detector');
 const mockPlatformDetector = PlatformDetector as jest.Mocked<typeof PlatformDetector>;
 
 describe('SecurityAuditor', () => {

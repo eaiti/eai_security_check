@@ -26,7 +26,7 @@ export interface VerificationResult {
 export class CryptoUtils {
   private static readonly SIGNATURE_SEPARATOR = '\n--- SECURITY SIGNATURE ---\n';
   private static readonly HMAC_ALGORITHM = 'sha256';
-  
+
   /**
    * Get the current build secret (required)
    */
@@ -70,7 +70,7 @@ export class CryptoUtils {
     const platform = process.platform;
     const hostname = require('os').hostname();
     const version = '1.0.0'; // Should match package.json version
-    
+
     const reportMetadata = {
       platform,
       hostname,
@@ -80,13 +80,13 @@ export class CryptoUtils {
 
     // Create content without signature for hashing
     const cleanContent = this.stripExistingSignature(content);
-    
+
     // Generate salt for security
     const salt = this.generateSalt();
-    
+
     // Create hash input with additional entropy
     const hashInput = cleanContent + JSON.stringify(reportMetadata) + timestamp + salt;
-    
+
     // Use HMAC for secure tamper detection
     const hash = this.generateSecureHash(hashInput, salt);
 
@@ -112,10 +112,13 @@ export class CryptoUtils {
       metadata: hashedReport.metadata
     };
 
-    return hashedReport.content + 
-           this.SIGNATURE_SEPARATOR + 
-           JSON.stringify(signature, null, 2) + 
-           '\n' + this.SIGNATURE_SEPARATOR;
+    return (
+      hashedReport.content +
+      this.SIGNATURE_SEPARATOR +
+      JSON.stringify(signature, null, 2) +
+      '\n' +
+      this.SIGNATURE_SEPARATOR
+    );
   }
 
   /**
@@ -125,7 +128,7 @@ export class CryptoUtils {
     try {
       // Split content and signature
       const parts = signedContent.split(this.SIGNATURE_SEPARATOR);
-      
+
       if (parts.length !== 3) {
         return {
           isValid: false,
@@ -138,7 +141,7 @@ export class CryptoUtils {
 
       const content = parts[0];
       const signatureJson = parts[1].trim();
-      
+
       let signature;
       try {
         signature = JSON.parse(signatureJson);
@@ -153,7 +156,13 @@ export class CryptoUtils {
       }
 
       // Validate signature structure
-      if (!signature.hash || !signature.algorithm || !signature.timestamp || !signature.metadata || !signature.salt) {
+      if (
+        !signature.hash ||
+        !signature.algorithm ||
+        !signature.timestamp ||
+        !signature.metadata ||
+        !signature.salt
+      ) {
         return {
           isValid: false,
           originalHash: signature.hash || '',
@@ -175,18 +184,19 @@ export class CryptoUtils {
       }
 
       // Recalculate hash using HMAC
-      const hashInput = content + JSON.stringify(signature.metadata) + signature.timestamp + signature.salt;
+      const hashInput =
+        content + JSON.stringify(signature.metadata) + signature.timestamp + signature.salt;
       const calculatedHash = this.generateSecureHash(hashInput, signature.salt);
 
       const isValid = calculatedHash === signature.hash;
-      
+
       return {
         isValid,
         originalHash: signature.hash,
         calculatedHash,
-        message: isValid ? 
-          'Report integrity verified successfully' : 
-          'Report has been tampered with or corrupted',
+        message: isValid
+          ? 'Report integrity verified successfully'
+          : 'Report has been tampered with or corrupted',
         tampered: !isValid
       };
     } catch (error) {
@@ -253,14 +263,17 @@ export class CryptoUtils {
   /**
    * Load and verify report from file
    */
-  static loadAndVerifyReport(filepath: string): { content: string; verification: VerificationResult } {
+  static loadAndVerifyReport(filepath: string): {
+    content: string;
+    verification: VerificationResult;
+  } {
     if (!fs.existsSync(filepath)) {
       throw new Error(`File not found: ${filepath}`);
     }
 
     const signedContent = fs.readFileSync(filepath, 'utf-8');
     const verification = this.verifyReport(signedContent);
-    
+
     return {
       content: signedContent,
       verification
@@ -273,7 +286,7 @@ export class CryptoUtils {
   static createVerificationSummary(verification: VerificationResult, signature?: any): string {
     let summary = '\n🔒 Report Verification\n';
     summary += '='.repeat(50) + '\n';
-    
+
     if (verification.isValid) {
       summary += '✅ Report integrity: VERIFIED\n';
       summary += `🔐 Hash: ${this.createShortHash(verification.originalHash)}\n`;
@@ -285,26 +298,29 @@ export class CryptoUtils {
         summary += `🔐 Calculated hash: ${this.createShortHash(verification.calculatedHash)}\n`;
       }
     }
-    
+
     if (signature) {
       summary += `📅 Generated: ${new Date(signature.timestamp).toLocaleString()}\n`;
       summary += `💻 Platform: ${signature.metadata.platform}\n`;
       summary += `🖥️  Hostname: ${signature.metadata.hostname}\n`;
       summary += `📦 Version: ${signature.metadata.version}\n`;
     }
-    
+
     summary += '='.repeat(50) + '\n';
-    
+
     return summary;
   }
 
   /**
    * Create a tamper-evident report
    */
-  static createTamperEvidentReport(content: string, metadata?: any): { signedContent: string; hashedReport: HashedReport } {
+  static createTamperEvidentReport(
+    content: string,
+    metadata?: any
+  ): { signedContent: string; hashedReport: HashedReport } {
     const hashedReport = this.createHashedReport(content, metadata);
     const signedContent = this.signReport(hashedReport);
-    
+
     // Return both the signed content and the hashed report info
     return { signedContent, hashedReport };
   }

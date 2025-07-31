@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { SecurityConfig, SchedulingConfig } from './types';
+import { SecurityConfig, SchedulingConfig } from '../types';
 import { getConfigByProfile } from './config-profiles';
-import { Platform, PlatformDetector } from './platform-detector';
+import { Platform, PlatformDetector } from '../utils/platform-detector';
 
 /**
  * ConfigManager handles configuration directory setup and management
@@ -45,11 +45,11 @@ export class ConfigManager {
    */
   static ensureConfigDirectory(): string {
     const configDir = this.getConfigDirectory();
-    
+
     if (!fs.existsSync(configDir)) {
       fs.mkdirSync(configDir, { recursive: true });
     }
-    
+
     return configDir;
   }
 
@@ -92,7 +92,10 @@ export class ConfigManager {
   /**
    * Create all security profile configuration files
    */
-  static createAllSecurityConfigs(force: boolean = false, defaultProfile: string = 'default'): void {
+  static createAllSecurityConfigs(
+    force: boolean = false,
+    defaultProfile: string = 'default'
+  ): void {
     const configDir = this.ensureConfigDirectory();
     const profiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
     const createdProfiles: string[] = [];
@@ -133,7 +136,9 @@ export class ConfigManager {
   /**
    * Create a scheduling configuration file with interactive prompts
    */
-  static async createSchedulingConfigInteractive(defaultProfile: string = 'default'): Promise<void> {
+  static async createSchedulingConfigInteractive(
+    defaultProfile: string = 'default'
+  ): Promise<void> {
     const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
@@ -141,56 +146,58 @@ export class ConfigManager {
     });
 
     const question = (prompt: string): Promise<string> => {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         rl.question(prompt, resolve);
       });
     };
 
     try {
       console.log('🔧 Setting up daemon configuration...\n');
-      
+
       // Get user identification
       const userId = await question('Enter user/system identifier (e.g., user@company.com): ');
       if (!userId.trim()) {
         throw new Error('User identifier is required');
       }
-      
+
       // Get email settings
       console.log('\n📧 Email Configuration:');
       const smtpHost = await question('SMTP host (e.g., smtp.gmail.com): ');
       if (!smtpHost.trim()) {
         throw new Error('SMTP host is required');
       }
-      
+
       const smtpPortInput = await question('SMTP port (587 for TLS, 465 for SSL): ');
       const smtpPort = parseInt(smtpPortInput) || 587;
       const smtpSecure = smtpPort === 465;
-      
+
       const smtpUser = await question('SMTP username/email: ');
       if (!smtpUser.trim()) {
         throw new Error('SMTP username is required');
       }
-      
+
       const smtpPass = await question('SMTP password (use app-specific password for Gmail): ');
       if (!smtpPass.trim()) {
         throw new Error('SMTP password is required');
       }
-      
-      const fromEmail = await question('From email address: ') || smtpUser;
+
+      const fromEmail = (await question('From email address: ')) || smtpUser;
       const toEmails = await question('To email addresses (comma-separated): ');
       if (!toEmails.trim()) {
         throw new Error('At least one recipient email is required');
       }
-      
+
       // Get scheduling settings
       console.log('\n⏰ Scheduling Configuration:');
       const intervalInput = await question('Check interval in days (default: 7): ');
       const intervalDays = parseInt(intervalInput) || 7;
-      
+
       // Get security profile
-      const profileInput = await question(`Security profile (default, strict, relaxed, developer, eai) [${defaultProfile}]: `);
+      const profileInput = await question(
+        `Security profile (default, strict, relaxed, developer, eai) [${defaultProfile}]: `
+      );
       const securityProfile = profileInput.trim() || defaultProfile;
-      
+
       const config: SchedulingConfig = {
         enabled: true,
         intervalDays,
@@ -206,7 +213,10 @@ export class ConfigManager {
             }
           },
           from: `EAI Security Check <${fromEmail.trim()}>`,
-          to: toEmails.split(',').map(email => email.trim()).filter(email => email.length > 0),
+          to: toEmails
+            .split(',')
+            .map(email => email.trim())
+            .filter(email => email.length > 0),
           subject: 'Security Audit Report'
         },
         reportFormat: 'email',
@@ -215,7 +225,7 @@ export class ConfigManager {
 
       const configDir = this.ensureConfigDirectory();
       const configPath = this.getSchedulingConfigPath();
-      
+
       if (fs.existsSync(configPath)) {
         const overwrite = await question(`\nScheduling config already exists. Overwrite? (y/N): `);
         if (overwrite.toLowerCase() !== 'y') {
@@ -226,9 +236,10 @@ export class ConfigManager {
 
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
       console.log(`✅ Scheduling configuration created: ${configPath}`);
-      console.log(`🤖 Configured for ${intervalDays}-day intervals using '${securityProfile}' profile`);
+      console.log(
+        `🤖 Configured for ${intervalDays}-day intervals using '${securityProfile}' profile`
+      );
       console.log(`📧 Will send reports to: ${config.email.to.join(', ')}`);
-      
     } finally {
       rl.close();
     }
@@ -247,7 +258,7 @@ export class ConfigManager {
     try {
       console.log('\n🔒 Security Profile Selection');
       console.log('Choose a default security profile for your system:\n');
-      
+
       console.log('📋 Available Profiles:');
       console.log('  1. default   - Recommended security settings (7-min auto-lock timeout)');
       console.log('                 Good balance of security and usability for most users');
@@ -260,18 +271,24 @@ export class ConfigManager {
       console.log('  5. eai       - EAI focused security (10+ char passwords, 180-day expiration)');
       console.log('                 Specialized profile for EAI organizational requirements\n');
 
-      const answer = await new Promise<string>((resolve) => {
+      const answer = await new Promise<string>(resolve => {
         rl.question('Select profile (1-5) or enter profile name [default]: ', resolve);
       });
 
       // Handle numeric choices
       const choice = answer.trim();
       switch (choice) {
-        case '1': case '': return 'default';
-        case '2': return 'strict';
-        case '3': return 'relaxed';
-        case '4': return 'developer';
-        case '5': return 'eai';
+        case '1':
+        case '':
+          return 'default';
+        case '2':
+          return 'strict';
+        case '3':
+          return 'relaxed';
+        case '4':
+          return 'developer';
+        case '5':
+          return 'eai';
         default:
           // Handle direct profile names
           const validProfiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
@@ -299,10 +316,14 @@ export class ConfigManager {
 
     try {
       console.log('\n🤖 Automated Scheduling Setup');
-      console.log('The daemon can automatically run security checks on a schedule and email results.');
-      console.log('This is optional - you can always run checks manually with "eai-security-check check".\n');
+      console.log(
+        'The daemon can automatically run security checks on a schedule and email results.'
+      );
+      console.log(
+        'This is optional - you can always run checks manually with "eai-security-check check".\n'
+      );
 
-      const answer = await new Promise<string>((resolve) => {
+      const answer = await new Promise<string>(resolve => {
         rl.question('Would you like to set up automated scheduling (daemon)? (y/N): ', resolve);
       });
 
@@ -323,7 +344,7 @@ export class ConfigManager {
     });
 
     try {
-      const answer = await new Promise<string>((resolve) => {
+      const answer = await new Promise<string>(resolve => {
         rl.question('\n🔄 Would you like to overwrite existing configurations? (y/N): ', resolve);
       });
 
@@ -346,7 +367,7 @@ export class ConfigManager {
     try {
       console.log('\n🚀 Daemon Ready to Start');
       console.log('The daemon is now configured and ready to run automated security checks.');
-      const answer = await new Promise<string>((resolve) => {
+      const answer = await new Promise<string>(resolve => {
         rl.question('Would you like to start the daemon now? (y/N): ', resolve);
       });
 
@@ -375,7 +396,7 @@ export class ConfigManager {
    */
   static loadSecurityConfig(): SecurityConfig | null {
     const configPath = this.getSecurityConfigPath();
-    
+
     if (!fs.existsSync(configPath)) {
       return null;
     }
@@ -393,7 +414,7 @@ export class ConfigManager {
    */
   static loadSchedulingConfig(): SchedulingConfig | null {
     const configPath = this.getSchedulingConfigPath();
-    
+
     if (!fs.existsSync(configPath)) {
       return null;
     }

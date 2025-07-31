@@ -5,7 +5,7 @@ import {
   validatePasswordConfiguration,
   validatePasswordStrength,
   checkPasswordExpiration
-} from '../password-utils';
+} from './password-utils';
 
 // Mock child_process for password expiration tests
 jest.mock('child_process');

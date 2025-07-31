@@ -3,14 +3,14 @@
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
-import { SecurityAuditor } from './auditor';
-import { SecurityConfig } from './types';
-import { OutputUtils, OutputFormat } from './output-utils';
-import { CryptoUtils } from './crypto-utils';
-import { PlatformDetector, Platform } from './platform-detector';
-import { SchedulingService } from './scheduling-service';
-import { getConfigByProfile, isValidProfile, VALID_PROFILES } from './config-profiles';
-import { ConfigManager } from './config-manager';
+import { SecurityAuditor } from '../services/auditor';
+import { SecurityConfig } from '../types';
+import { OutputUtils, OutputFormat } from '../utils/output-utils';
+import { CryptoUtils } from '../utils/crypto-utils';
+import { PlatformDetector, Platform } from '../utils/platform-detector';
+import { SchedulingService } from '../services/scheduling-service';
+import { getConfigByProfile, isValidProfile, VALID_PROFILES } from '../config/config-profiles';
+import { ConfigManager } from '../config/config-manager';
 
 /**
  * Determines if password is needed based on configuration
@@ -106,9 +106,13 @@ const program = new Command();
 
 program
   .name('eai-security-check')
-  .description('🔒 Cross-Platform Security Audit Tool - Check your system\'s security settings against configurable requirements')
+  .description(
+    "🔒 Cross-Platform Security Audit Tool - Check your system's security settings against configurable requirements"
+  )
   .version('1.0.0')
-  .addHelpText('before', `
+  .addHelpText(
+    'before',
+    `
 🔒 EAI Security Check - Cross-Platform Security Audit Tool
 
 This tool audits your macOS or Linux system against security best practices and generates
@@ -129,7 +133,8 @@ RISK LEVELS:
   🚨 HIGH: Critical security vulnerabilities
   ⚠️  MEDIUM: Important security improvements
   📋 LOW: Additional security enhancements
-`);
+`
+  );
 
 program
   .command('check')
@@ -138,12 +143,17 @@ program
   .option('-c, --config <path>', 'Path to JSON configuration file (overrides profile argument)')
   .option('-o, --output <path>', 'Path to output report file (optional)')
   .option('-q, --quiet', 'Only show summary, suppress detailed output')
-  .option('--password <password>', 'Administrator password for sudo commands (if not provided, will prompt when needed)')
+  .option(
+    '--password <password>',
+    'Administrator password for sudo commands (if not provided, will prompt when needed)'
+  )
   .option('--clipboard', 'Copy report summary to clipboard')
   .option('--format <type>', 'Output format: console, plain, markdown, json, email', 'console')
   .option('--hash', 'Generate cryptographic hash for tamper detection')
   .option('--summary', 'Generate a summary line for quick sharing')
-  .addHelpText('after', `
+  .addHelpText(
+    'after',
+    `
 Examples:
   $ eai-security-check check                        # Use default config
   $ eai-security-check check default               # Use default profile
@@ -184,7 +194,8 @@ Security Profiles:
   relaxed     - Balanced security (15-min auto-lock)
   developer   - Developer-friendly (remote access enabled)
   eai         - EAI focused security (10+ char passwords, 180-day expiration)
-`)
+`
+  )
   .action(async (profile, options) => {
     try {
       let config: SecurityConfig;
@@ -204,7 +215,6 @@ Security Profiles:
         const configContent = fs.readFileSync(configPath, 'utf-8');
         config = JSON.parse(configContent);
         configSource = `config file: ${configPath}`;
-
       } else if (profile) {
         // Use profile argument
         const profileConfig = getConfigForProfile(profile);
@@ -218,7 +228,6 @@ Security Profiles:
 
         config = profileConfig;
         configSource = `${profile} profile`;
-
       } else {
         // Default behavior - look for config in centralized location first, then local
         const centralConfigPath = ConfigManager.getSecurityConfigPath();
@@ -249,7 +258,6 @@ Security Profiles:
       // Prompt for password if needed for sudo operations (platform-aware)
       let password: string | undefined;
 
-
       if (options.password) {
         // Use provided password
         if (!options.quiet) {
@@ -263,10 +271,11 @@ Security Profiles:
         }
         try {
           // Platform-aware password prompt
-          const { promptForPassword } = await import('./password-utils');
-          const promptText = platformInfo.platform === Platform.MACOS ?
-            '🔐 Enter your macOS password: ' :
-            '🔐 Enter your sudo password: ';
+          const { promptForPassword } = await import('../utils/password-utils');
+          const promptText =
+            platformInfo.platform === Platform.MACOS
+              ? '🔐 Enter your macOS password: '
+              : '🔐 Enter your sudo password: ';
           password = await promptForPassword(promptText);
           if (!options.quiet) {
             console.log('✅ Password collected.\n');
@@ -276,7 +285,6 @@ Security Profiles:
           process.exit(1);
         }
       }
-
 
       // Create auditor with password if needed
       const auditor = new SecurityAuditor(password);
@@ -293,7 +301,7 @@ Security Profiles:
       }
 
       // Run audit
-      let report = options.quiet
+      const report = options.quiet
         ? await auditor.generateQuietReport(config)
         : await auditor.generateReport(config);
 
@@ -369,16 +377,18 @@ Security Profiles:
         } else {
           // Output to console with hash header
           console.log(`\n🔒 TAMPER-EVIDENT SECURITY REPORT`);
-          console.log(`🔐 Hash: ${hashShort} | Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`);
+          console.log(
+            `🔐 Hash: ${hashShort} | Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`
+          );
           console.log(`🛡️  Security: HMAC-SHA256`);
           console.log(`${'='.repeat(80)}\n`);
           console.log(signedContent);
         }
 
         if (options.clipboard) {
-          const clipboardContent = outputFilename ?
-            `Security audit completed. Hash: ${hashShort} (HMAC-SHA256). Verify: eai-security-check verify "${outputFilename}"` :
-            `Security audit completed. Hash: ${hashShort} (HMAC-SHA256). Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`;
+          const clipboardContent = outputFilename
+            ? `Security audit completed. Hash: ${hashShort} (HMAC-SHA256). Verify: eai-security-check verify "${outputFilename}"`
+            : `Security audit completed. Hash: ${hashShort} (HMAC-SHA256). Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`;
           const clipboardAvailable = await OutputUtils.isClipboardAvailable();
           if (clipboardAvailable) {
             const success = await OutputUtils.copyToClipboard(clipboardContent);
@@ -401,9 +411,9 @@ Security Profiles:
         if (options.clipboard) {
           const clipboardAvailable = await OutputUtils.isClipboardAvailable();
           if (clipboardAvailable) {
-            const clipboardContent = options.quiet ?
-              OutputUtils.createSummaryLine(report) :
-              OutputUtils.stripAnsiCodes(finalReport);
+            const clipboardContent = options.quiet
+              ? OutputUtils.createSummaryLine(report)
+              : OutputUtils.stripAnsiCodes(finalReport);
 
             const success = await OutputUtils.copyToClipboard(clipboardContent);
             if (success) {
@@ -421,7 +431,6 @@ Security Profiles:
       // Exit with error code if audit failed
       const auditResult = await auditor.auditSecurity(config);
       process.exit(auditResult.overallPassed ? 0 : 1);
-
     } catch (error) {
       console.error('❌ Error running security check:', error);
       process.exit(1);
@@ -431,7 +440,9 @@ Security Profiles:
 program
   .command('init')
   .description('🏠 Initialize EAI Security Check configuration directory and files interactively')
-  .addHelpText('after', `
+  .addHelpText(
+    'after',
+    `
 Examples:
   $ eai-security-check init                           # Interactive setup
 
@@ -464,18 +475,21 @@ Security Profiles Available:
 After running init, you can use any profile with:
   $ eai-security-check check [profile]              # Use specific profile
   $ eai-security-check check                        # Use your chosen default profile
-`)
+`
+  )
   .action(async () => {
     try {
       console.log('🏠 Welcome to EAI Security Check Interactive Setup!\n');
-      console.log('This wizard will guide you through configuring security profiles and optional automated scheduling.\n');
-      
-      // Show current configuration status  
+      console.log(
+        'This wizard will guide you through configuring security profiles and optional automated scheduling.\n'
+      );
+
+      // Show current configuration status
       const initialStatus = ConfigManager.getConfigStatus();
       console.log(`📁 Configuration directory: ${initialStatus.configDirectory}`);
-      
+
       let forceOverwrite = false;
-      
+
       if (initialStatus.securityConfigExists || initialStatus.schedulingConfigExists) {
         console.log('\n⚠️  Existing Configuration Detected:');
         if (initialStatus.securityConfigExists) {
@@ -484,9 +498,9 @@ After running init, you can use any profile with:
         if (initialStatus.schedulingConfigExists) {
           console.log(`  ✅ Daemon config exists: ${initialStatus.schedulingConfigPath}`);
         }
-        
+
         forceOverwrite = await ConfigManager.promptForForceOverwrite();
-        
+
         if (!forceOverwrite) {
           console.log('\n🔄 Running in update mode - will preserve existing configurations');
         } else {
@@ -510,34 +524,36 @@ After running init, you can use any profile with:
 
       // Interactive daemon setup
       const wantsDaemon = await ConfigManager.promptForDaemonSetup();
-      
+
       if (wantsDaemon) {
         const currentStatus = ConfigManager.getConfigStatus();
         if (currentStatus.schedulingConfigExists && !forceOverwrite) {
-          console.log(`\n⚠️  Daemon configuration already exists: ${currentStatus.schedulingConfigPath}`);
+          console.log(
+            `\n⚠️  Daemon configuration already exists: ${currentStatus.schedulingConfigPath}`
+          );
           console.log('Configuration preserved since force overwrite was not selected.');
           console.log('');
         } else {
           try {
             console.log('\n🔧 Setting up daemon configuration...\n');
-            
+
             if (currentStatus.schedulingConfigExists && forceOverwrite) {
               console.log('🗑️  Removing existing daemon configuration...');
               fs.unlinkSync(currentStatus.schedulingConfigPath);
             }
-            
+
             await ConfigManager.createSchedulingConfigInteractive(selectedProfile);
-            
+
             // Offer to start daemon
             const shouldStartDaemon = await ConfigManager.promptToStartDaemon();
             if (shouldStartDaemon) {
               console.log('\n🔄 Starting daemon...');
               try {
-                const { SchedulingService } = await import('./scheduling-service');
+                const { SchedulingService } = await import('../services/scheduling-service');
                 const configPath = ConfigManager.getSchedulingConfigPath();
                 const statePath = ConfigManager.getDaemonStatePath();
                 const schedulingService = new SchedulingService(configPath, statePath);
-                
+
                 // Start daemon in background (non-blocking)
                 setTimeout(async () => {
                   try {
@@ -546,7 +562,7 @@ After running init, you can use any profile with:
                     console.error(`⚠️  Daemon start error: ${error}`);
                   }
                 }, 100);
-                
+
                 console.log('✅ Daemon startup initiated - it will run in the background');
                 console.log('💡 Use "eai-security-check daemon --status" to check daemon status');
               } catch (error) {
@@ -554,9 +570,11 @@ After running init, you can use any profile with:
                 console.log('💡 You can start it manually later with "eai-security-check daemon"');
               }
             } else {
-              console.log('\n⏭️  Daemon configured but not started - use "eai-security-check daemon" to start it later');
+              console.log(
+                '\n⏭️  Daemon configured but not started - use "eai-security-check daemon" to start it later'
+              );
             }
-            
+
             console.log('');
           } catch (error) {
             console.error(`❌ Error creating daemon configuration: ${error}`);
@@ -564,7 +582,9 @@ After running init, you can use any profile with:
           }
         }
       } else {
-        console.log('\n⏭️  Skipping daemon setup - you can configure it later with "eai-security-check init"');
+        console.log(
+          '\n⏭️  Skipping daemon setup - you can configure it later with "eai-security-check init"'
+        );
         console.log('');
       }
 
@@ -573,8 +593,10 @@ After running init, you can use any profile with:
       console.log('📊 Configuration Summary:');
       const finalStatus = ConfigManager.getConfigStatus();
       console.log(`  📁 Config Directory: ${finalStatus.configDirectory}`);
-      console.log(`  🔒 Security Config (default): ${finalStatus.securityConfigExists ? '✅' : '❌'} ${finalStatus.securityConfigPath}`);
-      
+      console.log(
+        `  🔒 Security Config (default): ${finalStatus.securityConfigExists ? '✅' : '❌'} ${finalStatus.securityConfigPath}`
+      );
+
       // Show profile-specific configs
       const profiles = ['strict', 'relaxed', 'developer', 'eai'];
       for (const profile of profiles) {
@@ -582,15 +604,17 @@ After running init, you can use any profile with:
         const exists = fs.existsSync(profilePath);
         console.log(`  🔒 Security Config (${profile}): ${exists ? '✅' : '❌'} ${profilePath}`);
       }
-      
-      console.log(`  🤖 Daemon Config: ${finalStatus.schedulingConfigExists ? '✅' : '❌'} ${finalStatus.schedulingConfigPath}`);
+
+      console.log(
+        `  🤖 Daemon Config: ${finalStatus.schedulingConfigExists ? '✅' : '❌'} ${finalStatus.schedulingConfigPath}`
+      );
 
       console.log('\n🚀 Next Steps:');
       console.log(`  1. Run your first security audit: eai-security-check check`);
       console.log(`  2. Your default profile is: eai-security-check check ${selectedProfile}`);
       console.log(`  3. Try other profiles: eai-security-check check strict`);
       console.log(`  4. Get help anytime: eai-security-check --help`);
-      
+
       if (finalStatus.schedulingConfigExists) {
         console.log(`  5. Start automated monitoring: eai-security-check daemon`);
         console.log(`  6. Check daemon status: eai-security-check daemon --status`);
@@ -598,14 +622,15 @@ After running init, you can use any profile with:
       } else {
         console.log(`  5. Setup automated monitoring later: eai-security-check init`);
       }
-      
+
       console.log('\n📚 Additional Resources:');
       console.log('  • Verify reports: eai-security-check verify <file>');
       console.log('  • View all options: eai-security-check check --help');
       console.log('  • Reconfigure anytime: Run this init command again');
 
-      console.log('\n🔒 Ready to secure your system! Run "eai-security-check check" to get started.');
-
+      console.log(
+        '\n🔒 Ready to secure your system! Run "eai-security-check check" to get started.'
+      );
     } catch (error) {
       console.error('❌ Error during setup:', error);
       process.exit(1);
@@ -614,58 +639,164 @@ After running init, you can use any profile with:
 
 program
   .command('verify')
-  .description('🔍 Verify the integrity of a tamper-evident security report')
-  .argument('<file>', 'Path to the signed report file to verify')
+  .description('🔍 Verify the integrity of tamper-evident security reports')
+  .argument('<path>', 'Path to the signed report file or directory containing reports to verify')
   .option('--verbose', 'Show detailed verification information')
-  .addHelpText('after', `
+  .addHelpText(
+    'after',
+    `
 Examples:
-  $ eai-security-check verify security-report.txt     # Verify report integrity
+  $ eai-security-check verify security-report.txt     # Verify single report integrity
   $ eai-security-check verify --verbose report.txt    # Show detailed verification info
+  $ eai-security-check verify ./reports/              # Verify all reports in directory
   $ eai-security-check verify report.json             # Works with all formats (JSON, markdown, etc.)
 
-This command verifies that a report has not been tampered with by checking
-its cryptographic signature. Reports generated with --hash option include
+This command verifies that reports have not been tampered with by checking
+their cryptographic signatures. Reports generated with --hash option include
 verification signatures.
 
+When verifying a directory, all files are checked and a summary is provided.
+Only files with valid security report signatures are processed.
+
 Supported formats: All output formats support verification (plain, markdown, json, email)
-Exit codes: 0 = verification passed, 1 = verification failed or file error
-`)
-  .action(async (filepath, options) => {
+Exit codes: 0 = all verifications passed, 1 = any verification failed or file error
+`
+  )
+  .action(async (inputPath, options) => {
     try {
-      const resolvedPath = path.resolve(filepath);
+      const resolvedPath = path.resolve(inputPath);
 
       if (!fs.existsSync(resolvedPath)) {
-        console.error(`❌ File not found: ${resolvedPath}`);
+        console.error(`❌ Path not found: ${resolvedPath}`);
         process.exit(1);
       }
 
-      const { content, verification } = CryptoUtils.loadAndVerifyReport(resolvedPath);
-      const signature = CryptoUtils.extractSignature(content);
+      const stats = fs.statSync(resolvedPath);
 
-      if (verification.isValid) {
-        console.log('✅ Report verification PASSED');
-        console.log(`🔐 Hash: ${CryptoUtils.createShortHash(verification.originalHash)}`);
+      if (stats.isDirectory()) {
+        // Handle directory verification
+        const files = fs.readdirSync(resolvedPath);
+        const reportFiles = files.filter(file => {
+          const filePath = path.join(resolvedPath, file);
+          return fs.statSync(filePath).isFile();
+        });
 
-        if (signature) {
-          console.log(`📅 Generated: ${new Date(signature.timestamp).toLocaleString()}`);
-          console.log(`💻 Platform: ${signature.metadata.platform}`);
-          console.log(`🖥️  Hostname: ${signature.metadata.hostname}`);
+        if (reportFiles.length === 0) {
+          console.error(`❌ No files found in directory: ${resolvedPath}`);
+          process.exit(1);
         }
+
+        console.log(`🔍 Verifying ${reportFiles.length} files in directory: ${resolvedPath}\n`);
+
+        let passedCount = 0;
+        let failedCount = 0;
+        let skippedCount = 0;
+        const results: Array<{
+          file: string;
+          status: 'passed' | 'failed' | 'skipped';
+          message?: string;
+        }> = [];
+
+        for (const file of reportFiles) {
+          const filePath = path.join(resolvedPath, file);
+
+          try {
+            // Check if file contains a security report signature
+            const fileContent = fs.readFileSync(filePath, 'utf-8');
+            if (!CryptoUtils.extractSignature(fileContent)) {
+              skippedCount++;
+              results.push({ file, status: 'skipped', message: 'No security signature found' });
+              continue;
+            }
+
+            const { content, verification } = CryptoUtils.loadAndVerifyReport(filePath);
+            const signature = CryptoUtils.extractSignature(content);
+
+            if (verification.isValid) {
+              passedCount++;
+              results.push({ file, status: 'passed' });
+
+              if (options.verbose) {
+                console.log(`✅ ${file}: PASSED`);
+                console.log(
+                  `   🔐 Hash: ${CryptoUtils.createShortHash(verification.originalHash)}`
+                );
+                if (signature) {
+                  console.log(`   📅 Generated: ${new Date(signature.timestamp).toLocaleString()}`);
+                }
+                console.log();
+              }
+            } else {
+              failedCount++;
+              results.push({ file, status: 'failed', message: verification.message });
+
+              console.error(`❌ ${file}: FAILED`);
+              console.error(`   ⚠️  ${verification.message}`);
+              console.log();
+            }
+          } catch (error) {
+            failedCount++;
+            results.push({ file, status: 'failed', message: `Error: ${error}` });
+            console.error(`❌ ${file}: ERROR - ${error}`);
+          }
+        }
+
+        // Summary
+        console.log(`📊 Verification Summary:`);
+        console.log(`   ✅ Passed: ${passedCount}`);
+        console.log(`   ❌ Failed: ${failedCount}`);
+        console.log(`   ⏭️  Skipped: ${skippedCount} (no security signature)`);
+        console.log(`   📄 Total: ${reportFiles.length}`);
+
+        if (!options.verbose && passedCount > 0) {
+          console.log(
+            `\n✅ Files passed: ${results
+              .filter(r => r.status === 'passed')
+              .map(r => r.file)
+              .join(', ')}`
+          );
+        }
+
+        if (failedCount > 0) {
+          console.log(
+            `\n❌ Files failed: ${results
+              .filter(r => r.status === 'failed')
+              .map(r => r.file)
+              .join(', ')}`
+          );
+        }
+
+        process.exit(failedCount > 0 ? 1 : 0);
       } else {
-        console.error('❌ Report verification FAILED');
-        console.error(`⚠️  ${verification.message}`);
+        // Handle single file verification (existing behavior)
+        const { content, verification } = CryptoUtils.loadAndVerifyReport(resolvedPath);
+        const signature = CryptoUtils.extractSignature(content);
 
-        if (verification.originalHash && verification.calculatedHash) {
-          console.error(`🔐 Expected: ${CryptoUtils.createShortHash(verification.originalHash)}`);
-          console.error(`🔐 Actual: ${CryptoUtils.createShortHash(verification.calculatedHash)}`);
+        if (verification.isValid) {
+          console.log('✅ Report verification PASSED');
+          console.log(`🔐 Hash: ${CryptoUtils.createShortHash(verification.originalHash)}`);
+
+          if (signature) {
+            console.log(`📅 Generated: ${new Date(signature.timestamp).toLocaleString()}`);
+            console.log(`💻 Platform: ${signature.metadata.platform}`);
+            console.log(`🖥️  Hostname: ${signature.metadata.hostname}`);
+          }
+        } else {
+          console.error('❌ Report verification FAILED');
+          console.error(`⚠️  ${verification.message}`);
+
+          if (verification.originalHash && verification.calculatedHash) {
+            console.error(`🔐 Expected: ${CryptoUtils.createShortHash(verification.originalHash)}`);
+            console.error(`🔐 Actual: ${CryptoUtils.createShortHash(verification.calculatedHash)}`);
+          }
         }
-      }
 
-      if (options.verbose) {
-        console.log(CryptoUtils.createVerificationSummary(verification, signature));
-      }
+        if (options.verbose) {
+          console.log(CryptoUtils.createVerificationSummary(verification, signature));
+        }
 
-      process.exit(verification.isValid ? 0 : 1);
+        process.exit(verification.isValid ? 0 : 1);
+      }
     } catch (error) {
       console.error('❌ Error verifying report:', error);
       process.exit(1);
@@ -675,8 +806,14 @@ Exit codes: 0 = verification passed, 1 = verification failed or file error
 program
   .command('daemon')
   .description('🔄 Run security checks on a schedule and send email reports')
-  .option('-c, --config <path>', 'Path to scheduling configuration file (default: uses centralized config)')
-  .option('--security-config <path>', 'Path to security configuration file (overrides profile in schedule config)')
+  .option(
+    '-c, --config <path>',
+    'Path to scheduling configuration file (default: uses centralized config)'
+  )
+  .option(
+    '--security-config <path>',
+    'Path to security configuration file (overrides profile in schedule config)'
+  )
   .option('-s, --state <path>', 'Path to daemon state file (default: uses centralized state)')
   .option('--status', 'Show current daemon status and exit')
   .option('--test-email', 'Send a test email and exit')
@@ -686,7 +823,9 @@ program
   .option('--uninstall', 'Remove daemon files and configurations')
   .option('--remove-executable', 'Also remove the executable when uninstalling (requires --force)')
   .option('--force', 'Force operations that normally require confirmation')
-  .addHelpText('after', `
+  .addHelpText(
+    'after',
+    `
 Examples:
   $ eai-security-check daemon                              # Start daemon with centralized config
   $ eai-security-check daemon -c my-schedule.json         # Use custom scheduling config
@@ -731,8 +870,9 @@ Service Setup:
   - Linux: Create systemd service unit file
   - macOS: Create launchd plist file
   - See documentation for platform-specific setup instructions
-`)
-  .action(async (options) => {
+`
+  )
+  .action(async options => {
     try {
       // Set default paths to centralized config locations
       const configPath = options.config || ConfigManager.getSchedulingConfigPath();
@@ -753,7 +893,11 @@ Service Setup:
 
       // Handle restart option
       if (options.restart) {
-        const result = await SchedulingService.restartDaemon(configPath, statePath, options.securityConfig);
+        const result = await SchedulingService.restartDaemon(
+          configPath,
+          statePath,
+          options.securityConfig
+        );
         if (result.success) {
           console.log(`✅ ${result.message}`);
         } else {
@@ -806,7 +950,11 @@ Service Setup:
       }
 
       // Create scheduling service
-      const schedulingService = new SchedulingService(configPath, statePath, options.securityConfig);
+      const schedulingService = new SchedulingService(
+        configPath,
+        statePath,
+        options.securityConfig
+      );
 
       // Handle status option
       if (options.status) {
@@ -843,7 +991,6 @@ Service Setup:
 
       // Start daemon
       await schedulingService.startDaemon();
-
     } catch (error) {
       console.error('❌ Error running daemon:', error);
       process.exit(1);
@@ -855,7 +1002,7 @@ program
   .alias('h')
   .description('📚 Show detailed help information')
   .argument('[command]', 'Show help for specific command')
-  .action((command) => {
+  .action(command => {
     if (command) {
       const cmd = program.commands.find(c => c.name() === command);
       if (cmd) {

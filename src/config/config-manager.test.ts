@@ -1,4 +1,4 @@
-import { ConfigManager } from '../config-manager';
+import { ConfigManager } from './config-manager';
 import * as fs from 'fs';
 import * as os from 'os';
 

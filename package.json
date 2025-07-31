@@ -2,9 +2,9 @@
   "name": "eai-security-check",
   "version": "1.0.0",
   "description": "A Node.js tool to check macOS security settings against a JSON configuration",
-  "main": "dist/index.js",
+  "main": "dist/cli/index.js",
   "bin": {
-    "eai-security-check": "./dist/index.js"
+    "eai-security-check": "./dist/cli/index.js"
   },
   "scripts": {
     "build": "EAI_BUILD_SECRET=\"${EAI_BUILD_SECRET:-$(openssl rand -hex 32)}\" tsc",
@@ -16,10 +16,10 @@
     "format": "prettier --write src/**/*.ts",
     "format:check": "prettier --check src/**/*.ts",
     "test": "jest",
-    "pkg:build": "npm run build && pkg dist/index.js --targets node18-macos-x64,node18-linux-x64 --out-path ./bin",
-    "pkg:macos": "npm run build && pkg dist/index.js --targets node18-macos-x64 --out-path ./bin",
-    "pkg:linux": "npm run build && pkg dist/index.js --targets node18-linux-x64 --out-path ./bin",
-    "pkg:local": "npm run build && pkg dist/index.js --targets node18-macos-x64 --out-path ./bin"
+    "pkg:build": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64,node18-linux-x64 --out-path ./bin",
+    "pkg:macos": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64 --out-path ./bin",
+    "pkg:linux": "npm run build && pkg dist/cli/index.js --targets node18-linux-x64 --out-path ./bin",
+    "pkg:local": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64 --out-path ./bin"
   },
   "keywords": [
     "macos",

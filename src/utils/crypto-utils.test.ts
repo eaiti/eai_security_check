@@ -1,4 +1,4 @@
-import { CryptoUtils } from '../crypto-utils';
+import { CryptoUtils } from './crypto-utils';
 import * as fs from 'fs';
 import * as os from 'os';
 

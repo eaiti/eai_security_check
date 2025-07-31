@@ -1,4 +1,4 @@
-import { MacOSSecurityChecker } from '../security-checker';
+import { MacOSSecurityChecker } from './security-checker';
 
 describe('MacOSSecurityChecker', () => {
   let checker: MacOSSecurityChecker;
