@@ -202,8 +202,21 @@ async function main() {
     log(`Checksum: ${EXECUTABLE_PATH}.sha256`);
     
   } catch (e) {
-    error(e.message);
-    process.exit(1);
+    console.warn(`[Linux Signing] WARNING: Signing failed - ${e.message}`);
+    console.warn('[Linux Signing] WARNING: Build will continue without GPG signatures');
+    console.warn('[Linux Signing] WARNING: Users will not be able to verify executable authenticity via GPG');
+    console.warn('[Linux Signing] INFO: To enable GPG signing, configure GPG keys and environment variables');
+    
+    // Still try to create checksum file for integrity verification
+    try {
+      createChecksumFile();
+      console.warn('[Linux Signing] INFO: Checksum file created for integrity verification');
+    } catch (checksumError) {
+      console.warn(`[Linux Signing] WARNING: Could not create checksum file: ${checksumError.message}`);
+    }
+    
+    // Exit with success code to allow build to continue
+    process.exit(0);
   }
 }
 

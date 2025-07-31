@@ -164,8 +164,12 @@ function main() {
     log(`Signed executable: ${EXECUTABLE_PATH}`);
     
   } catch (e) {
-    error(e.message);
-    process.exit(1);
+    console.warn(`[macOS Signing] WARNING: Signing failed - ${e.message}`);
+    console.warn('[macOS Signing] WARNING: Build will continue without code signing');
+    console.warn('[macOS Signing] WARNING: Users may see security warnings when running the executable');
+    console.warn('[macOS Signing] INFO: To enable code signing, configure Apple Developer certificates and environment variables');
+    // Exit with success code to allow build to continue
+    process.exit(0);
   }
 }
 

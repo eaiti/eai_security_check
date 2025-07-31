@@ -54,7 +54,6 @@ jobs:
           echo "GPG key imported successfully"
 
       - name: Sign Linux executable
-        if: env.GPG_SIGNING_KEY != ''
         env:
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
@@ -113,7 +112,6 @@ jobs:
           echo "WINDOWS_CERT_FILE_PATH=$env:TEMP\certificate.p12" >> $env:GITHUB_ENV
 
       - name: Sign Windows executable
-        if: env.WINDOWS_CERT_FILE != ''
         env:
           WINDOWS_CERT_FILE: ${{ env.WINDOWS_CERT_FILE_PATH }}
           WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
@@ -131,7 +129,6 @@ jobs:
   sign-macos:
     runs-on: macos-latest
     needs: build-linux-macos
-    if: ${{ secrets.APPLE_DEVELOPER_ID != '' }}
 
     steps:
       - name: Checkout repository

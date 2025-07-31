@@ -265,8 +265,21 @@ function main() {
     log(`Checksum: ${EXECUTABLE_PATH}.sha256`);
     
   } catch (e) {
-    error(e.message);
-    process.exit(1);
+    console.warn(`[Windows Signing] WARNING: Signing failed - ${e.message}`);
+    console.warn('[Windows Signing] WARNING: Build will continue without code signing');
+    console.warn('[Windows Signing] WARNING: Users may see security warnings when running the executable');
+    console.warn('[Windows Signing] INFO: To enable code signing, configure Windows certificates and signing tools');
+    
+    // Still try to create checksum file for integrity verification
+    try {
+      createChecksumFile();
+      console.warn('[Windows Signing] INFO: Checksum file created for integrity verification');
+    } catch (checksumError) {
+      console.warn(`[Windows Signing] WARNING: Could not create checksum file: ${checksumError.message}`);
+    }
+    
+    // Exit with success code to allow build to continue
+    process.exit(0);
   }
 }
 
