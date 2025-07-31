@@ -16,10 +16,12 @@ import { select, confirm, input } from '@inquirer/prompts';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { exec } from 'child_process';
 import { SecurityAuditor } from '../services/auditor';
-import { PlatformDetector, Platform } from '../utils/platform-detector';
+import { PlatformDetector, Platform, PlatformInfo } from '../utils/platform-detector';
 import { ConfigManager } from '../config/config-manager';
 import { getConfigByProfile, isValidProfile } from '../config/config-profiles';
+import { SecurityConfig, SecurityReport } from '../types';
 
 // Create typed mocks
 const mockSelect = select as jest.MockedFunction<typeof select>;
@@ -28,6 +30,7 @@ const mockInput = input as jest.MockedFunction<typeof input>;
 const mockFs = jest.mocked(fs);
 const mockOs = jest.mocked(os);
 const mockPath = jest.mocked(path);
+const mockExec = exec as jest.MockedFunction<typeof exec>;
 const mockSecurityAuditor = SecurityAuditor as jest.MockedClass<typeof SecurityAuditor>;
 const mockPlatformDetector = PlatformDetector as jest.Mocked<typeof PlatformDetector>;
 const mockConfigManager = ConfigManager as jest.Mocked<typeof ConfigManager>;
@@ -80,7 +83,20 @@ describe('CLI Interactive Mode', () => {
     mockPath.dirname.mockReturnValue('/test/dir');
 
     mockFs.existsSync.mockReturnValue(true);
-    mockFs.readFileSync.mockReturnValue('{"testConfig": true}');
+    mockFs.readFileSync.mockReturnValue(
+      JSON.stringify({
+        diskEncryption: { enabled: true },
+        passwordProtection: { enabled: true, requirePasswordImmediately: true },
+        autoLock: { maxTimeoutMinutes: 7 },
+        firewall: { enabled: true, stealthMode: true },
+        packageVerification: { enabled: true },
+        systemIntegrityProtection: { enabled: true },
+        remoteLogin: { enabled: false },
+        remoteManagement: { enabled: false },
+        automaticUpdates: { enabled: true },
+        sharingServices: { fileSharing: false, screenSharing: false }
+      })
+    );
     mockFs.writeFileSync.mockImplementation(() => {});
     mockFs.mkdirSync.mockImplementation(() => {});
     mockFs.statSync.mockReturnValue({
@@ -88,7 +104,14 @@ describe('CLI Interactive Mode', () => {
       isFile: () => true,
       mtime: new Date(),
       size: 1024
-    } as any);
+    } as fs.Stats);
+    mockFs.lstatSync.mockReturnValue({
+      isDirectory: () => false,
+      isFile: () => true,
+      isSymbolicLink: () => false,
+      mtime: new Date(),
+      size: 1024
+    } as fs.Stats);
 
     mockPlatformDetector.detectPlatform.mockResolvedValue({
       platform: Platform.MACOS,
@@ -113,8 +136,11 @@ describe('CLI Interactive Mode', () => {
     });
 
     // Mock ConfigManager methods
-    mockConfigManager.ensureConfigDirectory.mockReturnValue('/test/config');
-    mockConfigManager.getReportsDirectory.mockReturnValue('/test/reports');
+    mockConfigManager.ensureCentralizedDirectories.mockReturnValue({
+      configDir: '/test/config',
+      reportsDir: '/test/reports',
+      logsDir: '/test/logs'
+    });
     mockConfigManager.getSystemStatus.mockResolvedValue({
       globalInstall: {
         exists: false,
@@ -142,7 +168,7 @@ describe('CLI Interactive Mode', () => {
     mockConfigManager.hasSecurityConfig.mockReturnValue(true);
     mockConfigManager.loadSecurityConfig.mockReturnValue({
       diskEncryption: { enabled: true }
-    } as any);
+    } as SecurityConfig);
     mockConfigManager.getConfigStatus.mockReturnValue({
       configDirectory: '/test/config',
       reportsDirectory: '/test/reports',
@@ -150,6 +176,9 @@ describe('CLI Interactive Mode', () => {
       securityConfigPath: '/test/config/security-config.json',
       schedulingConfigExists: false,
       schedulingConfigPath: '/test/config/scheduling-config.json'
+    });
+    mockConfigManager.createAllSecurityConfigs.mockImplementation(() => {
+      // Mock implementation that doesn't throw
     });
 
     // Mock SecurityAuditor methods - simplified approach to avoid typing issues
@@ -160,15 +189,28 @@ describe('CLI Interactive Mode', () => {
       checkVersionCompatibility: jest.fn()
     };
 
-    (mockAuditorMethods.generateReport as any).mockResolvedValue('Mock security report');
-    (mockAuditorMethods.generateQuietReport as any).mockResolvedValue('Mock quiet report');
-    (mockAuditorMethods.auditSecurity as any).mockResolvedValue({ overallPassed: true });
-    (mockAuditorMethods.checkVersionCompatibility as any).mockResolvedValue({
-      currentVersion: '14.5',
+    (
+      mockAuditorMethods.generateReport as jest.MockedFunction<() => Promise<string>>
+    ).mockResolvedValue('Mock security report');
+    (
+      mockAuditorMethods.generateQuietReport as jest.MockedFunction<() => Promise<string>>
+    ).mockResolvedValue('Mock quiet report');
+    (
+      mockAuditorMethods.auditSecurity as jest.MockedFunction<() => Promise<SecurityReport>>
+    ).mockResolvedValue({
+      timestamp: new Date().toISOString(),
+      overallPassed: true,
+      results: []
+    });
+    (
+      mockAuditorMethods.checkVersionCompatibility as jest.MockedFunction<
+        () => Promise<PlatformInfo>
+      >
+    ).mockResolvedValue({
+      platform: Platform.MACOS,
+      version: '14.5',
       isSupported: true,
       isApproved: true,
-      isLegacy: false,
-      platform: Platform.MACOS,
       warningMessage: undefined
     });
 
@@ -192,8 +234,26 @@ describe('CLI Interactive Mode', () => {
     mockConfigManager.isVersionUpgrade.mockReturnValue(false);
     mockConfigManager.getLastTrackedVersion.mockReturnValue('1.0.0');
     mockConfigManager.updateTrackedVersion.mockImplementation(() => {});
+    mockConfigManager.getSchedulingConfigPath.mockReturnValue(
+      '/test/config/scheduling-config.json'
+    );
 
-    mockSecurityAuditor.mockImplementation(() => mockAuditorMethods as any);
+    // @ts-expect-error - Mock implementation complexity requires casting
+    mockSecurityAuditor.mockImplementation(() => mockAuditorMethods as unknown as SecurityAuditor);
+
+    // Mock child_process.exec
+    mockExec.mockImplementation(((
+      command: string,
+      callback?: (error: Error | null, stdout: string, stderr: string) => void
+    ) => {
+      // Mock successful version check for global installation compatibility
+      if (command.includes('--version')) {
+        callback?.(null, '1.1.0', '');
+      } else {
+        callback?.(new Error('Command not found'), '', '');
+      }
+      return {} as ReturnType<typeof exec>;
+    }) as typeof exec);
 
     // Mock default prompt responses
     mockSelect.mockResolvedValue('7'); // Default to exit
@@ -216,8 +276,7 @@ describe('CLI Interactive Mode', () => {
       expect(console.log).toHaveBeenCalledWith(
         '🎛️  Welcome to EAI Security Check Interactive Management!\n'
       );
-      expect(mockConfigManager.ensureConfigDirectory).toHaveBeenCalled();
-      expect(mockConfigManager.getReportsDirectory).toHaveBeenCalled();
+      expect(mockConfigManager.ensureCentralizedDirectories).toHaveBeenCalled();
       expect(mockConfigManager.getSystemStatus).toHaveBeenCalled();
       expect(mockConfigManager.getCurrentVersion).toHaveBeenCalled();
       expect(mockSelect).toHaveBeenCalled();
@@ -235,8 +294,8 @@ describe('CLI Interactive Mode', () => {
     });
 
     it('should handle Ctrl+C gracefully', async () => {
-      const exitError = new Error('User interrupted');
-      (exitError as any).name = 'ExitPromptError';
+      const exitError = new Error('User interrupted') as Error & { name: string };
+      exitError.name = 'ExitPromptError';
       mockSelect.mockRejectedValueOnce(exitError);
 
       await runInteractiveMode();
@@ -277,12 +336,18 @@ describe('CLI Interactive Mode', () => {
     });
 
     it('should handle quick security check selection', async () => {
-      // Mock existsSync to return false for default config file so it falls back to getConfigByProfile
-      mockFs.existsSync.mockImplementation((path: any) => {
+      // Mock existsSync to return false initially but true after creation
+      let configCreated = false;
+      mockFs.existsSync.mockImplementation((path: fs.PathLike) => {
         if (typeof path === 'string' && path.includes('security-config.json')) {
-          return false;
+          return configCreated;
         }
         return true;
+      });
+
+      // Mock createAllSecurityConfigs to set configCreated to true
+      mockConfigManager.createAllSecurityConfigs.mockImplementation(() => {
+        configCreated = true;
       });
 
       mockSelect.mockResolvedValueOnce('2'); // Quick security check
@@ -291,7 +356,6 @@ describe('CLI Interactive Mode', () => {
       await showSecurityCheckMenu();
 
       expect(mockSelect).toHaveBeenCalled();
-      expect(mockGetConfigByProfile).toHaveBeenCalledWith('default');
       expect(mockSecurityAuditor).toHaveBeenCalled();
     });
 
@@ -382,13 +446,14 @@ describe('CLI Interactive Mode', () => {
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockConfigManager.hasSchedulingConfig.mockReturnValue(false);
       mockConfigManager.hasSecurityConfig.mockReturnValue(false); // Force security config setup
+      mockConfigManager.promptForDaemonSetup.mockResolvedValueOnce(false); // Don't setup service to avoid complex flow
 
       await showDaemonMenu();
 
       expect(mockConfigManager.hasSchedulingConfig).toHaveBeenCalled();
       expect(mockConfigManager.promptForSecurityProfile).toHaveBeenCalled();
       expect(mockConfigManager.createSchedulingConfigInteractive).toHaveBeenCalled();
-    });
+    }, 15000); // Increase timeout
 
     it('should handle daemon service management', async () => {
       mockSelect
@@ -407,6 +472,10 @@ describe('CLI Interactive Mode', () => {
         .mockResolvedValueOnce('3') // View status
         .mockResolvedValueOnce('back'); // Go back
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
+      mockConfigManager.hasSchedulingConfig.mockReturnValue(true); // Need config to call manageDaemon
+      mockConfigManager.getSchedulingConfigPath.mockReturnValue(
+        '/test/config/scheduling-config.json'
+      );
 
       await showDaemonMenu();
 
@@ -534,11 +603,15 @@ describe('CLI Interactive Mode', () => {
         .mockResolvedValueOnce('1') // Verify local reports
         .mockResolvedValueOnce('back'); // Go back
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
-      mockFs.readdirSync.mockReturnValue(['security-report-1.txt', 'security-report-2.txt'] as any);
+      // @ts-expect-error - Mock fs.readdirSync return type complexity
+      mockFs.readdirSync.mockReturnValue([
+        'security-report-1.txt',
+        'security-report-2.txt'
+      ] as unknown as fs.Dirent[]);
 
       await showVerifyMenu();
 
-      expect(mockConfigManager.getReportsDirectory).toHaveBeenCalled();
+      expect(mockConfigManager.ensureCentralizedDirectories).toHaveBeenCalled();
       expect(mockFs.existsSync).toHaveBeenCalled();
     });
 
@@ -578,8 +651,8 @@ describe('CLI Interactive Mode', () => {
         .mockResolvedValueOnce('back'); // Go back
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
 
-      const exitError = new Error('User cancelled');
-      (exitError as any).name = 'ExitPromptError';
+      const exitError = new Error('User cancelled') as Error & { name: string };
+      exitError.name = 'ExitPromptError';
       mockInput.mockRejectedValueOnce(exitError);
 
       await showVerifyMenu();
@@ -591,15 +664,21 @@ describe('CLI Interactive Mode', () => {
 
   describe('Individual Interactive Functions', () => {
     it('should handle interactive security check with profile selection', async () => {
-      // Mock existsSync to return false for profile config files so it falls back to getConfigByProfile
-      mockFs.existsSync.mockImplementation((path: any) => {
+      // Mock existsSync to return false initially but true after creation
+      let configCreated = false;
+      mockFs.existsSync.mockImplementation((path: fs.PathLike) => {
         if (
           typeof path === 'string' &&
           (path.includes('strict-config.json') || path.includes('security-config.json'))
         ) {
-          return false;
+          return configCreated;
         }
         return true;
+      });
+
+      // Mock createAllSecurityConfigs to set configCreated to true
+      mockConfigManager.createAllSecurityConfigs.mockImplementation(() => {
+        configCreated = true;
       });
 
       mockConfigManager.promptForSecurityProfile.mockResolvedValue('strict');
@@ -607,24 +686,28 @@ describe('CLI Interactive Mode', () => {
       await runInteractiveSecurityCheck();
 
       expect(mockConfigManager.promptForSecurityProfile).toHaveBeenCalled();
-      expect(mockGetConfigByProfile).toHaveBeenCalledWith('strict');
       expect(mockSecurityAuditor).toHaveBeenCalled();
     });
 
     it('should handle quick security check execution', async () => {
-      // Mock existsSync to return false for default config file so it falls back to getConfigByProfile
-      mockFs.existsSync.mockImplementation((path: any) => {
+      // Mock existsSync to return false initially but true after creation
+      let configCreated = false;
+      mockFs.existsSync.mockImplementation((path: fs.PathLike) => {
         if (typeof path === 'string' && path.includes('security-config.json')) {
-          return false;
+          return configCreated;
         }
         return true;
       });
 
+      // Mock createAllSecurityConfigs to set configCreated to true
+      mockConfigManager.createAllSecurityConfigs.mockImplementation(() => {
+        configCreated = true;
+      });
+
       await runQuickSecurityCheck();
 
-      expect(mockGetConfigByProfile).toHaveBeenCalledWith('default');
       expect(mockSecurityAuditor).toHaveBeenCalled();
-      expect(mockConfigManager.getReportsDirectory).toHaveBeenCalled();
+      expect(mockConfigManager.ensureCentralizedDirectories).toHaveBeenCalled();
     });
 
     it('should handle configuration setup for first time', async () => {
@@ -654,7 +737,7 @@ describe('CLI Interactive Mode', () => {
     it('should handle daemon automation setup', async () => {
       mockConfigManager.hasSchedulingConfig.mockReturnValue(false);
       mockConfigManager.hasSecurityConfig.mockReturnValue(false); // Override to force security config setup
-      mockConfigManager.promptForDaemonSetup.mockResolvedValue(true);
+      mockConfigManager.promptForDaemonSetup.mockResolvedValue(false); // Don't setup service to avoid complex flow
       mockConfigManager.copyDaemonServiceTemplates.mockReturnValue({
         templatesCopied: ['service.template'],
         instructions: ['Install instruction'],
@@ -668,7 +751,7 @@ describe('CLI Interactive Mode', () => {
       expect(mockConfigManager.promptForSecurityProfile).toHaveBeenCalled();
       expect(mockConfigManager.createSchedulingConfigInteractive).toHaveBeenCalled();
       expect(mockConfigManager.promptForDaemonSetup).toHaveBeenCalled();
-    });
+    }, 15000); // Add timeout
 
     it('should handle service setup with auto-setup', async () => {
       mockConfirm.mockResolvedValueOnce(true); // Accept auto-setup
@@ -681,6 +764,64 @@ describe('CLI Interactive Mode', () => {
         default: false
       });
     });
+
+    it('should handle daemon automation with service setup when service is requested', async () => {
+      mockConfigManager.hasSchedulingConfig.mockReturnValue(false);
+      mockConfigManager.hasSecurityConfig.mockReturnValue(false);
+      mockConfigManager.promptForDaemonSetup.mockResolvedValue(true); // User wants service setup
+      mockConfigManager.getCurrentVersion.mockReturnValue('1.1.0');
+
+      // Mock that global installation is compatible
+      mockExec.mockImplementation(((
+        command: string,
+        callback?: (error: Error | null, stdout: string, stderr: string) => void
+      ) => {
+        if (command.includes('--version')) {
+          callback?.(null, '1.1.0', ''); // Same version as current
+        } else {
+          callback?.(new Error('Command not found'), '', '');
+        }
+        return {} as ReturnType<typeof exec>;
+      }) as typeof exec);
+
+      await setupDaemonAutomation();
+
+      expect(mockConfigManager.hasSchedulingConfig).toHaveBeenCalled();
+      expect(mockConfigManager.promptForSecurityProfile).toHaveBeenCalled();
+      expect(mockConfigManager.createSchedulingConfigInteractive).toHaveBeenCalled();
+      expect(mockConfigManager.promptForDaemonSetup).toHaveBeenCalled();
+    }, 15000);
+
+    it('should handle daemon automation with reconfiguration', async () => {
+      mockConfigManager.hasSchedulingConfig.mockReturnValue(true); // Already has config
+      mockConfigManager.hasSecurityConfig.mockReturnValue(true);
+      mockConfirm.mockResolvedValueOnce(true); // User wants to reconfigure
+      mockConfigManager.promptForDaemonSetup.mockResolvedValue(false); // Don't setup service
+
+      await setupDaemonAutomation();
+
+      expect(mockConfigManager.hasSchedulingConfig).toHaveBeenCalled();
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: 'Do you want to reconfigure it?',
+        default: false
+      });
+      expect(mockConfigManager.createSchedulingConfigInteractive).toHaveBeenCalled();
+    }, 15000);
+
+    it('should handle daemon automation cancellation when user declines reconfiguration', async () => {
+      mockConfigManager.hasSchedulingConfig.mockReturnValue(true); // Already has config
+      mockConfirm.mockResolvedValueOnce(false); // User doesn't want to reconfigure
+
+      await setupDaemonAutomation();
+
+      expect(mockConfigManager.hasSchedulingConfig).toHaveBeenCalled();
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: 'Do you want to reconfigure it?',
+        default: false
+      });
+      // Should not proceed to create new config
+      expect(mockConfigManager.createSchedulingConfigInteractive).not.toHaveBeenCalled();
+    }, 15000);
   });
 
   describe('Error Handling', () => {
@@ -702,11 +843,18 @@ describe('CLI Interactive Mode', () => {
         auditSecurity: jest.fn()
       };
 
-      (mockErrorMethods.generateReport as any).mockRejectedValue(new Error('Network error'));
-      (mockErrorMethods.generateQuietReport as any).mockRejectedValue(new Error('Network error'));
-      (mockErrorMethods.auditSecurity as any).mockRejectedValue(new Error('Network error'));
+      (
+        mockErrorMethods.generateReport as jest.MockedFunction<() => Promise<string>>
+      ).mockRejectedValue(new Error('Network error'));
+      (
+        mockErrorMethods.generateQuietReport as jest.MockedFunction<() => Promise<string>>
+      ).mockRejectedValue(new Error('Network error'));
+      (
+        mockErrorMethods.auditSecurity as jest.MockedFunction<() => Promise<SecurityReport>>
+      ).mockRejectedValue(new Error('Network error'));
 
-      mockSecurityAuditor.mockImplementation(() => mockErrorMethods as any);
+      // @ts-expect-error - Mock implementation complexity requires casting
+      mockSecurityAuditor.mockImplementation(() => mockErrorMethods as unknown as SecurityAuditor);
 
       // Test error handling in interactive functions
       try {

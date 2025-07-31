@@ -1054,7 +1054,7 @@ function getLogPaths() {
   try {
     // Resolve symlinks to get the actual executable path
     const stats = fs.lstatSync(executablePath);
-    if (stats.isSymbolicLink()) {
+    if (stats && stats.isSymbolicLink()) {
       executablePath = fs.readlinkSync(executablePath);
       // If it's a relative symlink, resolve it relative to the symlink directory
       if (!path.isAbsolute(executablePath)) {

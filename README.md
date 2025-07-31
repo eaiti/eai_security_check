@@ -86,17 +86,68 @@ eai-security-check check strict
 eai-security-check check --hash --format markdown -o ~/Documents/security-report.md
 ```
 
-### 4. Optional: Set Up Automated Monitoring  
+### 4. Set Up Automated Monitoring (Optional)
 
+**Option A: Interactive Setup (Recommended)**
 ```bash
-# Start daemon for scheduled security audits
+# Comprehensive guided setup with all options
+eai-security-check interactive
+# → Navigate to: 3. Daemon - Automated security monitoring
+# → Choose: 1. Setup Daemon Automation
+# 
+# This interactive setup handles:
+# ✅ Security profile selection and configuration creation
+# ✅ Email configuration (SMTP, recipients, scheduling)
+# ✅ User identification for tracking
+# ✅ Optional system service setup (automatic startup)
+# ✅ Cross-platform service template creation
+```
+
+**Option B: CLI Setup (Advanced Users)**
+```bash
+# 1. Create configurations manually (see docs/DAEMON_SETUP.md)
+# 2. Start daemon for testing
 eai-security-check daemon
 
-# Check daemon status
+# 3. Check daemon status and logs
 eai-security-check daemon --status
+eai-security-check interactive  # → Daemon → View Status (detailed info)
 
-# Force immediate security check and email
-eai-security-check daemon --check-now
+# 4. Control daemon operations
+eai-security-check daemon --stop
+eai-security-check daemon --restart
+eai-security-check daemon --test-email
+eai-security-check daemon --check-now  # Force immediate security check
+```
+
+**Manual System Service Setup (if not using interactive mode)**
+
+*macOS (LaunchAgent):*
+```bash
+# Copy service template (created by interactive mode)
+cp daemon-examples/macos/com.eai.security-check.daemon.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.eai.security-check.daemon.plist
+launchctl start com.eai.security-check.daemon
+```
+
+*Linux (systemd user service):*
+```bash
+# Ubuntu/Debian/Fedora - Copy service template
+mkdir -p ~/.config/systemd/user
+cp daemon-examples/linux/eai-security-check.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable eai-security-check.service
+systemctl --user start eai-security-check.service
+# Enable auto-start on boot
+sudo loginctl enable-linger $USER
+```
+
+*Windows (Task Scheduler):*
+```powershell
+# Run PowerShell as Administrator
+# Use the generated script from daemon-examples/windows/
+.\daemon-examples\windows\install-scheduled-task.ps1
+# Or manually create scheduled task (see docs/DAEMON_SETUP.md)
 ```
 
 ## 📚 Documentation
@@ -227,7 +278,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### 🧪 Development & Testing
 
-**Comprehensive Test Suite (283 tests)**
+**Comprehensive Test Suite (286 tests)**
 ```bash
 # Run all tests
 npm test
@@ -244,11 +295,54 @@ npm run build
 
 **Test Coverage Areas:**
 - ✅ Cross-platform security checkers (macOS, Linux, Windows)
-- ✅ CLI interactive mode (36 comprehensive tests)
+- ✅ CLI interactive mode and daemon automation (comprehensive coverage)
 - ✅ Configuration management and profiles
 - ✅ Cryptographic verification and tamper detection
 - ✅ Daemon automation and scheduling
 - ✅ Error handling and edge cases
+
+## 🚀 Troubleshooting
+
+### Common Issues
+
+**Daemon not starting:**
+```bash
+# Check configuration exists
+eai-security-check daemon --status
+
+# If config missing, run interactive setup
+eai-security-check interactive  # → Daemon → Setup Daemon Automation
+```
+
+**Email not sending:**
+```bash
+# Test email configuration
+eai-security-check daemon --test-email
+
+# Common fixes:
+# - Gmail: Use app-specific password, not account password
+# - Corporate SMTP: Check firewall/proxy settings
+# - Port issues: Try 587 (TLS) or 465 (SSL) for secure SMTP
+```
+
+**Permission errors (Linux/macOS):**
+```bash
+# Make executable runnable
+chmod +x eai-security-check
+
+# For system service, check user permissions
+systemctl --user status eai-security-check.service  # Linux
+launchctl list | grep com.eai.security-check        # macOS
+```
+
+**Global installation issues:**
+```bash
+# Check if global install is available
+which eai-security-check
+
+# For manual global setup
+sudo ln -sf /path/to/eai-security-check /usr/local/bin/eai-security-check
+```
 
 ## 📞 Support
 
