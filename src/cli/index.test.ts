@@ -242,21 +242,18 @@ describe('CLI Interactive Mode', () => {
     it('should handle security check menu selection', async () => {
       mockSelect
         .mockResolvedValueOnce('1') // Security check menu
-        .mockResolvedValueOnce('back') // Exit submenu immediately
-        .mockResolvedValueOnce('7'); // Exit main menu
+        .mockResolvedValueOnce('back'); // Exit submenu immediately
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to main menu
 
       await runInteractiveMode();
 
-      expect(mockSelect).toHaveBeenCalledTimes(3);
+      expect(mockSelect).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('Security Check Menu', () => {
     it('should handle interactive security check selection', async () => {
-      mockSelect
-        .mockResolvedValueOnce('1') // Interactive security check
-        .mockResolvedValueOnce('back'); // Go back to main menu
+      mockSelect.mockResolvedValueOnce('1'); // Interactive security check
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
 
       await showSecurityCheckMenu();
@@ -275,9 +272,15 @@ describe('CLI Interactive Mode', () => {
     });
 
     it('should handle quick security check selection', async () => {
-      mockSelect
-        .mockResolvedValueOnce('2') // Quick security check
-        .mockResolvedValueOnce('back'); // Go back to main menu
+      // Mock existsSync to return false for default config file so it falls back to getConfigByProfile
+      mockFs.existsSync.mockImplementation((path: any) => {
+        if (typeof path === 'string' && path.includes('security-config.json')) {
+          return false;
+        }
+        return true;
+      });
+      
+      mockSelect.mockResolvedValueOnce('2'); // Quick security check
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
 
       await showSecurityCheckMenu();
@@ -567,6 +570,14 @@ describe('CLI Interactive Mode', () => {
 
   describe('Individual Interactive Functions', () => {
     it('should handle interactive security check with profile selection', async () => {
+      // Mock existsSync to return false for profile config files so it falls back to getConfigByProfile
+      mockFs.existsSync.mockImplementation((path: any) => {
+        if (typeof path === 'string' && (path.includes('strict-config.json') || path.includes('security-config.json'))) {
+          return false;
+        }
+        return true;
+      });
+      
       mockConfigManager.promptForSecurityProfile.mockResolvedValue('strict');
 
       await runInteractiveSecurityCheck();
@@ -577,6 +588,14 @@ describe('CLI Interactive Mode', () => {
     });
 
     it('should handle quick security check execution', async () => {
+      // Mock existsSync to return false for default config file so it falls back to getConfigByProfile
+      mockFs.existsSync.mockImplementation((path: any) => {
+        if (typeof path === 'string' && path.includes('security-config.json')) {
+          return false;
+        }
+        return true;
+      });
+      
       await runQuickSecurityCheck();
 
       expect(mockGetConfigByProfile).toHaveBeenCalledWith('default');
@@ -586,6 +605,7 @@ describe('CLI Interactive Mode', () => {
 
     it('should handle configuration setup for first time', async () => {
       mockConfigManager.hasSecurityConfig.mockReturnValue(false);
+      mockConfigManager.promptForSecurityProfile.mockResolvedValue('strict');
 
       await setupOrModifyConfigurations();
 

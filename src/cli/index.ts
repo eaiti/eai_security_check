@@ -2186,11 +2186,45 @@ Service Setup:
           console.log('  📤 SCP Transfer: ❌ Not configured');
         }
         console.log(`  Security Profile: ${status.config.securityProfile}`);
+
+        console.log('\n📁 File Locations:');
         console.log(`  Config Path: ${configPath}`);
         console.log(`  State Path: ${statePath}`);
+        if (options.securityConfig) {
+          console.log(`  Security Config: ${options.securityConfig}`);
+        }
+        
+        // Platform-specific file locations and commands
+        const platform = PlatformDetector.getSimplePlatform();
+        console.log('\n🔧 Platform-Specific Information:');
+        console.log(`  Platform: ${platformInfo.platform}`);
+        
+        if (platform === Platform.MACOS) {
+          const plistFile = path.join(os.homedir(), 'Library', 'LaunchAgents', 'com.eai.security-check.plist');
+          console.log(`  Service Name: com.eai.security-check`);
+          console.log(`  LaunchAgent plist: ${plistFile}`);
+          console.log(`  Check if loaded: launchctl list | grep com.eai.security-check`);
+          console.log(`  Load service: launchctl load "${plistFile}"`);
+          console.log(`  Unload service: launchctl unload "${plistFile}"`);
+          console.log(`  View logs: tail -f ~/Library/Logs/eai-security-check.log`);
+        } else if (platform === Platform.LINUX) {
+          const serviceFile = path.join(os.homedir(), '.config', 'systemd', 'user', 'eai-security-check.service');
+          console.log(`  Service Name: eai-security-check`);
+          console.log(`  Systemd service: ${serviceFile}`);
+          console.log(`  Check if active: systemctl --user is-active eai-security-check`);
+          console.log(`  Start service: systemctl --user start eai-security-check`);
+          console.log(`  Stop service: systemctl --user stop eai-security-check`);
+          console.log(`  Enable on boot: systemctl --user enable eai-security-check`);
+          console.log(`  View logs: journalctl --user -u eai-security-check -f`);
+        } else if (platform === Platform.WINDOWS) {
+          console.log(`  Service Name: EAI Security Check`);
+          console.log(`  Task Scheduler: Task Scheduler Library > EAI Security Check`);
+          console.log(`  Check task: schtasks /Query /TN "EAI Security Check"`);
+          console.log(`  Run task: schtasks /Run /TN "EAI Security Check"`);
+          console.log(`  View logs: Event Viewer > Windows Logs > Application`);
+        }
 
         console.log('\n🔧 Platform Capabilities:');
-        console.log(`  Platform: ${platformInfo.platform}`);
         console.log(`  Scheduled Execution: ${platformInfo.supportsScheduling ? '✅' : '❌'}`);
         console.log(`  Manual Restart: ${platformInfo.supportsRestart ? '✅' : '❌'}`);
         console.log(
