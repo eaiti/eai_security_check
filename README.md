@@ -78,20 +78,51 @@ npm run build
 
 ## 🎯 Quick Start
 
-### Basic Security Audit
+### 1. Initialize Configuration
 
 ```bash
-# Quick security check with default profile
+# Initialize configuration directory and create default security config
+./eai-security-check init
+
+# Initialize with daemon setup (interactive email configuration)
+./eai-security-check init --daemon
+
+# Initialize with specific security profile
+./eai-security-check init -p strict --daemon
+```
+
+**Configuration Directory Locations:**
+- **macOS**: `~/Library/Application Support/eai-security-check/`
+- **Linux**: `~/.config/eai-security-check/`
+- **Windows**: `%APPDATA%/eai-security-check/`
+
+### 2. Run Security Audit
+
+```bash
+# Quick security check (uses centralized config)
 ./eai-security-check check
 
-# Use EAI profile (essential checks only)
+# Use specific profile
 ./eai-security-check check eai
 
 # Save detailed report to Documents folder
-./eai-security-check check eai --output ~/Documents/security-report.txt --password "mypassword"
+./eai-security-check check --output ~/Documents/security-report.txt --password "mypassword"
 
 # Generate tamper-evident report for email sharing
-./eai-security-check check eai --hash --format email --output ~/Documents/security-audit-$(date +%Y%m%d).txt --password "mypassword"
+./eai-security-check check --hash --format email --output ~/Documents/security-audit-$(date +%Y%m%d).txt --password "mypassword"
+```
+
+### 3. Automated Monitoring (Optional)
+
+```bash
+# Start daemon for scheduled security audits
+./eai-security-check daemon
+
+# Check daemon status
+./eai-security-check daemon --status
+
+# Force immediate security check and email
+./eai-security-check daemon --check-now
 ```
 
 ### Advanced Usage Examples
@@ -116,6 +147,26 @@ npm run build
 ```
 
 ## 📋 Command Reference
+
+### Init Command
+
+```bash
+./eai-security-check init [options]
+```
+
+Initialize EAI Security Check configuration directory and files.
+
+**Options:**
+- `-p, --profile <type>` - Security profile: default, strict, relaxed, developer, eai
+- `--daemon` - Also setup daemon configuration interactively
+- `--force` - Overwrite existing configuration files
+
+**Examples:**
+```bash
+./eai-security-check init                      # Basic setup
+./eai-security-check init --daemon            # Setup with daemon configuration
+./eai-security-check init -p strict --daemon  # Strict profile with daemon
+```
 
 ### Check Command
 
@@ -148,18 +199,6 @@ npm run build
 
 Verify the integrity of a tamper-evident security report generated with `--hash`.
 
-### Init Command
-
-```bash
-./eai-security-check init [options]
-```
-
-Create a sample security configuration file.
-
-**Options:**
-- `--profile <name>` - Use predefined profile (default, strict, relaxed, developer, eai)
-- `--file <path>` - Custom output filename
-
 ### Daemon Command
 
 ```bash
@@ -168,20 +207,28 @@ Create a sample security configuration file.
 
 Run security checks on a schedule and automatically send email reports. This command starts a long-running daemon that performs scheduled security audits and sends email notifications.
 
+**Setup:**
+Before using daemon mode, initialize your configuration:
+```bash
+./eai-security-check init --daemon  # Interactive setup
+```
+
 **Options:**
-- `-c, --config <path>` - Path to scheduling configuration file (default: `scheduling-config.json`)
-- `-s, --state <path>` - Path to daemon state file (default: `daemon-state.json`)
-- `--init` - Create a sample scheduling configuration file
+- `-c, --config <path>` - Path to scheduling configuration file (default: uses centralized config)
+- `-s, --state <path>` - Path to daemon state file (default: uses centralized state) 
 - `--status` - Show current daemon status and exit
 - `--test-email` - Send a test email and exit
 - `--check-now` - Force an immediate security check and email (regardless of schedule)
+- `--stop` - Stop the running daemon
+- `--restart` - Restart the daemon
+- `--uninstall` - Remove daemon files and configurations
 
 **Examples:**
 ```bash
-# Initialize daemon configuration
-./eai-security-check daemon --init
+# Initialize daemon configuration (interactive setup)
+./eai-security-check init --daemon
 
-# Start daemon with default weekly schedule
+# Start daemon with centralized configuration
 ./eai-security-check daemon
 
 # Check daemon status
@@ -190,7 +237,7 @@ Run security checks on a schedule and automatically send email reports. This com
 # Force immediate check
 ./eai-security-check daemon --check-now
 
-# Use custom configuration
+# Use custom configuration files
 ./eai-security-check daemon -c /path/to/my-schedule.json
 ```
 
@@ -201,6 +248,7 @@ Run security checks on a schedule and automatically send email reports. This com
 - Automatically restarts checks after system reboot (when configured as service)
 - Graceful shutdown on SIGINT/SIGTERM signals
 - Supports all existing security profiles and output formats
+- Uses centralized configuration directory for easy management
 
 **Setting up as System Service:**
 
@@ -221,14 +269,20 @@ sudo ./examples/setup-daemon.sh uninstall  # Linux
 ./examples/setup-daemon.sh uninstall       # macOS
 ```
 
-**Scheduling Configuration:**
+**Configuration Files:**
 
-The daemon uses a separate configuration file (`scheduling-config.json`) that includes:
+The daemon uses configuration files stored in the centralized config directory:
+
+1. **Security Configuration** (`security-config.json`): Defines security requirements
+2. **Scheduling Configuration** (`scheduling-config.json`): Email and scheduling settings
+
+Interactive setup (`init --daemon`) will create a scheduling configuration like:
 
 ```json
 {
   "enabled": true,
   "intervalDays": 7,
+  "userId": "user@company.com",
   "email": {
     "smtp": {
       "host": "smtp.gmail.com",
@@ -253,18 +307,21 @@ The daemon uses a separate configuration file (`scheduling-config.json`) that in
 ### macOS Example
 
 ```bash
-# Complete macOS security audit with password
-./eai-security-check check eai --password "myMacPassword" --output ~/Documents/macos-security.txt
+# Initialize and run complete macOS security audit
+./eai-security-check init -p eai
+./eai-security-check check --password "myMacPassword" --output ~/Documents/macos-security.txt
 
 # Check against strict security requirements
-./eai-security-check check strict --format email --clipboard
+./eai-security-check init -p strict
+./eai-security-check check --format email --clipboard
 ```
 
 ### Linux (Fedora) Example
 
 ```bash
-# Fedora security audit (primary supported distribution)
-./eai-security-check check default --password "mySudoPassword" --output ~/Documents/fedora-security.txt
+# Initialize and run Fedora security audit (primary supported distribution)
+./eai-security-check init -p default
+./eai-security-check check --password "mySudoPassword" --output ~/Documents/fedora-security.txt
 
 # Quick summary for email sharing
 ./eai-security-check check eai --summary --clipboard
