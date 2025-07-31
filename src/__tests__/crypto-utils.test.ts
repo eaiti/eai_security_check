@@ -374,10 +374,10 @@ describe('CryptoUtils', () => {
     it('should always use HMAC-SHA256 when build secret is set', () => {
       // Set a test build secret
       process.env.EAI_BUILD_SECRET = 'test-secret-key-123';
-      
+
       const content = 'test content for HMAC security';
       const hashedReport = CryptoUtils.createHashedReport(content);
-      
+
       expect(hashedReport.algorithm).toBe('hmac-sha256');
       expect(hashedReport.salt).toBeDefined();
       expect(hashedReport.salt).toHaveLength(32); // 16 bytes hex = 32 chars
@@ -386,13 +386,13 @@ describe('CryptoUtils', () => {
     it('should verify HMAC reports correctly', () => {
       // Set a test build secret
       process.env.EAI_BUILD_SECRET = 'test-secret-key-456';
-      
+
       const content = 'test content for HMAC verification';
       const hashedReport = CryptoUtils.createHashedReport(content);
       const signedContent = CryptoUtils.signReport(hashedReport);
-      
+
       const verification = CryptoUtils.verifyReport(signedContent);
-      
+
       expect(verification.isValid).toBe(true);
       expect(verification.tampered).toBe(false);
     });
@@ -400,16 +400,16 @@ describe('CryptoUtils', () => {
     it('should fail to verify reports with wrong secret', () => {
       // Set a build secret for creation
       process.env.EAI_BUILD_SECRET = 'creation-secret';
-      
+
       const content = 'test content';
       const hashedReport = CryptoUtils.createHashedReport(content);
       const signedContent = CryptoUtils.signReport(hashedReport);
-      
+
       // Change secret for verification
       process.env.EAI_BUILD_SECRET = 'different-secret';
-      
+
       const verification = CryptoUtils.verifyReport(signedContent);
-      
+
       expect(verification.isValid).toBe(false);
       expect(verification.tampered).toBe(true);
     });
@@ -417,16 +417,16 @@ describe('CryptoUtils', () => {
     it('should detect tampering in HMAC mode', () => {
       // Set a test build secret
       process.env.EAI_BUILD_SECRET = 'tamper-test-secret';
-      
+
       const content = 'original content';
       const hashedReport = CryptoUtils.createHashedReport(content);
       const signedContent = CryptoUtils.signReport(hashedReport);
-      
+
       // Tamper with content
       const tamperedContent = signedContent.replace('original content', 'tampered content');
-      
+
       const verification = CryptoUtils.verifyReport(tamperedContent);
-      
+
       expect(verification.isValid).toBe(false);
       expect(verification.tampered).toBe(true);
     });

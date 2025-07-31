@@ -169,7 +169,7 @@ describe('ConfigManager', () => {
       });
       mockedFs.mkdirSync.mockImplementation(() => undefined);
       mockedFs.writeFileSync.mockImplementation(() => {});
-      
+
       // Mock console.log to avoid test output
       jest.spyOn(console, 'log').mockImplementation(() => {});
     });
@@ -250,7 +250,7 @@ describe('ConfigManager', () => {
         '/home/testuser/.config/eai-security-check/security-config.json',
         expect.stringContaining('"diskEncryption"')
       );
-      
+
       // Should create all files
       expect(mockedFs.writeFileSync).toHaveBeenCalledTimes(5);
     });

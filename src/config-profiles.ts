@@ -20,8 +20,6 @@ const baseConfig = {
  * Get configuration by profile name
  */
 export function getConfigByProfile(profile: string): SecurityConfig {
-  console.warn('Using dynamic configuration generation for profile:', profile);
-
   switch (profile) {
     case 'strict':
       return {
