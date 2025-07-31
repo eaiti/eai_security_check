@@ -503,7 +503,7 @@ The tool provides **enhanced tamper detection** with cryptographically secure si
 - **HMAC Authentication**: Uses Hash-based Message Authentication Code for tamper detection  
 - **Key Derivation**: PBKDF2 with 10,000 iterations for additional security
 - **Salt Generation**: Unique cryptographically secure salt per report
-- **Backward Compatibility**: Legacy SHA-256 reports remain verifiable
+- **Tamper Detection**: HMAC-SHA256 cryptographic signatures with build-time secrets
 
 #### Usage
 ```bash

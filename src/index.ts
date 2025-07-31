@@ -352,28 +352,27 @@ Security Profiles:
         });
 
         const hashShort = CryptoUtils.createShortHash(hashedReport.hash);
-        const securityInfo = CryptoUtils.getSecurityInfo();
 
         if (outputFilename) {
           // Save to file
           const outputPath = path.resolve(outputFilename);
           fs.writeFileSync(outputPath, signedContent);
           console.log(`📄 Tamper-evident report saved to: ${outputPath}`);
-          console.log(`🔐 Report hash: ${hashShort} (${securityInfo.level} Security: ${securityInfo.algorithm})`);
+          console.log(`🔐 Report hash: ${hashShort} (HMAC-SHA256)`);
           console.log(`🔍 Verify with: eai-security-check verify "${outputFilename}"`);
         } else {
           // Output to console with hash header
           console.log(`\n🔒 TAMPER-EVIDENT SECURITY REPORT`);
           console.log(`🔐 Hash: ${hashShort} | Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`);
-          console.log(`🛡️  Security: ${securityInfo.level} (${securityInfo.algorithm})`);
+          console.log(`🛡️  Security: HMAC-SHA256`);
           console.log(`${'='.repeat(80)}\n`);
           console.log(signedContent);
         }
 
         if (options.clipboard) {
           const clipboardContent = outputFilename ?
-            `Security audit completed. Hash: ${hashShort} (${securityInfo.level}). Verify: eai-security-check verify "${outputFilename}"` :
-            `Security audit completed. Hash: ${hashShort} (${securityInfo.level}). Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`;
+            `Security audit completed. Hash: ${hashShort} (HMAC-SHA256). Verify: eai-security-check verify "${outputFilename}"` :
+            `Security audit completed. Hash: ${hashShort} (HMAC-SHA256). Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`;
           const clipboardAvailable = await OutputUtils.isClipboardAvailable();
           if (clipboardAvailable) {
             const success = await OutputUtils.copyToClipboard(clipboardContent);
@@ -520,58 +519,6 @@ Exit codes: 0 = verification passed, 1 = verification failed or file error
       process.exit(verification.isValid ? 0 : 1);
     } catch (error) {
       console.error('❌ Error verifying report:', error);
-      process.exit(1);
-    }
-  });
-
-program
-  .command('security-status')
-  .description('🛡️  Check tamper detection security status')
-  .addHelpText('after', `
-Examples:
-  $ eai-security-check security-status         # Check current security configuration
-
-This command shows the current tamper detection security level and provides
-information about enhancing security through build-time secret configuration.
-
-Security Levels:
-  - Basic: SHA-256 hashing (default, visible algorithm)
-  - Enhanced: HMAC-SHA256 with build-time secret (cryptographically secure)
-
-To enable enhanced security, set EAI_BUILD_SECRET environment variable during build.
-`)
-  .action(async () => {
-    try {
-      const securityInfo = CryptoUtils.getSecurityInfo();
-      
-      console.log('🛡️  Tamper Detection Security Status');
-      console.log('='.repeat(50));
-      console.log(`Security Level: ${securityInfo.level}`);
-      console.log(`Algorithm: ${securityInfo.algorithm}`);
-      console.log(`Status: ${securityInfo.message}`);
-      
-      if (securityInfo.level === 'Basic') {
-        console.log('\n⚠️  Security Recommendations:');
-        console.log('  • Set EAI_BUILD_SECRET environment variable during build');
-        console.log('  • Use a cryptographically secure random secret (32+ characters)');
-        console.log('  • Keep the secret confidential and separate from source code');
-        console.log('  • Example: EAI_BUILD_SECRET="$(openssl rand -hex 32)" npm run build');
-      } else {
-        console.log('\n✅ Enhanced security is active!');
-        console.log('  • Reports use cryptographically secure HMAC signatures');
-        console.log('  • Build-time secret provides tamper detection');
-        console.log('  • Secret is not visible in source code');
-      }
-      
-      console.log('\n🔍 Supported Hash Algorithms:');
-      const algorithms = CryptoUtils.getAvailableHashAlgorithms();
-      algorithms.forEach(alg => {
-        const marker = alg === securityInfo.algorithm.toLowerCase() ? '→' : ' ';
-        console.log(`  ${marker} ${alg}`);
-      });
-      
-    } catch (error) {
-      console.error('❌ Error checking security status:', error);
       process.exit(1);
     }
   });
@@ -789,7 +736,7 @@ program
         cmd.help();
       } else {
         console.error(`❌ Unknown command: ${command}`);
-        console.log('Available commands: check, init, verify, security-status, daemon, help');
+        console.log('Available commands: check, init, verify, daemon, help');
       }
     } else {
       console.log(`

@@ -21,17 +21,11 @@ The enhanced implementation uses **HMAC-SHA256 with build-time secrets** to prov
 2. **Build-time Secret Injection**: Secret keys are injected during the build process via environment variables
 3. **Key Derivation**: Uses PBKDF2 with 10,000 iterations to derive keys from the build secret
 4. **Salt Generation**: Each report gets a unique cryptographically secure salt for additional entropy
-5. **Backward Compatibility**: Legacy SHA-256 reports can still be verified
 
-### Security Levels
+### Security Implementation
 
-#### Basic Security (Default)
-- **Algorithm**: SHA-256
-- **Usage**: Development, testing, or when no build secret is provided
-- **Security**: Limited - algorithm is visible and predictable
-- **Warning**: Displays warning when creating reports without build secret
+The tamper detection system uses HMAC-SHA256 with build-time secret injection:
 
-#### Enhanced Security (Recommended)
 - **Algorithm**: HMAC-SHA256 with PBKDF2 key derivation
 - **Usage**: Production builds with EAI_BUILD_SECRET environment variable
 - **Security**: Cryptographically secure - requires secret key for verification
@@ -41,7 +35,7 @@ The enhanced implementation uses **HMAC-SHA256 with build-time secrets** to prov
 
 ### Build-time Secret Injection
 
-The system uses environment variables to inject secrets during the build process:
+The system requires environment variables to inject secrets during the build process:
 
 ```bash
 # Generate and use a secure random secret
@@ -145,12 +139,6 @@ Enhanced reports include additional fields:
 4. **Calculate HMAC** of content + metadata + timestamp + salt
 5. **Compare** calculated HMAC with stored signature
 
-### Legacy Compatibility
-
-- Reports created with basic security (SHA-256) continue to work
-- Verification automatically detects algorithm type
-- Mixed environments supported during transition
-
 ## Security Analysis
 
 ### Threat Model
@@ -217,7 +205,7 @@ Enhanced reports include additional fields:
 1. **Update build scripts** to use `build:secure`
 2. **Set build secrets** in CI/CD environment
 3. **Update documentation** with security instructions
-4. **Test both** enhanced and legacy report verification
+4. **Test HMAC report verification**
 
 ## Testing
 
@@ -228,14 +216,12 @@ npm test -- src/__tests__/crypto-utils.test.ts
 ```
 
 Key test scenarios:
-- ✅ Enhanced security with build secrets
-- ✅ Fallback mode without build secrets
-- ✅ Tampering detection in both modes
-- ✅ Legacy report compatibility
+- ✅ HMAC-SHA256 security with build secrets
+- ✅ Tampering detection
 - ✅ Secret key rotation scenarios
 
 ## Conclusion
 
-The enhanced tamper detection provides significant security improvements while maintaining backward compatibility. The use of HMAC with build-time secrets makes it computationally infeasible for attackers to forge valid signatures, even with full source code access.
+The tamper detection system provides cryptographically secure protection against report tampering. The use of HMAC with build-time secrets makes it computationally infeasible for attackers to forge valid signatures, even with full source code access.
 
 **Recommendation**: All production deployments should use enhanced security with cryptographically secure build secrets.
