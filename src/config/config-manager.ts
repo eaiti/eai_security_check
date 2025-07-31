@@ -401,16 +401,20 @@ export class ConfigManager {
       console.log(
         'This is optional - you can always run checks manually with "eai-security-check check".'
       );
-      
+
       // Show platform-specific capabilities
       const { SchedulingService } = require('../services/scheduling-service');
       const platformInfo = SchedulingService.getDaemonPlatformInfo();
-      
+
       console.log(`\n📱 Platform: ${platformInfo.platform}`);
-      console.log(`✅ Supports scheduled execution: ${platformInfo.supportsScheduling ? 'Yes' : 'No'}`);
+      console.log(
+        `✅ Supports scheduled execution: ${platformInfo.supportsScheduling ? 'Yes' : 'No'}`
+      );
       console.log(`✅ Supports manual restart: ${platformInfo.supportsRestart ? 'Yes' : 'No'}`);
-      console.log(`⚠️  Auto-starts on boot: ${platformInfo.supportsAutoStart ? 'Yes' : 'Requires manual setup'}`);
-      
+      console.log(
+        `⚠️  Auto-starts on boot: ${platformInfo.supportsAutoStart ? 'Yes' : 'Requires manual setup'}`
+      );
+
       if (!platformInfo.supportsAutoStart) {
         console.log('💡 Note: Daemon runs as user process, not system service');
         console.log('💡 For auto-start on boot, see platform-specific setup in daemon --help\n');
@@ -424,6 +428,223 @@ export class ConfigManager {
     } finally {
       rl.close();
     }
+  }
+
+  /**
+   * Copy daemon service template files to user's config directory
+   */
+  static copyDaemonServiceTemplates(): {
+    templatesCopied: string[];
+    instructions: string[];
+    platform: string;
+  } {
+    const platform = PlatformDetector.getSimplePlatform();
+    const configDir = this.getConfigDirectory();
+    const templatesCopied: string[] = [];
+    const instructions: string[] = [];
+
+    // Ensure daemon-templates subdirectory exists
+    const templatesDir = path.join(configDir, 'daemon-templates');
+    if (!fs.existsSync(templatesDir)) {
+      fs.mkdirSync(templatesDir, { recursive: true });
+    }
+
+    try {
+      // Find daemon-examples directory - check multiple possible locations
+      let daemonExamplesDir: string | null = null;
+
+      // For development/npm environments
+      const devPath = path.join(__dirname, '..', '..', 'daemon-examples');
+      if (fs.existsSync(devPath)) {
+        daemonExamplesDir = devPath;
+      } else {
+        // For pkg environments - check relative to executable
+        const pkgPath = path.join(path.dirname(process.execPath), 'daemon-examples');
+        if (fs.existsSync(pkgPath)) {
+          daemonExamplesDir = pkgPath;
+        } else {
+          // For npm global installs
+          const globalPath = path.join(__dirname, '..', '..', '..', 'daemon-examples');
+          if (fs.existsSync(globalPath)) {
+            daemonExamplesDir = globalPath;
+          }
+        }
+      }
+
+      if (!daemonExamplesDir) {
+        console.log('⚠️  Daemon template files not found - providing manual instructions only');
+        return this.getManualDaemonInstructions(platform);
+      }
+
+      // Copy platform-specific templates
+      switch (platform) {
+        case Platform.LINUX:
+          this.copyLinuxTemplates(daemonExamplesDir, templatesDir, templatesCopied, instructions);
+          break;
+        case Platform.MACOS:
+          this.copyMacOSTemplates(daemonExamplesDir, templatesDir, templatesCopied, instructions);
+          break;
+        case Platform.WINDOWS:
+          this.copyWindowsTemplates(daemonExamplesDir, templatesDir, templatesCopied, instructions);
+          break;
+        default:
+          console.log('⚠️  Platform not supported for automated daemon setup');
+          return {
+            templatesCopied: [],
+            instructions: ['Platform not supported'],
+            platform: 'Unknown'
+          };
+      }
+
+      // Copy common files
+      const commonFiles = ['README.md', 'schedule-config-example.json'];
+      for (const file of commonFiles) {
+        const srcPath = path.join(daemonExamplesDir, file);
+        const destPath = path.join(templatesDir, file);
+        if (fs.existsSync(srcPath)) {
+          fs.copyFileSync(srcPath, destPath);
+          templatesCopied.push(file);
+        }
+      }
+    } catch (error) {
+      console.log(`⚠️  Error copying daemon templates: ${error}`);
+      return this.getManualDaemonInstructions(platform);
+    }
+
+    return { templatesCopied, instructions, platform };
+  }
+
+  private static copyLinuxTemplates(
+    srcDir: string,
+    destDir: string,
+    templatesCopied: string[],
+    instructions: string[]
+  ): void {
+    const serviceFile = 'eai-security-check.service';
+    const srcPath = path.join(srcDir, serviceFile);
+    const destPath = path.join(destDir, serviceFile);
+
+    if (fs.existsSync(srcPath)) {
+      fs.copyFileSync(srcPath, destPath);
+      templatesCopied.push(serviceFile);
+
+      instructions.push('🐧 Linux systemd Service Setup:');
+      instructions.push(`1. Copy service file: cp "${destPath}" ~/.config/systemd/user/`);
+      instructions.push('2. Reload systemd: systemctl --user daemon-reload');
+      instructions.push('3. Enable service: systemctl --user enable eai-security-check.service');
+      instructions.push('4. Start service: systemctl --user start eai-security-check.service');
+      instructions.push('5. Enable auto-start: sudo loginctl enable-linger $USER');
+      instructions.push('6. Check status: systemctl --user status eai-security-check.service');
+    }
+  }
+
+  private static copyMacOSTemplates(
+    srcDir: string,
+    destDir: string,
+    templatesCopied: string[],
+    instructions: string[]
+  ): void {
+    const plistFile = 'com.eai.security-check.plist';
+    const srcPath = path.join(srcDir, plistFile);
+    const destPath = path.join(destDir, plistFile);
+
+    if (fs.existsSync(srcPath)) {
+      fs.copyFileSync(srcPath, destPath);
+      templatesCopied.push(plistFile);
+
+      instructions.push('🍎 macOS launchd Service Setup:');
+      instructions.push(`1. Copy plist file: cp "${destPath}" ~/Library/LaunchAgents/`);
+      instructions.push(
+        '2. Load service: launchctl load ~/Library/LaunchAgents/com.eai.security-check.plist'
+      );
+      instructions.push('3. Start service: launchctl start com.eai.security-check');
+      instructions.push('4. Check status: launchctl list | grep com.eai.security-check');
+      instructions.push('5. Auto-starts on login (no additional setup needed)');
+    }
+  }
+
+  private static copyWindowsTemplates(
+    srcDir: string,
+    destDir: string,
+    templatesCopied: string[],
+    instructions: string[]
+  ): void {
+    const scriptFile = 'windows-task-scheduler.ps1';
+    const srcPath = path.join(srcDir, scriptFile);
+    const destPath = path.join(destDir, scriptFile);
+
+    if (fs.existsSync(srcPath)) {
+      // Read the template and customize it with the actual executable path
+      let scriptContent = fs.readFileSync(srcPath, 'utf-8');
+
+      // Try to determine the executable path
+      let exePath = process.execPath;
+      if (typeof (process as any).pkg !== 'undefined') {
+        // Running as pkg executable
+        exePath = process.execPath;
+      } else {
+        // Running with Node.js - provide example path
+        exePath = 'C:\\path\\to\\eai-security-check.exe';
+        scriptContent = scriptContent.replace(
+          /\$ExePath = "C:\\path\\to\\eai-security-check\.exe"/,
+          `# Update this path to your actual executable location\n$ExePath = "${exePath}"`
+        );
+      }
+
+      fs.writeFileSync(destPath, scriptContent);
+      templatesCopied.push(scriptFile);
+
+      instructions.push('🪟 Windows Task Scheduler Setup:');
+      instructions.push(`1. Edit script: Update the path in "${destPath}"`);
+      instructions.push('2. Run PowerShell as Administrator');
+      instructions.push(`3. Execute script: & "${destPath}"`);
+      instructions.push('4. Check task: Get-ScheduledTask -TaskName "EAI Security Check Daemon"');
+      instructions.push(
+        '5. Manual start: Start-ScheduledTask -TaskName "EAI Security Check Daemon"'
+      );
+    }
+  }
+
+  private static getManualDaemonInstructions(platform: Platform): {
+    templatesCopied: string[];
+    instructions: string[];
+    platform: string;
+  } {
+    const instructions: string[] = [];
+
+    switch (platform) {
+      case Platform.LINUX:
+        instructions.push('🐧 Linux Manual Setup:');
+        instructions.push(
+          '1. Create systemd user service file at ~/.config/systemd/user/eai-security-check.service'
+        );
+        instructions.push('2. Use "eai-security-check daemon --help" for service file template');
+        instructions.push(
+          '3. Run: systemctl --user daemon-reload && systemctl --user enable eai-security-check.service'
+        );
+        break;
+      case Platform.MACOS:
+        instructions.push('🍎 macOS Manual Setup:');
+        instructions.push(
+          '1. Create LaunchAgent plist at ~/Library/LaunchAgents/com.eai.security-check.plist'
+        );
+        instructions.push('2. Use "eai-security-check daemon --help" for plist template');
+        instructions.push(
+          '3. Run: launchctl load ~/Library/LaunchAgents/com.eai.security-check.plist'
+        );
+        break;
+      case Platform.WINDOWS:
+        instructions.push('🪟 Windows Manual Setup:');
+        instructions.push('1. Use Task Scheduler to create a startup task');
+        instructions.push('2. Set program: path\\to\\eai-security-check.exe');
+        instructions.push('3. Set arguments: daemon');
+        instructions.push('4. Configure to run at startup');
+        break;
+      default:
+        instructions.push('Platform not supported for daemon setup');
+    }
+
+    return { templatesCopied: [], instructions, platform: platform || 'Unknown' };
   }
 
   /**

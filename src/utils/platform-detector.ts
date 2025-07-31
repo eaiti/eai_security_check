@@ -297,7 +297,7 @@ export class PlatformDetector {
    */
   static getSimplePlatform(): Platform {
     const platform = os.platform();
-    
+
     if (platform === 'darwin') {
       return Platform.MACOS;
     } else if (platform === 'linux') {

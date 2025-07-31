@@ -828,7 +828,7 @@ export class SchedulingService {
     limitations: string[];
   } {
     const platform = PlatformDetector.getSimplePlatform();
-    
+
     switch (platform) {
       case Platform.WINDOWS:
         return {
@@ -848,7 +848,7 @@ export class SchedulingService {
             'Requires manual restart if system reboots'
           ]
         };
-      
+
       case Platform.MACOS:
         return {
           platform: 'macOS',
@@ -867,7 +867,7 @@ export class SchedulingService {
             'Requires manual restart if system reboots'
           ]
         };
-      
+
       case Platform.LINUX:
         return {
           platform: 'Linux',
@@ -886,7 +886,7 @@ export class SchedulingService {
             'Requires manual restart if system reboots'
           ]
         };
-      
+
       default:
         return {
           platform: 'Unknown',
