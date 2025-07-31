@@ -1,13 +1,16 @@
-import { WindowsSecurityChecker } from './windows-security-checker';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+// Mock execAsync function
+const mockExecAsync = jest.fn();
 
-// Mock the exec function
-jest.mock('child_process', () => ({
-  exec: jest.fn()
+// Mock the child_process module
+jest.mock('child_process');
+
+// Mock promisify to return our mock
+jest.mock('util', () => ({
+  ...jest.requireActual('util'),
+  promisify: () => mockExecAsync
 }));
 
-const execAsync = promisify(exec as any);
+import { WindowsSecurityChecker } from './windows-security-checker';
 
 describe('WindowsSecurityChecker', () => {
   let checker: WindowsSecurityChecker;
@@ -19,7 +22,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('checkDiskEncryption', () => {
     it('should return true when BitLocker is enabled', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'Volume C: []\nProtection Status: Protection On\n',
         stderr: ''
       });
@@ -29,7 +32,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return false when BitLocker is disabled', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'Volume C: []\nProtection Status: Protection Off\n',
         stderr: ''
       });
@@ -39,7 +42,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should fallback to PowerShell when manage-bde fails', async () => {
-      (execAsync as jest.Mock)
+      (mockExecAsync as jest.Mock)
         .mockRejectedValueOnce(new Error('manage-bde not found'))
         .mockResolvedValueOnce({
           stdout: '1',
@@ -51,7 +54,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return false when all methods fail', async () => {
-      (execAsync as jest.Mock).mockRejectedValue(new Error('Command failed'));
+      (mockExecAsync as jest.Mock).mockRejectedValue(new Error('Command failed'));
 
       const result = await checker.checkDiskEncryption();
       expect(result).toBe(false);
@@ -60,7 +63,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('checkPasswordProtection', () => {
     it('should return correct password protection status', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'ScreenSaverActive: 1\nScreenSaverIsSecure: 1\n',
         stderr: ''
       });
@@ -74,7 +77,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return false when screen saver is disabled', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'ScreenSaverActive: 0\nScreenSaverIsSecure: 0\n',
         stderr: ''
       });
@@ -88,7 +91,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      (execAsync as jest.Mock).mockRejectedValue(new Error('Registry access denied'));
+      (mockExecAsync as jest.Mock).mockRejectedValue(new Error('Registry access denied'));
 
       const result = await checker.checkPasswordProtection();
       expect(result).toEqual({
@@ -101,7 +104,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('checkAutoLockTimeout', () => {
     it('should return timeout in minutes', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: '900', // 15 minutes in seconds
         stderr: ''
       });
@@ -111,7 +114,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return 0 when no timeout is set', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: '0',
         stderr: ''
       });
@@ -121,7 +124,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should handle errors by returning 0', async () => {
-      (execAsync as jest.Mock).mockRejectedValue(new Error('Registry error'));
+      (mockExecAsync as jest.Mock).mockRejectedValue(new Error('Registry error'));
 
       const result = await checker.checkAutoLockTimeout();
       expect(result).toBe(0);
@@ -130,7 +133,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('checkFirewall', () => {
     it('should return true when firewall is enabled', async () => {
-      (execAsync as jest.Mock)
+      (mockExecAsync as jest.Mock)
         .mockResolvedValueOnce({
           stdout: 'Domain: True\nPrivate: True\nPublic: True\n',
           stderr: ''
@@ -145,7 +148,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return false when firewall is disabled', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'Domain: False\nPrivate: False\nPublic: False\n',
         stderr: ''
       });
@@ -155,7 +158,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should handle stealth mode detection errors', async () => {
-      (execAsync as jest.Mock)
+      (mockExecAsync as jest.Mock)
         .mockResolvedValueOnce({
           stdout: 'Public: True\n',
           stderr: ''
@@ -169,7 +172,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('checkPackageVerification', () => {
     it('should return true when SmartScreen is enabled', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'RequireAdmin',
         stderr: ''
       });
@@ -179,7 +182,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return true when SmartScreen is in prompt mode', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'Prompt',
         stderr: ''
       });
@@ -189,7 +192,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return false when SmartScreen is disabled', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'Off',
         stderr: ''
       });
@@ -201,7 +204,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('checkSystemIntegrityProtection', () => {
     it('should return true when Windows Defender is enabled', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'RealTimeProtectionEnabled: True\nTamperProtectionEnabled: True\n',
         stderr: ''
       });
@@ -211,7 +214,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return false when Windows Defender is disabled', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'RealTimeProtectionEnabled: False\nTamperProtectionEnabled: False\n',
         stderr: ''
       });
@@ -223,7 +226,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('checkRemoteLogin', () => {
     it('should return true when SSH service is running', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'Running',
         stderr: ''
       });
@@ -233,7 +236,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return false when SSH service is not running', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'Stopped',
         stderr: ''
       });
@@ -243,7 +246,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return false when SSH service is not found', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'NotFound',
         stderr: ''
       });
@@ -255,7 +258,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('checkRemoteManagement', () => {
     it('should return true when RDP is enabled and running', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'RDPService: Running\nRDPEnabled: 0\n',
         stderr: ''
       });
@@ -265,7 +268,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return false when RDP is disabled', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'RDPService: Running\nRDPEnabled: 1\n',
         stderr: ''
       });
@@ -277,7 +280,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('checkAutomaticUpdates', () => {
     it('should return correct update settings for fully automatic', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'AUOptions: 4\nWUService: Running\n',
         stderr: ''
       });
@@ -295,7 +298,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return correct settings for download-only', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'AUOptions: 3\nWUService: Running\n',
         stderr: ''
       });
@@ -313,7 +316,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return disabled when service is not running', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'AUOptions: 4\nWUService: Stopped\n',
         stderr: ''
       });
@@ -325,7 +328,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('checkSharingServices', () => {
     it('should detect all sharing services when running', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'FileSharing: Running\nRDP: Running\nSSH: Running\nMediaSharing: Running\n',
         stderr: ''
       });
@@ -340,7 +343,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return false for all services when none are running', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'FileSharing: Stopped\nRDP: Stopped\nSSH: Stopped\nMediaSharing: Stopped\n',
         stderr: ''
       });
@@ -357,7 +360,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('getCurrentWindowsVersion', () => {
     it('should return Windows version', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: '10.0.19041.0',
         stderr: ''
       });
@@ -367,7 +370,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return unknown on error', async () => {
-      (execAsync as jest.Mock).mockRejectedValue(new Error('Command failed'));
+      (mockExecAsync as jest.Mock).mockRejectedValue(new Error('Command failed'));
 
       const result = await checker.getCurrentWindowsVersion();
       expect(result).toBe('unknown');
@@ -376,7 +379,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('getSystemInfo', () => {
     it('should return system information', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: 'Microsoft Windows 11 Pro 10.0.22000 on Dell OptiPlex 7090',
         stderr: ''
       });
@@ -386,7 +389,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should return fallback on error', async () => {
-      (execAsync as jest.Mock).mockRejectedValue(new Error('WMI error'));
+      (mockExecAsync as jest.Mock).mockRejectedValue(new Error('WMI error'));
 
       const result = await checker.getSystemInfo();
       expect(result).toBe('Windows (unknown version)');
@@ -395,7 +398,7 @@ describe('WindowsSecurityChecker', () => {
 
   describe('checkOSVersion', () => {
     it('should check version against latest', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: '10.0.22000.0',
         stderr: ''
       });
@@ -410,7 +413,7 @@ describe('WindowsSecurityChecker', () => {
     });
 
     it('should check version against specific target', async () => {
-      (execAsync as jest.Mock).mockResolvedValue({
+      (mockExecAsync as jest.Mock).mockResolvedValue({
         stdout: '10.0.19041.0',
         stderr: ''
       });

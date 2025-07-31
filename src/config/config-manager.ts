@@ -1,9 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as readline from 'readline';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { SecurityConfig, SchedulingConfig, ScpConfig } from '../types';
 import { getConfigByProfile } from './config-profiles';
 import { Platform, PlatformDetector } from '../utils/platform-detector';
+import { SchedulingService } from '../services/scheduling-service';
 
 /**
  * ConfigManager handles configuration directory setup and management
@@ -21,19 +25,22 @@ export class ConfigManager {
     switch (platform) {
       case 'darwin': // macOS
         return path.join(homeDir, 'Library', 'Application Support', this.APP_NAME);
-      case 'linux':
+      case 'linux': {
         // Use XDG_CONFIG_HOME if set, otherwise ~/.config
         const xdgConfigHome = process.env.XDG_CONFIG_HOME;
         if (xdgConfigHome) {
           return path.join(xdgConfigHome, this.APP_NAME);
         }
         return path.join(homeDir, '.config', this.APP_NAME);
-      case 'win32': // Windows
+      }
+      case 'win32': {
+        // Windows
         const appData = process.env.APPDATA;
         if (appData) {
           return path.join(appData, this.APP_NAME);
         }
         return path.join(homeDir, 'AppData', 'Roaming', this.APP_NAME);
+      }
       default:
         // Fallback to a hidden directory in home
         return path.join(homeDir, `.${this.APP_NAME}`);
@@ -139,7 +146,6 @@ export class ConfigManager {
   static async createSchedulingConfigInteractive(
     defaultProfile: string = 'default'
   ): Promise<void> {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -328,7 +334,6 @@ export class ConfigManager {
    * Ask user to select a security profile with explanations
    */
   static async promptForSecurityProfile(): Promise<string> {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -368,7 +373,7 @@ export class ConfigManager {
           return 'developer';
         case '5':
           return 'eai';
-        default:
+        default: {
           // Handle direct profile names
           const validProfiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
           if (validProfiles.includes(choice.toLowerCase())) {
@@ -377,6 +382,7 @@ export class ConfigManager {
           // Invalid choice, default to 'default'
           console.log(`⚠️  Invalid choice "${choice}", using default profile`);
           return 'default';
+        }
       }
     } finally {
       rl.close();
@@ -387,7 +393,6 @@ export class ConfigManager {
    * Ask user if they want to setup daemon configuration
    */
   static async promptForDaemonSetup(): Promise<boolean> {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -403,7 +408,6 @@ export class ConfigManager {
       );
 
       // Show platform-specific capabilities
-      const { SchedulingService } = require('../services/scheduling-service');
       const platformInfo = SchedulingService.getDaemonPlatformInfo();
 
       console.log(`\n📱 Platform: ${platformInfo.platform}`);
@@ -651,7 +655,6 @@ export class ConfigManager {
    * Ask user if they want to force overwrite existing configurations
    */
   static async promptForForceOverwrite(): Promise<boolean> {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -672,7 +675,6 @@ export class ConfigManager {
    * Ask user if they want to start the daemon now
    */
   static async promptToStartDaemon(): Promise<boolean> {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -764,7 +766,6 @@ export class ConfigManager {
    * Prompt user if they want global installation
    */
   static async promptForGlobalInstall(): Promise<boolean> {
-    const readline = require('readline');
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -812,8 +813,6 @@ export class ConfigManager {
     const executablePath = process.execPath;
     const executableFile = path.basename(executablePath);
 
-    const { exec } = require('child_process');
-    const { promisify } = require('util');
     const execAsync = promisify(exec);
 
     switch (platform) {
