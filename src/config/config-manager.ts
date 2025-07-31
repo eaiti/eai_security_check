@@ -524,4 +524,202 @@ export class ConfigManager {
       schedulingConfigPath: this.getSchedulingConfigPath()
     };
   }
+
+  /**
+   * Prompt user if they want global installation
+   */
+  static async promptForGlobalInstall(): Promise<boolean> {
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    const platform = os.platform();
+    let installationDescription = '';
+
+    switch (platform) {
+      case 'win32':
+        installationDescription =
+          'Add to PATH or create desktop shortcuts (requires admin privileges)';
+        break;
+      case 'darwin':
+      case 'linux':
+        installationDescription = 'Create symbolic link in /usr/local/bin (requires sudo)';
+        break;
+      default:
+        installationDescription = 'Enable system-wide access';
+    }
+
+    return new Promise(resolve => {
+      console.log('🌍 Global Installation Setup');
+      console.log(
+        `   Platform: ${platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'macOS' : 'Linux'}`
+      );
+      console.log(`   Action: ${installationDescription}`);
+      console.log('');
+
+      rl.question(
+        'Would you like to install globally for system-wide access? (y/N): ',
+        (answer: string) => {
+          rl.close();
+          resolve(answer.toLowerCase().startsWith('y'));
+        }
+      );
+    });
+  }
+
+  /**
+   * Setup global installation across platforms
+   */
+  static async setupGlobalInstallation(): Promise<void> {
+    const platform = os.platform();
+    const executablePath = process.execPath;
+    const executableFile = path.basename(executablePath);
+
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+
+    switch (platform) {
+      case 'win32':
+        await this.setupWindowsGlobalInstall(executablePath, executableFile, execAsync);
+        break;
+      case 'darwin':
+      case 'linux':
+        await this.setupUnixGlobalInstall(executablePath, executableFile, execAsync);
+        break;
+      default:
+        throw new Error(`Global installation not supported on platform: ${platform}`);
+    }
+  }
+
+  /**
+   * Setup global installation on Windows
+   */
+  private static async setupWindowsGlobalInstall(
+    executablePath: string,
+    executableFile: string,
+    execAsync: any
+  ): Promise<void> {
+    // Strategy 1: Try to add to PATH via environment variables
+    try {
+      const binDir = path.dirname(executablePath);
+
+      // Check if already in PATH
+      const currentPath = process.env.PATH || '';
+      if (currentPath.includes(binDir)) {
+        console.log('✅ Executable directory already in PATH');
+        return;
+      }
+
+      // Try to add to user PATH (doesn't require admin)
+      const { stdout } = await execAsync(`powershell -Command "$env:PATH"`);
+      console.log('💡 Adding to user PATH environment variable...');
+
+      await execAsync(
+        `powershell -Command "[Environment]::SetEnvironmentVariable('PATH', [Environment]::GetEnvironmentVariable('PATH', 'User') + ';${binDir}', 'User')"`
+      );
+
+      console.log(
+        '✅ Added to user PATH - restart terminal or log out/in for changes to take effect'
+      );
+      console.log(`📁 Executable location: ${executablePath}`);
+    } catch (pathError) {
+      // Strategy 2: Create a batch file wrapper in a common location
+      try {
+        console.log('💡 Creating batch file wrapper...');
+
+        const userProfile = process.env.USERPROFILE;
+        if (!userProfile) {
+          throw new Error('USERPROFILE environment variable not found');
+        }
+        const binDir = path.join(userProfile, 'AppData', 'Local', 'Microsoft', 'WindowsApps');
+
+        if (fs.existsSync(binDir)) {
+          const batchFile = path.join(binDir, 'eai-security-check.bat');
+          const batchContent = `@echo off\n"${executablePath}" %*`;
+
+          fs.writeFileSync(batchFile, batchContent);
+          console.log('✅ Created batch file wrapper');
+          console.log(`📁 Wrapper location: ${batchFile}`);
+        } else {
+          throw new Error('Windows Apps directory not found');
+        }
+      } catch (batchError) {
+        throw new Error(
+          `Failed to setup global installation: ${pathError}. Batch file creation also failed: ${batchError}`
+        );
+      }
+    }
+  }
+
+  /**
+   * Setup global installation on Unix-like systems (macOS/Linux)
+   */
+  private static async setupUnixGlobalInstall(
+    executablePath: string,
+    executableFile: string,
+    execAsync: any
+  ): Promise<void> {
+    const targetDir = '/usr/local/bin';
+    const targetPath = path.join(targetDir, 'eai-security-check');
+
+    // Check if target directory exists and is writable
+    if (!fs.existsSync(targetDir)) {
+      throw new Error(`Target directory ${targetDir} does not exist`);
+    }
+
+    // Check if symlink already exists
+    if (fs.existsSync(targetPath)) {
+      try {
+        const stats = fs.lstatSync(targetPath);
+        if (stats.isSymbolicLink()) {
+          const linkTarget = fs.readlinkSync(targetPath);
+          if (linkTarget === executablePath) {
+            console.log('✅ Symbolic link already exists and points to current executable');
+            return;
+          } else {
+            console.log('⚠️  Existing symbolic link points to different executable, removing...');
+            await execAsync(`sudo rm "${targetPath}"`);
+          }
+        } else {
+          throw new Error(`File ${targetPath} exists but is not a symbolic link`);
+        }
+      } catch (statError) {
+        throw new Error(`Error checking existing installation: ${statError}`);
+      }
+    }
+
+    // Create symbolic link
+    try {
+      console.log('💡 Creating symbolic link (requires sudo)...');
+      await execAsync(`sudo ln -s "${executablePath}" "${targetPath}"`);
+
+      // Verify the link was created
+      if (fs.existsSync(targetPath)) {
+        const linkTarget = fs.readlinkSync(targetPath);
+        if (linkTarget === executablePath) {
+          console.log('✅ Symbolic link created successfully');
+          console.log(`🔗 ${targetPath} -> ${executablePath}`);
+        } else {
+          throw new Error('Symbolic link verification failed');
+        }
+      } else {
+        throw new Error('Symbolic link was not created');
+      }
+    } catch (symlinkError) {
+      // Fallback: try creating without sudo (if user has write access)
+      try {
+        console.log('💡 Attempting to create link without sudo...');
+        fs.symlinkSync(executablePath, targetPath);
+        console.log('✅ Symbolic link created successfully');
+        console.log(`🔗 ${targetPath} -> ${executablePath}`);
+      } catch (fallbackError) {
+        throw new Error(
+          `Failed to create symbolic link with sudo: ${symlinkError}. Fallback also failed: ${fallbackError}`
+        );
+      }
+    }
+  }
 }

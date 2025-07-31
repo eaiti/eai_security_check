@@ -1,27 +1,28 @@
 # EAI Security Check
 
-A cross-platform Node.js + TypeScript tool for auditing security settings on macOS and Linux systems against configurable security profiles. The tool provides detailed reports with educational explanations and actionable recommendations.
+A cross-platform Node.js + TypeScript tool for auditing security settings on macOS, Linux, and Windows systems against configurable security profiles. The tool provides detailed reports with educational explanations and actionable recommendations.
 
 ## 🌟 Key Features
 
 ### 🖥️ Cross-Platform Support
 - **macOS**: Complete support for FileVault, Gatekeeper, SIP, and all macOS security features
 - **Linux**: Comprehensive support for LUKS encryption, firewall (ufw/firewalld), SELinux/AppArmor, and package verification
+- **Windows**: Full support for BitLocker, Windows Defender, Windows Firewall, and Windows security features
 - **Auto-Detection**: Automatically detects the operating system and uses appropriate security checks
 
 ### 🔒 Security Checks Performed
 
-| Feature | macOS | Linux | Description |
-|---------|-------|-------|-------------|
-| **Disk Encryption** | FileVault | LUKS | Full-disk encryption protection |
-| **Password Protection** | Screen saver lock | PAM/session lock | Login and screen lock security |
-| **Auto-lock Timeout** | Screen saver timeout | GNOME/KDE timeout | Automatic screen locking |
-| **Firewall** | Application Firewall | ufw/firewalld/iptables | Network traffic filtering |
-| **Package Verification** | Gatekeeper | DNF/APT GPG verification | Code signing and package integrity |
-| **System Integrity** | SIP | SELinux/AppArmor | System file protection |
-| **Remote Access** | SSH/Remote Desktop | SSH/VNC services | Remote login monitoring |
-| **Automatic Updates** | Software Update | DNF/APT auto-updates | Security patch management |
-| **Sharing Services** | File/Screen/Media | Samba/NFS/VNC | Network service monitoring |
+| Feature | macOS | Linux | Windows | Description |
+|---------|-------|-------|---------|-------------|
+| **Disk Encryption** | FileVault | LUKS | BitLocker | Full-disk encryption protection |
+| **Password Protection** | Screen saver lock | PAM/session lock | Windows lock screen | Login and screen lock security |
+| **Auto-lock Timeout** | Screen saver timeout | GNOME/KDE timeout | Screen saver timeout | Automatic screen locking |
+| **Firewall** | Application Firewall | ufw/firewalld/iptables | Windows Defender Firewall | Network traffic filtering |
+| **Package Verification** | Gatekeeper | DNF/APT GPG verification | Windows Defender SmartScreen | Code signing and package integrity |
+| **System Integrity** | SIP | SELinux/AppArmor | Windows Defender + Tamper Protection | System file protection |
+| **Remote Access** | SSH/Remote Desktop | SSH/VNC services | RDP/SSH services | Remote login monitoring |
+| **Automatic Updates** | Software Update | DNF/APT auto-updates | Windows Update | Security patch management |
+| **Sharing Services** | File/Screen/Media | Samba/NFS/VNC | File/Media/RDP sharing | Network service monitoring |
 
 ### 📊 Multiple Output Formats
 - **Console**: Colorized terminal output with emojis
@@ -55,6 +56,10 @@ chmod +x eai-security-check
 curl -L -o eai-security-check https://github.com/eaiti/eai_security_check/releases/latest/download/eai-security-check-linux
 chmod +x eai-security-check
 ./eai-security-check --help
+
+# Windows (PowerShell)
+Invoke-WebRequest -Uri "https://github.com/eaiti/eai_security_check/releases/latest/download/eai-security-check-win.exe" -OutFile "eai-security-check.exe"
+.\eai-security-check.exe --help
 ```
 
 ### For End Users (NPM Global Installation)
@@ -96,7 +101,31 @@ The interactive setup wizard will:
 - **Linux**: `~/.config/eai-security-check/`
 - **Windows**: `%APPDATA%/eai-security-check/`
 
-### 2. Run Security Audit
+### 2. Initialize and Install Globally (Optional)
+
+```bash
+# Initialize configuration (interactive setup)
+./eai-security-check init
+
+# Initialize with optional global installation
+./eai-security-check init --global-install
+
+# What init does:
+# 1. Profile Selection: Choose from 5 security profiles with detailed explanations
+# 2. Directory Setup: Create OS-appropriate configuration directory
+# 3. Global Installation: Optionally install for system-wide access
+#    - macOS/Linux: Creates symbolic link in /usr/local/bin 
+#    - Windows: Adds to PATH or creates shortcuts
+# 4. Daemon Configuration: Optionally set up automated scheduling with SMTP email
+# 5. Next Steps: Clear guidance on running your first security audit
+```
+
+**Configuration Directory Locations:**
+- **macOS**: `~/Library/Application Support/eai-security-check/`
+- **Linux**: `~/.config/eai-security-check/`
+- **Windows**: `%APPDATA%/eai-security-check/`
+
+### 3. Run Security Audit
 
 ```bash
 # Quick security check (uses centralized config)
@@ -381,6 +410,20 @@ Interactive setup (`init`) will create a scheduling configuration like:
 ./eai-security-check check eai --summary --clipboard
 ```
 
+### Windows Example
+
+```cmd
+REM Initialize and run complete Windows security audit
+eai-security-check init --global-install
+eai-security-check check --output %USERPROFILE%\Documents\windows-security.txt
+
+REM Run strict security check for enterprise environment
+eai-security-check check strict --format email --clipboard
+
+REM Check BitLocker and Windows Defender status
+eai-security-check check eai --summary --clipboard
+```
+
 ### Ubuntu/Debian Example
 
 ```bash
@@ -550,10 +593,12 @@ The tool will prompt for passwords when needed with platform-aware messages:
 - **Other Profiles**: 8+ characters with complexity requirements
 - **Developer Profile**: Full complexity requirements (remote access needs)
 
-## 🐧 Linux Distribution Support
+## 🐧 Platform Support Details
 
-### Primary Support
-- **Fedora** (latest versions)
+### Primary Support (Fully Tested)
+- **macOS**: 15.5, 15.6 (tested)
+- **Fedora**: Latest versions (primary Linux support)
+- **Windows**: Windows 10 (build 1903+), Windows 11 (tested builds: 19041+, 22000+)
 
 ### Limited Testing
 - Ubuntu 24.04+
@@ -561,7 +606,7 @@ The tool will prompt for passwords when needed with platform-aware messages:
 - CentOS Stream
 - RHEL 9+
 
-⚠️ **Note**: Non-Fedora distributions may have false positives or negatives. The tool will display compatibility warnings.
+⚠️ **Note**: Non-primary platforms may have false positives or negatives. The tool will display compatibility warnings.
 
 ## 🛠️ Development
 
@@ -574,7 +619,8 @@ npm run lint              # Lint code
 npm run lint:fix          # Fix linting issues
 
 # Package for distribution
-npm run pkg:build         # Build standalone executables
+npm run pkg:build         # Build standalone executables (macOS, Linux, Windows)
+npm run pkg:windows       # Build Windows executable only
 ```
 
 ## 📋 Requirements
@@ -582,23 +628,29 @@ npm run pkg:build         # Build standalone executables
 ### For Standalone Executable Users
 - **macOS**: macOS 12+ (tested on macOS 15.5+)
 - **Linux**: Any modern distribution with systemd
+- **Windows**: Windows 10 (build 1903+) or Windows 11
 - **No Node.js installation required!**
 
 ### For Development
 - Node.js 18+
 - TypeScript 5+
-- macOS or Linux development environment
+- macOS, Linux, or Windows development environment
 
 ## 🔍 Security Implementation
 
 ### Command Execution
 - Uses Node.js `child_process.exec` for system command execution
+- **macOS/Linux**: Uses standard Unix commands and sudo when necessary
+- **Windows**: Uses PowerShell commands and Windows Management Instrumentation (WMI)
 - Validates all command outputs and handles failures gracefully
 - Secure password handling with non-interactive sudo when possible
 
 ### Platform Detection
 - Automatic OS detection using system APIs
 - Version compatibility checking with warnings
+- **Windows**: Detects Windows 10/11 builds and versions
+- **macOS**: Detects macOS versions 15.0+
+- **Linux**: Detects major distributions (Fedora, Ubuntu, Debian, etc.)
 - Graceful fallbacks for unsupported features
 
 ### 🔐 Enhanced Cryptographic Security

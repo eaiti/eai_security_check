@@ -439,19 +439,28 @@ Security Profiles:
 
 program
   .command('init')
+  .option('--global-install', 'Offer to install executable globally for system-wide access')
   .description('🏠 Initialize EAI Security Check configuration directory and files interactively')
   .addHelpText(
     'after',
     `
 Examples:
   $ eai-security-check init                           # Interactive setup
+  $ eai-security-check init --global-install          # Include global installation option
 
 Interactive Setup:
   The init command will guide you through:
   1. Choosing a default security profile with explanations
   2. Setting up configuration directory and files
   3. Optionally configuring automated daemon scheduling with email and SCP
-  4. Providing next steps for using the tool
+  4. Optionally installing executable globally for system-wide access
+  5. Providing next steps for using the tool
+
+Global Installation:
+  When --global-install is specified, the init command can:
+  - macOS/Linux: Create symbolic links in /usr/local/bin for system-wide access  
+  - Windows: Add executable to PATH or create shortcuts
+  - Requires appropriate permissions (sudo on macOS/Linux, admin on Windows)
 
 Configuration Directory:
   The init command creates an OS-appropriate configuration directory:
@@ -477,7 +486,7 @@ After running init, you can use any profile with:
   $ eai-security-check check                        # Use your chosen default profile
 `
   )
-  .action(async () => {
+  .action(async options => {
     try {
       console.log('🏠 Welcome to EAI Security Check Interactive Setup!\n');
       console.log(
@@ -627,6 +636,24 @@ After running init, you can use any profile with:
       console.log('  • Verify reports: eai-security-check verify <file>');
       console.log('  • View all options: eai-security-check check --help');
       console.log('  • Reconfigure anytime: Run this init command again');
+
+      // Global installation option if requested
+      if (options.globalInstall) {
+        const wantsGlobalInstall = await ConfigManager.promptForGlobalInstall();
+
+        if (wantsGlobalInstall) {
+          console.log('\n🌍 Setting up global installation...\n');
+          try {
+            await ConfigManager.setupGlobalInstallation();
+            console.log('✅ Global installation completed successfully!');
+            console.log('💡 You can now run "eai-security-check" from any directory');
+          } catch (error) {
+            console.error(`⚠️  Global installation failed: ${error}`);
+            console.log('💡 You can still use the tool from this directory');
+          }
+          console.log('');
+        }
+      }
 
       console.log(
         '\n🔒 Ready to secure your system! Run "eai-security-check check" to get started.'
