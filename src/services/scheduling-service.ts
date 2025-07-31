@@ -369,7 +369,7 @@ export class SchedulingService {
   private async sendScpReport(
     reportContent: string,
     overallPassed: boolean,
-    _reportMetadata: any
+    _reportMetadata: Record<string, unknown>
   ): Promise<void> {
     if (!this.config.scp?.enabled) {
       return;

@@ -56,7 +56,7 @@ function resolveProfileConfigPath(profile: string): string | null {
   const configFileName = `${profile}-config.json`;
 
   // Check if we're running in a pkg environment
-  const isPkg = typeof (process as any).pkg !== 'undefined';
+  const isPkg = typeof (process as unknown as { pkg?: unknown }).pkg !== 'undefined';
 
   if (isPkg) {
     // In pkg environment, check the snapshot filesystem first
@@ -143,7 +143,11 @@ async function promptForAutoServiceSetup(platform: string): Promise<boolean> {
 /**
  * Attempt automatic service setup where possible
  */
-async function attemptAutoServiceSetup(serviceSetup: any): Promise<void> {
+async function attemptAutoServiceSetup(serviceSetup: {
+  templatesCopied: string[];
+  instructions: string[];
+  platform: string;
+}): Promise<void> {
   const configDir = ConfigManager.getConfigDirectory();
   const templatesDir = path.join(configDir, 'daemon-templates');
 

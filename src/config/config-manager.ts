@@ -583,7 +583,7 @@ export class ConfigManager {
 
       // Try to determine the executable path
       let exePath = process.execPath;
-      if (typeof (process as any).pkg !== 'undefined') {
+      if (typeof (process as unknown as { pkg?: unknown }).pkg !== 'undefined') {
         // Running as pkg executable
         exePath = process.execPath;
       } else {
@@ -834,7 +834,7 @@ export class ConfigManager {
   private static async setupWindowsGlobalInstall(
     executablePath: string,
     executableFile: string,
-    execAsync: any
+    execAsync: typeof exec.__promisify__
   ): Promise<void> {
     // Strategy 1: Try to add to PATH via environment variables
     try {
@@ -893,7 +893,7 @@ export class ConfigManager {
   private static async setupUnixGlobalInstall(
     executablePath: string,
     executableFile: string,
-    execAsync: any
+    execAsync: typeof exec.__promisify__
   ): Promise<void> {
     const targetDir = '/usr/local/bin';
     const targetPath = path.join(targetDir, 'eai-security-check');

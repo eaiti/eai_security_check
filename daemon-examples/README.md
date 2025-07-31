@@ -2,6 +2,20 @@
 
 This directory contains example configuration files for setting up the EAI Security Check daemon as a system service on different platforms.
 
+> **Note**: For comprehensive daemon setup instructions, see the [Daemon Setup Guide](../docs/DAEMON_SETUP.md).
+
+## Quick Setup
+
+The easiest way to set up the daemon is using the interactive init command:
+
+```bash
+# Interactive setup with daemon configuration
+eai-security-check init
+
+# Choose "Yes" when prompted for daemon setup
+# Follow the guided configuration for email, scheduling, and service setup
+```
+
 ## Platform-Specific Service Setup
 
 ### Linux (systemd)
@@ -85,4 +99,10 @@ This directory contains example configuration files for setting up the EAI Secur
 3. **Permission errors**: Ensure the daemon has access to required directories
 4. **Service logs**: Check system service logs for detailed error information
 
-For more information, run: `eai-security-check daemon --help`
+For more information, see the comprehensive [Daemon Setup Guide](../docs/DAEMON_SETUP.md) which covers:
+
+- Complete scheduling configuration options
+- Email setup for Gmail, Outlook, and corporate SMTP
+- SCP file transfer configuration
+- Troubleshooting common issues
+- Advanced daemon control commands
