@@ -7,13 +7,12 @@
     
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/node</string>
-        <string>/usr/local/lib/node_modules/eai-security-check/dist/index.js</string>
+        <string>/usr/local/bin/eai-security-check</string>
         <string>daemon</string>
     </array>
     
     <key>WorkingDirectory</key>
-    <string>/usr/local/lib/node_modules/eai-security-check</string>
+    <string>/usr/local/bin</string>
     
     <key>RunAtLoad</key>
     <true/>
@@ -21,11 +20,12 @@
     <key>KeepAlive</key>
     <true/>
     
+    <!-- Centralized logging alongside executable -->
     <key>StandardOutPath</key>
-    <string>/var/log/eai-security-check.log</string>
+    <string>PLACEHOLDER_EXECUTABLE_DIR/logs/eai-security-check.log</string>
     
     <key>StandardErrorPath</key>
-    <string>/var/log/eai-security-check.error.log</string>
+    <string>PLACEHOLDER_EXECUTABLE_DIR/logs/eai-security-check.error.log</string>
     
     <key>EnvironmentVariables</key>
     <dict>

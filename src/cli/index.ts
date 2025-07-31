@@ -935,22 +935,283 @@ async function setupDaemonAutomation(): Promise<void> {
   // Ask if user wants to setup system service
   const setupService = await ConfigManager.promptForDaemonSetup();
   if (setupService) {
-    const serviceSetup = ConfigManager.copyDaemonServiceTemplates();
+    // Check for compatible global installation first
+    console.log('\n🔍 Checking global installation compatibility...');
+    const globalCheck = await checkGlobalInstallationCompatibility();
+    console.log(`💡 ${globalCheck.message}`);
 
-    console.log('\n🎯 Service Setup Instructions:');
-    serviceSetup.instructions.forEach(instruction => console.log(instruction));
+    if (!globalCheck.compatible) {
+      console.log('');
+      if (!globalCheck.exists) {
+        console.log('⚠️  Daemon setup requires a global installation because:');
+        console.log('   • System services (LaunchAgent/systemd) need a fixed executable path');
+        console.log('   • The global installation provides a stable command: eai-security-check');
+        console.log('   • This ensures the daemon works reliably across system restarts');
+        console.log('');
 
-    if (serviceSetup.templatesCopied.length > 0) {
-      console.log(`\n📁 Template files copied: ${serviceSetup.templatesCopied.join(', ')}`);
+        const installGlobal = await confirm({
+          message: 'Would you like to install globally now?',
+          default: true
+        });
+
+        if (installGlobal) {
+          await ConfigManager.setupGlobalInstallation();
+          console.log('✅ Global installation completed!');
+          console.log('');
+        } else {
+          console.log('❌ Daemon service setup cancelled. Global installation is required.');
+          console.log('💡 You can still run the daemon manually without service setup.');
+          return;
+        }
+      } else {
+        console.log('⚠️  Version mismatch detected:');
+        console.log(`   • Current version: ${ConfigManager.getCurrentVersion()}`);
+        console.log(`   • Global version: ${globalCheck.version}`);
+        console.log('');
+
+        const updateGlobal = await confirm({
+          message: 'Would you like to update the global installation now?',
+          default: true
+        });
+
+        if (updateGlobal) {
+          await ConfigManager.setupGlobalInstallation();
+          console.log('✅ Global installation updated!');
+          console.log('');
+        } else {
+          console.log('❌ Daemon service setup cancelled. Version compatibility is required.');
+          console.log('💡 You can still run the daemon manually without service setup.');
+          return;
+        }
+      }
+    } else {
+      console.log('✅ Global installation is compatible!');
+      console.log('');
     }
 
-    // Ask if user wants to attempt automatic setup
-    if (await promptForAutoServiceSetup(serviceSetup.platform)) {
-      await attemptAutoServiceSetup(serviceSetup);
+    const platform = os.platform();
+
+    if (platform === 'darwin') {
+      // macOS: Set up LaunchAgent directly
+      console.log('🍎 macOS LaunchAgent Setup:');
+      console.log('   Setting up automatic startup on login...');
+      console.log('');
+
+      try {
+        await setupMacOSLaunchAgent();
+        console.log('✅ LaunchAgent setup completed!');
+        console.log('💡 The daemon will now start automatically when you log in.');
+      } catch (error) {
+        console.error(`❌ LaunchAgent setup failed: ${error}`);
+        console.log('');
+        console.log('🔧 Troubleshooting:');
+        console.log('   1. Check if you have permission to write to ~/Library/LaunchAgents/');
+        console.log(
+          '   2. Make sure the daemon configuration exists (set up via interactive mode)'
+        );
+        console.log('   3. Check the error message above for specific details');
+        console.log('');
+      }
+    } else {
+      // Other platforms: Show manual setup instructions
+      const serviceSetup = ConfigManager.copyDaemonServiceTemplates();
+
+      console.log('\n🎯 Service Setup Instructions:');
+      serviceSetup.instructions.forEach(instruction => console.log(instruction));
+
+      if (serviceSetup.templatesCopied.length > 0) {
+        console.log(`\n📁 Template files copied: ${serviceSetup.templatesCopied.join(', ')}`);
+      }
+
+      // Ask if user wants to attempt automatic setup
+      if (await promptForAutoServiceSetup(serviceSetup.platform)) {
+        await attemptAutoServiceSetup(serviceSetup);
+      }
     }
   }
 
   console.log('\n✅ Daemon automation setup complete!');
+}
+
+/**
+ * Check if a compatible global installation exists
+ */
+async function checkGlobalInstallationCompatibility(): Promise<{
+  exists: boolean;
+  version?: string;
+  compatible: boolean;
+  message: string;
+}> {
+  const { exec } = await import('child_process');
+  const { promisify } = await import('util');
+  const execAsync = promisify(exec);
+
+  const currentVersion = ConfigManager.getCurrentVersion();
+
+  try {
+    // Check if global eai-security-check exists and get its version
+    const { stdout } = await execAsync('eai-security-check --version 2>/dev/null');
+    const globalVersion = stdout.trim();
+
+    if (globalVersion === currentVersion) {
+      return {
+        exists: true,
+        version: globalVersion,
+        compatible: true,
+        message: `Global installation exists with matching version ${globalVersion}`
+      };
+    } else {
+      return {
+        exists: true,
+        version: globalVersion,
+        compatible: false,
+        message: `Global installation exists but version mismatch (global: ${globalVersion}, current: ${currentVersion})`
+      };
+    }
+  } catch {
+    return {
+      exists: false,
+      compatible: false,
+      message:
+        'No global installation found. The daemon requires a global installation to work properly.'
+    };
+  }
+}
+
+/**
+ * Get the correct log file paths - centralized alongside executable
+ */
+function getLogPaths() {
+  // Get the directory where the actual executable is located (resolve symlinks)
+  let executablePath = process.execPath;
+
+  try {
+    // Resolve symlinks to get the actual executable path
+    const stats = fs.lstatSync(executablePath);
+    if (stats.isSymbolicLink()) {
+      executablePath = fs.readlinkSync(executablePath);
+      // If it's a relative symlink, resolve it relative to the symlink directory
+      if (!path.isAbsolute(executablePath)) {
+        executablePath = path.resolve(path.dirname(process.execPath), executablePath);
+      }
+    }
+  } catch (_error) {
+    // If we can't resolve the symlink, use the original path
+    console.warn('Warning: Could not resolve symlink for executable path:', _error);
+  }
+
+  const executableDir = path.dirname(executablePath);
+  const logsDir = path.join(executableDir, 'logs');
+
+  // Ensure logs directory exists
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+
+  return {
+    output: path.join(logsDir, 'eai-security-check.log'),
+    error: path.join(logsDir, 'eai-security-check.error.log'),
+    logsDir
+  };
+}
+
+/**
+ * Setup macOS LaunchAgent for daemon automation
+ */
+async function setupMacOSLaunchAgent(): Promise<void> {
+  const { exec } = await import('child_process');
+  const { promisify } = await import('util');
+  const execAsync = promisify(exec);
+
+  // Use the global executable path since that's what the daemon service should use
+  const globalExecutable = 'eai-security-check'; // This will resolve to the global installation
+
+  // Create LaunchAgents directory
+  const launchAgentsDir = path.join(os.homedir(), 'Library', 'LaunchAgents');
+  const plistPath = path.join(launchAgentsDir, 'com.eai.security-check.daemon.plist');
+
+  if (!fs.existsSync(launchAgentsDir)) {
+    fs.mkdirSync(launchAgentsDir, { recursive: true });
+    console.log('✅ Created LaunchAgents directory');
+  }
+
+  // Stop existing service if running
+  try {
+    const { stdout } = await execAsync('launchctl list | grep com.eai.security-check.daemon');
+    if (stdout.trim()) {
+      console.log('🛑 Stopping existing daemon service...');
+      await execAsync('launchctl stop com.eai.security-check.daemon').catch(() => {});
+      await execAsync(`launchctl unload "${plistPath}"`).catch(() => {});
+    }
+  } catch {
+    // No existing service, that's fine
+  }
+
+  // Create plist content
+  const logPaths = getLogPaths();
+  const plistContent = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.eai.security-check.daemon</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/${globalExecutable}</string>
+        <string>daemon</string>
+    </array>
+    
+    <key>WorkingDirectory</key>
+    <string>/usr/local/bin</string>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <true/>
+    
+    <key>StandardOutPath</key>
+    <string>${logPaths.output}</string>
+    
+    <key>StandardErrorPath</key>
+    <string>${logPaths.error}</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>NODE_ENV</key>
+        <string>production</string>
+    </dict>
+    
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>`;
+
+  // Write plist file
+  fs.writeFileSync(plistPath, plistContent);
+  console.log(`✅ Created plist file: ${plistPath}`);
+
+  // Load the service
+  console.log('🔄 Loading LaunchAgent...');
+  await execAsync(`launchctl load "${plistPath}"`);
+  console.log('✅ LaunchAgent loaded successfully!');
+
+  // Start the service
+  console.log('🚀 Starting daemon service...');
+  try {
+    await execAsync('launchctl start com.eai.security-check.daemon');
+    console.log('✅ Daemon service started!');
+  } catch {
+    console.log('⚠️  Service loaded but may have failed to start');
+    console.log('💡 Check status with: launchctl list com.eai.security-check.daemon');
+  }
+
+  console.log('');
+  console.log('🎉 Setup complete! The daemon will:');
+  console.log('   ✅ Start automatically when you log in');
+  console.log('   ✅ Restart automatically if it crashes');
+  console.log('   ✅ Run security checks according to your schedule');
 }
 
 /**
@@ -965,17 +1226,43 @@ async function manageDaemonService(): Promise<void> {
   }
 
   const choice = await select({
-    message: 'What would you like to do?',
+    message: 'What would you like to do with the daemon?',
     choices: [
-      { name: 'Start daemon', value: '1' },
-      { name: 'Stop daemon', value: '2' },
-      { name: 'Restart daemon', value: '3' },
-      { name: 'Go back', value: '4' }
+      {
+        name: 'Start daemon (run once)',
+        value: '1',
+        description: 'Start the daemon for this session only'
+      },
+      {
+        name: 'Stop daemon',
+        value: '2',
+        description: 'Stop the currently running daemon'
+      },
+      {
+        name: 'Restart daemon',
+        value: '3',
+        description: 'Stop and restart the daemon'
+      },
+      {
+        name: 'View daemon logs',
+        value: '4',
+        description: 'Show recent daemon activity and logs'
+      },
+      {
+        name: 'Go back',
+        value: '5',
+        description: 'Return to daemon menu'
+      }
     ]
   });
 
   switch (choice) {
     case '1':
+      console.log('');
+      console.log('🚀 Starting daemon in current session...');
+      console.log('💡 This will run until you stop it or close the terminal.');
+      console.log('💡 For automatic startup, use the Setup Daemon Automation option.');
+      console.log('');
       await ConfigManager.manageDaemon('start');
       break;
     case '2':
@@ -985,6 +1272,9 @@ async function manageDaemonService(): Promise<void> {
       await ConfigManager.manageDaemon('restart');
       break;
     case '4':
+      await showDaemonLogs();
+      break;
+    case '5':
       return;
     default:
       console.log('❌ Invalid choice.');
@@ -995,8 +1285,355 @@ async function manageDaemonService(): Promise<void> {
  * View daemon status
  */
 async function viewDaemonStatus(): Promise<void> {
-  console.log('🤖 Daemon Status\n');
-  await ConfigManager.manageDaemon('status');
+  console.log('🤖 Daemon Status Report\n');
+
+  const platform = os.platform();
+  const { exec } = await import('child_process');
+  const { promisify } = await import('util');
+  const execAsync = promisify(exec);
+
+  // Check configuration first
+  const hasConfig = ConfigManager.hasSchedulingConfig();
+  console.log('📋 Configuration Status:');
+  console.log(`   Daemon Config: ${hasConfig ? '✅ Found' : '❌ Missing'}`);
+
+  if (hasConfig) {
+    const configPath = ConfigManager.getSchedulingConfigPath();
+    console.log(`   Config Path: ${configPath}`);
+
+    // Get basic daemon status from config manager
+    await ConfigManager.manageDaemon('status');
+  } else {
+    console.log('   💡 Run "eai-security-check interactive" → Daemon → Setup to configure\n');
+    return;
+  }
+
+  console.log('');
+
+  // Check system service status
+  console.log('🔧 System Service Status:');
+
+  try {
+    if (platform === 'darwin') {
+      // macOS LaunchAgent status
+      console.log('   Platform: macOS (LaunchAgent)');
+
+      try {
+        const { stdout } = await execAsync('launchctl list | grep com.eai.security-check');
+        if (stdout.trim()) {
+          console.log('   LaunchAgent: ✅ Loaded and running');
+
+          // Get detailed status
+          try {
+            const { stdout: details } = await execAsync(
+              'launchctl list com.eai.security-check.daemon'
+            );
+            const lines = details.trim().split('\n');
+            for (const line of lines) {
+              if (
+                line.includes('PID') ||
+                line.includes('LastExitStatus') ||
+                line.includes('Label')
+              ) {
+                console.log(`   ${line.trim()}`);
+              }
+            }
+          } catch {
+            // Detailed status not available
+          }
+        } else {
+          console.log('   LaunchAgent: ❌ Not loaded');
+        }
+      } catch {
+        console.log('   LaunchAgent: ❌ Not loaded');
+      }
+
+      // Check for plist file
+      const plistPath = path.join(
+        os.homedir(),
+        'Library',
+        'LaunchAgents',
+        'com.eai.security-check.daemon.plist'
+      );
+      console.log(`   Plist File: ${fs.existsSync(plistPath) ? '✅ Installed' : '❌ Missing'}`);
+      if (fs.existsSync(plistPath)) {
+        console.log(`   Plist Path: ${plistPath}`);
+      }
+    } else if (platform === 'linux') {
+      // Linux systemd status
+      console.log('   Platform: Linux (systemd)');
+
+      try {
+        const { stdout } = await execAsync(
+          'systemctl --user is-active eai-security-check-daemon 2>/dev/null'
+        );
+        const isActive = stdout.trim() === 'active';
+        console.log(`   Service: ${isActive ? '✅ Active' : '❌ Inactive'}`);
+      } catch {
+        console.log('   Service: ❌ Not found');
+      }
+
+      try {
+        const { stdout } = await execAsync(
+          'systemctl --user is-enabled eai-security-check-daemon 2>/dev/null'
+        );
+        const isEnabled = stdout.trim() === 'enabled';
+        console.log(`   Auto-start: ${isEnabled ? '✅ Enabled' : '❌ Disabled'}`);
+      } catch {
+        console.log('   Auto-start: ❌ Not configured');
+      }
+
+      // Check for service file
+      const servicePath = path.join(
+        os.homedir(),
+        '.config',
+        'systemd',
+        'user',
+        'eai-security-check-daemon.service'
+      );
+      console.log(`   Service File: ${fs.existsSync(servicePath) ? '✅ Installed' : '❌ Missing'}`);
+      if (fs.existsSync(servicePath)) {
+        console.log(`   Service Path: ${servicePath}`);
+      }
+    } else {
+      console.log(`   Platform: ${platform} (manual process management)`);
+      console.log('   Auto-start: ⚠️  Manual setup required');
+    }
+  } catch (error) {
+    console.log(`   ❌ Error checking service status: ${error}`);
+  }
+
+  console.log('');
+
+  // Check for running daemon processes
+  console.log('🔍 Process Status:');
+  try {
+    const { stdout } = await execAsync('ps aux | grep "eai-security-check.*daemon" | grep -v grep');
+    if (stdout.trim()) {
+      console.log('   Running Processes: ✅ Found');
+      const processes = stdout.trim().split('\n');
+      processes.forEach((process, index) => {
+        const parts = process.trim().split(/\s+/);
+        const pid = parts[1];
+        const cpu = parts[2];
+        const mem = parts[3];
+        console.log(`   Process ${index + 1}: PID ${pid}, CPU ${cpu}%, Memory ${mem}%`);
+      });
+    } else {
+      console.log('   Running Processes: ❌ None found');
+    }
+  } catch {
+    console.log('   Running Processes: ❌ None found');
+  }
+
+  console.log('');
+
+  // Log file information
+  console.log('📄 Log Information:');
+  const logPaths = getLogPaths();
+  const logFiles = [
+    { path: logPaths.output, type: 'Output' },
+    { path: logPaths.error, type: 'Error' }
+  ];
+
+  for (const logFile of logFiles) {
+    if (fs.existsSync(logFile.path)) {
+      const stats = fs.statSync(logFile.path);
+      console.log(`   ${logFile.type} Log: ✅ ${logFile.path}`);
+      console.log(
+        `   Size: ${(stats.size / 1024).toFixed(1)} KB, Modified: ${stats.mtime.toLocaleString()}`
+      );
+    } else {
+      console.log(`   ${logFile.type} Log: ❌ ${logFile.path} (not found)`);
+    }
+  }
+
+  console.log('');
+
+  // Quick commands
+  console.log('💡 Quick Commands:');
+  if (platform === 'darwin') {
+    const logPaths = getLogPaths();
+    console.log('   View Logs: Use menu option "View daemon logs" or:');
+    console.log(`   • tail -20 "${logPaths.output}"`);
+    console.log(`   • tail -20 "${logPaths.error}"`);
+    console.log('   ');
+    console.log('   Service Control:');
+    console.log('   • launchctl start com.eai.security-check.daemon');
+    console.log('   • launchctl stop com.eai.security-check.daemon');
+    console.log('   • launchctl list com.eai.security-check.daemon');
+  } else if (platform === 'linux') {
+    console.log('   View Logs:');
+    console.log('   • journalctl --user -u eai-security-check-daemon -f  (follow live)');
+    console.log('   • journalctl --user -u eai-security-check-daemon --since "1 hour ago"');
+    console.log('   ');
+    console.log('   Service Control:');
+    console.log('   • systemctl --user start eai-security-check-daemon');
+    console.log('   • systemctl --user stop eai-security-check-daemon');
+    console.log('   • systemctl --user status eai-security-check-daemon');
+  } else {
+    console.log('   Use interactive menu for daemon management on this platform');
+  }
+}
+
+/**
+ * Show daemon logs
+ */
+async function showDaemonLogs(): Promise<void> {
+  console.log('📄 Daemon Logs\n');
+
+  const platform = os.platform();
+  const { exec } = await import('child_process');
+  const { promisify } = await import('util');
+  const execAsync = promisify(exec);
+
+  try {
+    if (platform === 'darwin') {
+      console.log('📋 macOS LaunchAgent Logs:\n');
+
+      // Check if LaunchAgent is loaded
+      let launchAgentStatus = false;
+      try {
+        const { stdout: listOutput } = await execAsync(
+          'launchctl list com.eai.security-check.daemon'
+        );
+        console.log('🔍 LaunchAgent Status:');
+        console.log(listOutput);
+        launchAgentStatus = true;
+        console.log('');
+      } catch {
+        console.log('⚠️  LaunchAgent not loaded or not running');
+        console.log('💡 To set up LaunchAgent, use interactive mode → Daemon → Start/Stop/Restart');
+        console.log('');
+      }
+
+      // Show log files
+      const logPaths = getLogPaths();
+      const logFiles = [logPaths.output, logPaths.error];
+      let foundAnyLogs = false;
+
+      for (const logFile of logFiles) {
+        const logType = logFile.includes('error') ? 'Error' : 'Output';
+        console.log(`📄 ${logType} Log (${logFile}):`);
+
+        try {
+          if (fs.existsSync(logFile)) {
+            const stats = fs.statSync(logFile);
+            console.log(
+              `   File size: ${(stats.size / 1024).toFixed(1)} KB, Modified: ${stats.mtime.toLocaleString()}`
+            );
+
+            const { stdout } = await execAsync(
+              `tail -20 "${logFile}" 2>/dev/null || echo "Log file is empty"`
+            );
+            if (stdout.trim()) {
+              console.log('   Recent entries:');
+              console.log(
+                stdout
+                  .split('\n')
+                  .map(line => `   ${line}`)
+                  .join('\n')
+              );
+              foundAnyLogs = true;
+            } else {
+              console.log('   Log file is empty');
+            }
+          } else {
+            console.log('   ❌ Log file not found');
+            console.log('   💡 This is normal if the LaunchAgent has never been started');
+          }
+        } catch (error) {
+          console.log(`   ❌ Error reading log: ${error}`);
+        }
+        console.log('');
+      }
+
+      if (!foundAnyLogs && !launchAgentStatus) {
+        console.log('💡 No logs found. This could mean:');
+        console.log('   • The daemon is running as a manual process (not via LaunchAgent)');
+        console.log('   • The LaunchAgent has never been started');
+        console.log('   • The daemon is configured to log elsewhere');
+        console.log('');
+        console.log('🔧 To check for manual daemon processes:');
+        console.log('   ps aux | grep "eai-security-check.*daemon" | grep -v grep');
+        console.log('');
+      }
+    } else if (platform === 'linux') {
+      console.log('📋 Linux systemd Logs:\n');
+
+      // Check service status first
+      try {
+        const { stdout: statusOutput } = await execAsync(
+          'systemctl --user status eai-security-check-daemon --no-pager -l'
+        );
+        console.log('🔍 Service Status:');
+        console.log(statusOutput);
+        console.log('');
+      } catch {
+        console.log('⚠️  Service not found or not running');
+        console.log('💡 Set up with: systemctl --user enable eai-security-check-daemon');
+        console.log('');
+      }
+
+      // Show recent logs
+      try {
+        const { stdout: logsOutput } = await execAsync(
+          'journalctl --user -u eai-security-check-daemon --since "24 hours ago" --no-pager'
+        );
+        if (logsOutput.trim()) {
+          console.log('� Recent Logs (last 24 hours):');
+          console.log(logsOutput);
+        } else {
+          console.log('📄 No recent logs found');
+          console.log(
+            '💡 Try: journalctl --user -u eai-security-check-daemon --since "1 week ago"'
+          );
+        }
+      } catch (error) {
+        console.log(`❌ Error reading logs: ${error}`);
+        console.log('💡 Manual command: journalctl --user -u eai-security-check-daemon');
+      }
+    } else {
+      console.log(`📋 Platform: ${platform}\n`);
+      console.log('⚠️  Platform-specific log viewing not implemented for this OS');
+      console.log('');
+
+      // Try to find daemon process
+      try {
+        const { stdout } = await execAsync(
+          'ps aux | grep "eai-security-check.*daemon" | grep -v grep'
+        );
+        if (stdout.trim()) {
+          console.log('🔍 Running daemon processes:');
+          console.log(stdout);
+        } else {
+          console.log('❌ No daemon processes found');
+        }
+      } catch {
+        console.log('❌ No daemon processes found');
+      }
+    }
+
+    console.log('💡 Additional Log Commands:');
+    if (platform === 'darwin') {
+      const logPaths = getLogPaths();
+      console.log(`   Follow live logs: tail -f "${logPaths.output}"`);
+      console.log(`   Error logs only: tail -f "${logPaths.error}"`);
+      console.log(`   Last 50 lines: tail -50 "${logPaths.output}"`);
+    } else if (platform === 'linux') {
+      console.log('   Follow live logs: journalctl --user -u eai-security-check-daemon -f');
+      console.log(
+        '   Last hour: journalctl --user -u eai-security-check-daemon --since "1 hour ago"'
+      );
+      console.log('   Error logs only: journalctl --user -u eai-security-check-daemon -p err');
+    } else {
+      console.log('   Check running processes: ps aux | grep eai-security-check');
+      console.log('   Check system logs for application output');
+    }
+  } catch (error) {
+    console.error(`❌ Error accessing logs: ${error}`);
+    console.log('💡 Try running the commands manually for more specific error information');
+  }
 }
 
 /**
@@ -2017,64 +2654,50 @@ Examples:
   $ eai-security-check daemon                              # Start daemon with centralized config
   $ eai-security-check daemon -c my-schedule.json         # Use custom scheduling config
   $ eai-security-check daemon --security-config strict.json # Use specific security config
-  $ eai-security-check daemon -c schedule.json --security-config eai.json # Use both configs
   $ eai-security-check daemon --status                    # Check daemon status
   $ eai-security-check daemon --test-email                # Send test email
   $ eai-security-check daemon --check-now                 # Force immediate check
 
-Setup:
-  Before using daemon mode, set up your configuration:
-  $ eai-security-check interactive                    # Interactive setup (choose daemon automation)
+🚀 QUICK START:
+  1. Set up daemon configuration:
+     $ eai-security-check interactive    # Choose "Daemon" menu, then "Setup Daemon Automation"
+  
+  2. Start daemon manually (for testing):
+     $ eai-security-check daemon         # Runs until you stop it
+  
+  3. Set up automatic startup (optional):
+     macOS:   Use interactive mode's "Start/Stop/Restart Daemon" option for LaunchAgent setup
+     Linux:   $ sudo systemctl --user enable eai-security-check-daemon
+     Windows: Use Task Scheduler (see daemon-examples/ directory)
+
+📋 SETUP FLOW:
+  ✅ 1. Configuration: Use 'eai-security-check interactive' to setup email/schedule
+  ✅ 2. Test manually: Use 'eai-security-check daemon' to test the setup
+  ✅ 3. Auto-startup: Use interactive mode to setup system service (optional)
 
 Daemon Control:
   $ eai-security-check daemon --stop                      # Stop running daemon
   $ eai-security-check daemon --restart                   # Restart daemon service
   $ eai-security-check daemon --uninstall                 # Remove daemon files
   $ eai-security-check daemon --uninstall --force         # Remove daemon files and config
-  $ eai-security-check daemon --uninstall --remove-executable --force  # Full uninstall
-
-Daemon Features:
-  - Runs security checks on a configurable schedule (default: weekly)
-  - Sends email reports to configured recipients
-  - Optionally transfers reports to remote server via SCP
-  - Tracks when last report was sent to avoid duplicates
-  - Automatically restarts checks after system reboot (when configured as service)
-  - Graceful shutdown on SIGINT/SIGTERM
 
 Configuration:
-  The daemon uses two types of configuration files:
-  1. Schedule Configuration (scheduling-config.json):
-     - Email SMTP settings and recipients
-     - Optional SCP file transfer settings (host, authentication, destination)
-     - Check interval (in days)
-     - Security profile or custom config path
-     - Report format preferences
-  2. Security Configuration (optional, overrides profile):
-     - Specific security requirements and settings
-     - Use --security-config to specify a custom security config file
-     - If not specified, uses profile from schedule config
+  The daemon requires two configuration steps:
+  
+  1. 📧 Email & Schedule Setup (Required):
+     - SMTP server settings for sending reports
+     - Email recipients and subject
+     - Check interval (daily/weekly)
+     - Security profile to use
+     
+  2. 🔧 System Service Setup (Optional but Recommended):
+     - Makes daemon start automatically on login/boot
+     - Automatically restarts if daemon crashes
+     - Platform-specific (LaunchAgent/systemd/Task Scheduler)
 
-SCP File Transfer:
-  - Automatically transfers reports to remote server after email delivery
-  - Supports SSH key-based authentication (recommended) or password authentication
-  - Configurable destination directory and SSH port
-  - Reports are saved with timestamp and status (PASSED/FAILED) in filename
-  - Password authentication requires 'sshpass' utility to be installed
-
-Service Setup:
-  Cross-platform daemon capabilities:
-  ✅ Scheduled execution: All platforms (cron-based scheduling)
-  ✅ Manual restart: All platforms via --restart option
-  ⚠️  Auto-start on boot: Requires manual OS-specific setup
-
-  Platform-specific auto-start setup (optional):
-  - Windows: Use Task Scheduler to run on startup/login
-  - macOS: Create LaunchAgent plist in ~/Library/LaunchAgents/
-  - Linux: Create systemd user service in ~/.config/systemd/user/
-
-  📁 See daemon-examples/ directory for sample configuration files.
-  Current implementation runs as user process, not system service.
-  Use "eai-security-check daemon --status" to check daemon capabilities on your platform.
+💡 For the best experience, use the interactive setup:
+   $ eai-security-check interactive
+   Then choose "3. Daemon - Automated security monitoring"
 `
   )
   .action(async options => {
