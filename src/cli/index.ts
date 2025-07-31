@@ -2306,4 +2306,38 @@ For detailed command help: eai-security-check help <command>
     }
   });
 
-program.parse(process.argv);
+// Only parse command line arguments if this module is being run directly
+if (require.main === module) {
+  program.parse(process.argv);
+}
+
+// Export functions for testing
+export {
+  runInteractiveMode,
+  showSecurityCheckMenu,
+  showConfigurationMenu,
+  showDaemonMenu,
+  showGlobalMenu,
+  showSystemMenu,
+  showVerifyMenu,
+  runInteractiveSecurityCheck,
+  runQuickSecurityCheck,
+  setupOrModifyConfigurations,
+  viewConfigurationStatus,
+  resetAllConfigurations,
+  setupDaemonAutomation,
+  manageDaemonService,
+  viewDaemonStatus,
+  removeDaemonConfiguration,
+  installGlobally,
+  updateGlobalInstallation,
+  removeGlobalInstallation,
+  viewDetailedSystemInfo,
+  checkForUpdates,
+  verifyLocalReports,
+  verifySpecificFile,
+  verifyDirectory,
+  getConfigForProfile,
+  promptForAutoServiceSetup,
+  attemptAutoServiceSetup
+};
