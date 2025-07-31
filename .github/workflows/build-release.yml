@@ -13,11 +13,22 @@ permissions:
 jobs:
   build-linux-macos:
     runs-on: ubuntu-latest
+    environment: production
+    env:
+      EAI_BUILD_SECRET: ${{ secrets.EAI_BUILD_SECRET }}
     strategy:
       matrix:
         node-version: [18.x]
 
     steps:
+      - name: Verify build authorization
+        run: |
+          if [ -z "$EAI_BUILD_SECRET" ]; then
+            echo "❌ EAI_BUILD_SECRET not found. Build not authorized."
+            exit 1
+          fi
+          echo "✅ Build authorized"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -78,11 +89,23 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    environment: production
+    env:
+      EAI_BUILD_SECRET: ${{ secrets.EAI_BUILD_SECRET }}
     strategy:
       matrix:
         node-version: [18.x]
 
     steps:
+      - name: Verify build authorization
+        shell: powershell
+        run: |
+          if ([string]::IsNullOrEmpty($env:EAI_BUILD_SECRET)) {
+            Write-Host "❌ EAI_BUILD_SECRET not found. Build not authorized." -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "✅ Build authorized" -ForegroundColor Green
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -128,9 +151,20 @@ jobs:
 
   sign-macos:
     runs-on: macos-latest
+    environment: production
+    env:
+      EAI_BUILD_SECRET: ${{ secrets.EAI_BUILD_SECRET }}
     needs: build-linux-macos
 
     steps:
+      - name: Verify build authorization
+        run: |
+          if [ -z "$EAI_BUILD_SECRET" ]; then
+            echo "❌ EAI_BUILD_SECRET not found. Build not authorized."
+            exit 1
+          fi
+          echo "✅ Build authorized"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -182,9 +216,20 @@ jobs:
   release:
     needs: [build-linux-macos, build-windows, sign-macos]
     runs-on: ubuntu-latest
+    environment: production
+    env:
+      EAI_BUILD_SECRET: ${{ secrets.EAI_BUILD_SECRET }}
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
+      - name: Verify build authorization
+        run: |
+          if [ -z "$EAI_BUILD_SECRET" ]; then
+            echo "❌ EAI_BUILD_SECRET not found. Release not authorized."
+            exit 1
+          fi
+          echo "✅ Release authorized"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
