@@ -193,16 +193,27 @@ Enhanced reports include additional fields:
 
 ## Testing
 
-Run the comprehensive crypto test suite:
+Run the comprehensive test suite covering security, CLI functionality, and interactive modes:
 
 ```bash
-npm test -- src/__tests__/crypto-utils.test.ts
+# Full test suite (283 tests)
+npm test
+
+# Security-specific tests
+npm test -- src/utils/crypto-utils.test.ts
+
+# CLI interactive mode tests (36 tests)
+npm test -- src/cli/index.test.ts
 ```
 
 Key test scenarios:
 - ✅ HMAC-SHA256 security with build secrets
-- ✅ Tampering detection
+- ✅ Tampering detection and verification
 - ✅ Secret key rotation scenarios
+- ✅ Interactive CLI mode coverage (36 comprehensive tests)
+- ✅ All security checker implementations
+- ✅ Cross-platform compatibility testing
+- ✅ Error handling and edge cases
 
 ## Conclusion
 

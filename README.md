@@ -172,9 +172,35 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Run tests to ensure everything works: `npm test`
+4. Commit your changes (`git commit -m 'Add amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
+### 🧪 Development & Testing
+
+**Comprehensive Test Suite (283 tests)**
+```bash
+# Run all tests
+npm test
+
+# Run linting
+npm run lint
+
+# Run formatting check
+npm run format:check
+
+# Build project
+npm run build
+```
+
+**Test Coverage Areas:**
+- ✅ Cross-platform security checkers (macOS, Linux, Windows)
+- ✅ CLI interactive mode (36 comprehensive tests)
+- ✅ Configuration management and profiles
+- ✅ Cryptographic verification and tamper detection
+- ✅ Daemon automation and scheduling
+- ✅ Error handling and edge cases
 
 ## 📞 Support
 
