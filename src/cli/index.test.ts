@@ -60,6 +60,11 @@ describe('CLI Interactive Mode', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // Explicitly reset key mocks to ensure isolation
+    if (mockSelect.mockReset) mockSelect.mockReset();
+    if (mockConfirm.mockReset) mockConfirm.mockReset();
+    if (mockInput.mockReset) mockInput.mockReset();
+
     // Mock console methods to prevent output during tests
     console.log = jest.fn();
     console.error = jest.fn();
@@ -279,7 +284,7 @@ describe('CLI Interactive Mode', () => {
         }
         return true;
       });
-      
+
       mockSelect.mockResolvedValueOnce('2'); // Quick security check
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
 
@@ -301,9 +306,7 @@ describe('CLI Interactive Mode', () => {
 
   describe('Configuration Menu', () => {
     it('should handle setup/modify configurations', async () => {
-      mockSelect
-        .mockResolvedValueOnce('1') // Setup/modify
-        .mockResolvedValueOnce('back'); // Go back
+      mockSelect.mockResolvedValueOnce('1'); // Setup/modify
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockConfigManager.hasSecurityConfig.mockReturnValue(false);
 
@@ -346,9 +349,7 @@ describe('CLI Interactive Mode', () => {
     });
 
     it('should handle reset cancellation', async () => {
-      mockSelect
-        .mockResolvedValueOnce('3') // Reset all
-        .mockResolvedValueOnce('back'); // Go back
+      mockSelect.mockResolvedValueOnce('3'); // Reset all
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockConfigManager.promptForConfigReset.mockResolvedValue(false);
 
@@ -361,8 +362,7 @@ describe('CLI Interactive Mode', () => {
     it('should handle existing configuration modification', async () => {
       mockSelect
         .mockResolvedValueOnce('1') // Setup/modify
-        .mockResolvedValueOnce('2') // Change default profile
-        .mockResolvedValueOnce('back'); // Go back
+        .mockResolvedValueOnce('2'); // Change default profile
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockConfigManager.hasSecurityConfig.mockReturnValue(true);
       mockConfigManager.promptForForceOverwrite.mockResolvedValue(true);
@@ -378,11 +378,10 @@ describe('CLI Interactive Mode', () => {
 
   describe('Daemon Menu', () => {
     it('should handle daemon setup', async () => {
-      mockSelect
-        .mockResolvedValueOnce('1') // Setup daemon
-        .mockResolvedValueOnce('back'); // Go back
+      mockSelect.mockResolvedValueOnce('1'); // Setup daemon
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockConfigManager.hasSchedulingConfig.mockReturnValue(false);
+      mockConfigManager.hasSecurityConfig.mockReturnValue(false); // Force security config setup
 
       await showDaemonMenu();
 
@@ -394,9 +393,9 @@ describe('CLI Interactive Mode', () => {
     it('should handle daemon service management', async () => {
       mockSelect
         .mockResolvedValueOnce('2') // Manage service
-        .mockResolvedValueOnce('1') // Start daemon
-        .mockResolvedValueOnce('back'); // Go back
+        .mockResolvedValueOnce('1'); // Start daemon
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
+      mockConfigManager.hasSchedulingConfig.mockReturnValue(true); // Must have config to manage
 
       await showDaemonMenu();
 
@@ -465,6 +464,30 @@ describe('CLI Interactive Mode', () => {
       mockConfirm
         .mockResolvedValueOnce(true) // Confirm removal
         .mockResolvedValueOnce(false); // Don't continue to menu
+
+      // Override for this test to show global install exists
+      mockConfigManager.getSystemStatus.mockResolvedValue({
+        globalInstall: {
+          exists: true,
+          isDifferentVersion: false,
+          globalVersion: '1.0.0',
+          currentVersion: '1.1.0'
+        },
+        config: {
+          configDirectory: '/test/config',
+          reportsDirectory: '/test/reports',
+          securityConfigExists: true,
+          securityConfigPath: '/test/config/security-config.json',
+          schedulingConfigExists: false,
+          schedulingConfigPath: '/test/config/scheduling-config.json'
+        },
+        daemon: {
+          isRunning: false,
+          needsUpdate: false,
+          daemonVersion: null,
+          currentVersion: '1.1.0'
+        }
+      });
 
       await showGlobalMenu();
 
@@ -570,12 +593,15 @@ describe('CLI Interactive Mode', () => {
     it('should handle interactive security check with profile selection', async () => {
       // Mock existsSync to return false for profile config files so it falls back to getConfigByProfile
       mockFs.existsSync.mockImplementation((path: any) => {
-        if (typeof path === 'string' && (path.includes('strict-config.json') || path.includes('security-config.json'))) {
+        if (
+          typeof path === 'string' &&
+          (path.includes('strict-config.json') || path.includes('security-config.json'))
+        ) {
           return false;
         }
         return true;
       });
-      
+
       mockConfigManager.promptForSecurityProfile.mockResolvedValue('strict');
 
       await runInteractiveSecurityCheck();
@@ -593,7 +619,7 @@ describe('CLI Interactive Mode', () => {
         }
         return true;
       });
-      
+
       await runQuickSecurityCheck();
 
       expect(mockGetConfigByProfile).toHaveBeenCalledWith('default');
@@ -707,10 +733,8 @@ describe('CLI Interactive Mode', () => {
 
   describe('Menu Navigation', () => {
     it('should handle continue/return to menu prompts', async () => {
-      mockSelect.mockResolvedValueOnce('back'); // Go back immediately
-      mockConfirm
-        .mockResolvedValueOnce(true) // Continue to menu
-        .mockResolvedValueOnce(false); // Don't continue (exit)
+      mockSelect.mockResolvedValueOnce('2'); // Quick security check
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu (exit)
 
       await showSecurityCheckMenu();
 
