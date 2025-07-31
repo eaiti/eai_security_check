@@ -68,13 +68,13 @@ describe('SchedulingService', () => {
     it('should show warning for empty configuration', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       mockFs.readFileSync.mockReturnValue(JSON.stringify({}));
-      
+
       new SchedulingService();
-      
+
       expect(consoleSpy).toHaveBeenCalledWith(
         'Warning: No delivery methods configured (email or SCP). Reports will be generated but not delivered.'
       );
-      
+
       consoleSpy.mockRestore();
     });
   });

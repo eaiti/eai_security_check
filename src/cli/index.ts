@@ -1436,7 +1436,7 @@ program
   .description(
     "🔒 Cross-Platform Security Audit Tool - Check your system's security settings against configurable requirements"
   )
-  .version('1.0.1')
+  .version('1.1.0')
   .addHelpText(
     'before',
     `

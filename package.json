@@ -1,7 +1,7 @@
 {
   "name": "eai-security-check",
   "version": "1.1.0",
-  "description": "A Node.js tool to check macOS security settings against a JSON configuration",
+  "description": "A cross-platform Node.js tool to check macOS, Linux, and Windows security settings against configurable profiles",
   "main": "dist/cli/index.js",
   "bin": {
     "eai-security-check": "./dist/cli/index.js"
