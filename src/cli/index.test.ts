@@ -105,6 +105,13 @@ describe('CLI Interactive Mode', () => {
       mtime: new Date(),
       size: 1024
     } as fs.Stats);
+    mockFs.lstatSync.mockReturnValue({
+      isDirectory: () => false,
+      isFile: () => true,
+      isSymbolicLink: () => false,
+      mtime: new Date(),
+      size: 1024
+    } as fs.Stats);
 
     mockPlatformDetector.detectPlatform.mockResolvedValue({
       platform: Platform.MACOS,
