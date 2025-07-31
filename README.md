@@ -58,18 +58,19 @@ Invoke-WebRequest -Uri https://github.com/eaiti/eai_security_check/releases/late
 npm install -g eai-security-check
 ```
 
-### 2. Initialize Configuration
+### 2. Setup Configuration
 
 ```bash
-# Interactive setup - guides you through profile selection and daemon configuration
-eai-security-check init
+# Interactive management mode - guides you through all configuration options
+eai-security-check interactive
 
-# What init does:
+# What interactive mode does:
 # 1. Profile Selection: Choose from 5 security profiles with detailed explanations
 # 2. Directory Setup: Create OS-appropriate configuration directory
 # 3. Global Installation: Optionally install for system-wide access
 # 4. Daemon Configuration: Optionally set up automated scheduling with SMTP email
-# 5. Next Steps: Clear guidance on running your first security audit
+# 5. Management Options: Full control over all aspects of your security checks
+# 6. System Status: View comprehensive system information and status
 ```
 
 ### 3. Run Your First Security Audit

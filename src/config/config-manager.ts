@@ -82,6 +82,242 @@ export class ConfigManager {
   }
 
   /**
+   * Get the path to the version tracking file
+   */
+  static getVersionFilePath(): string {
+    return path.join(this.getConfigDirectory(), 'version.json');
+  }
+
+  /**
+   * Get current application version
+   */
+  static getCurrentVersion(): string {
+    try {
+      // Try to read from package.json in different locations
+      const possiblePaths = [
+        path.join(__dirname, '..', '..', 'package.json'),
+        path.join(process.cwd(), 'package.json')
+      ];
+
+      for (const pkgPath of possiblePaths) {
+        if (fs.existsSync(pkgPath)) {
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+          if (pkg.version) {
+            return pkg.version;
+          }
+        }
+      }
+
+      // Fallback to command line version if available
+      return '1.0.1'; // Hard-coded fallback
+    } catch (error) {
+      return '1.0.1'; // Hard-coded fallback
+    }
+  }
+
+  /**
+   * Get the last tracked version from config
+   */
+  static getLastTrackedVersion(): string | null {
+    const versionFile = this.getVersionFilePath();
+    if (!fs.existsSync(versionFile)) {
+      return null;
+    }
+
+    try {
+      const versionData = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
+      return versionData.version || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Update the tracked version
+   */
+  static updateTrackedVersion(): void {
+    this.ensureConfigDirectory();
+    const currentVersion = this.getCurrentVersion();
+    const versionFile = this.getVersionFilePath();
+
+    const versionData = {
+      version: currentVersion,
+      lastUpdated: new Date().toISOString(),
+      executable: process.execPath
+    };
+
+    fs.writeFileSync(versionFile, JSON.stringify(versionData, null, 2));
+  }
+
+  /**
+   * Check if this is a version upgrade
+   */
+  static isVersionUpgrade(): boolean {
+    const currentVersion = this.getCurrentVersion();
+    const lastVersion = this.getLastTrackedVersion();
+
+    if (!lastVersion) {
+      return false; // First time setup
+    }
+
+    return currentVersion !== lastVersion;
+  }
+
+  /**
+   * Check if global installation exists and is different version
+   */
+  static async checkGlobalInstallVersion(): Promise<{
+    exists: boolean;
+    isDifferentVersion: boolean;
+    globalVersion: string | null;
+    currentVersion: string;
+  }> {
+    const currentVersion = this.getCurrentVersion();
+    const execAsync = promisify(exec);
+
+    try {
+      // Check if global installation exists
+      const globalPath = '/usr/local/bin/eai-security-check';
+      if (!fs.existsSync(globalPath)) {
+        return {
+          exists: false,
+          isDifferentVersion: false,
+          globalVersion: null,
+          currentVersion
+        };
+      }
+
+      // Try to get version from global installation
+      const { stdout } = await execAsync('eai-security-check --version');
+      const globalVersion = stdout.trim();
+
+      return {
+        exists: true,
+        isDifferentVersion: globalVersion !== currentVersion,
+        globalVersion,
+        currentVersion
+      };
+    } catch (error) {
+      return {
+        exists: true, // File exists but can't get version
+        isDifferentVersion: true, // Assume different to be safe
+        globalVersion: null,
+        currentVersion
+      };
+    }
+  }
+
+  /**
+   * Check if daemon is running and needs version update
+   */
+  static async checkDaemonVersion(): Promise<{
+    isRunning: boolean;
+    needsUpdate: boolean;
+    daemonVersion: string | null;
+    currentVersion: string;
+  }> {
+    const currentVersion = this.getCurrentVersion();
+
+    try {
+      // Check if daemon state file exists
+      const stateFile = this.getDaemonStatePath();
+      if (!fs.existsSync(stateFile)) {
+        return {
+          isRunning: false,
+          needsUpdate: false,
+          daemonVersion: null,
+          currentVersion
+        };
+      }
+
+      const stateData = JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
+      const daemonVersion = stateData.currentVersion || null;
+      const isRunning =
+        stateData.lastHeartbeat &&
+        Date.now() - new Date(stateData.lastHeartbeat).getTime() < 300000; // 5 minutes
+
+      return {
+        isRunning,
+        needsUpdate: daemonVersion !== currentVersion,
+        daemonVersion,
+        currentVersion
+      };
+    } catch (error) {
+      return {
+        isRunning: false,
+        needsUpdate: false,
+        daemonVersion: null,
+        currentVersion
+      };
+    }
+  }
+
+  /**
+   * Reset all configurations (with confirmation)
+   */
+  static async promptForConfigReset(): Promise<boolean> {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    try {
+      console.log('\n🔄 Configuration Reset');
+      console.log('This will remove all existing configurations and start fresh.');
+      console.log('⚠️  This action cannot be undone!\n');
+
+      const configStatus = this.getConfigStatus();
+      console.log('📋 Current configurations that will be removed:');
+      if (configStatus.securityConfigExists) {
+        console.log(`  • Security configs: ${configStatus.configDirectory}`);
+      }
+      if (configStatus.schedulingConfigExists) {
+        console.log(`  • Daemon config: ${configStatus.schedulingConfigPath}`);
+      }
+
+      const versionFile = this.getVersionFilePath();
+      if (fs.existsSync(versionFile)) {
+        console.log(`  • Version tracking: ${versionFile}`);
+      }
+
+      console.log('');
+      const answer = await new Promise<string>(resolve => {
+        rl.question('Are you sure you want to reset all configurations? (yes/N): ', resolve);
+      });
+
+      return answer.toLowerCase() === 'yes';
+    } finally {
+      rl.close();
+    }
+  }
+
+  /**
+   * Remove all configuration files
+   */
+  static resetAllConfigurations(): void {
+    const configDir = this.getConfigDirectory();
+
+    if (fs.existsSync(configDir)) {
+      // Remove all files in config directory
+      const files = fs.readdirSync(configDir);
+      for (const file of files) {
+        const filePath = path.join(configDir, file);
+        const stat = fs.statSync(filePath);
+
+        if (stat.isDirectory()) {
+          // Remove subdirectories (like daemon-templates)
+          fs.rmSync(filePath, { recursive: true });
+        } else {
+          // Remove files
+          fs.unlinkSync(filePath);
+        }
+      }
+
+      console.log('✅ All configuration files removed');
+    }
+  }
+
+  /**
    * Create a default security configuration file
    */
   static createSecurityConfig(profile: string = 'default'): void {
@@ -144,12 +380,15 @@ export class ConfigManager {
    * Create a scheduling configuration file with interactive prompts
    */
   static async createSchedulingConfigInteractive(
-    defaultProfile: string = 'default'
+    defaultProfile: string = 'default',
+    existingRl?: readline.Interface
   ): Promise<void> {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
+    const rl =
+      existingRl ||
+      readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
 
     const question = (prompt: string): Promise<string> => {
       return new Promise(resolve => {
@@ -182,7 +421,11 @@ export class ConfigManager {
         throw new Error('SMTP username is required');
       }
 
-      const smtpPass = await question('SMTP password (use app-specific password for Gmail): ');
+      // Import password utilities for secure input
+      const { promptForPassword } = await import('../utils/password-utils');
+      const smtpPass = await promptForPassword(
+        'SMTP password (use app-specific password for Gmail): '
+      );
       if (!smtpPass.trim()) {
         throw new Error('SMTP password is required');
       }
@@ -253,7 +496,9 @@ export class ConfigManager {
             privateKeyPath: keyPath.trim()
           };
         } else if (authChoice === '2') {
-          const scpPassword = await question('SSH password: ');
+          // Import password utilities for secure SSH password input
+          const { promptForPassword } = await import('../utils/password-utils');
+          const scpPassword = await promptForPassword('SSH password: ');
           if (!scpPassword.trim()) {
             throw new Error('SSH password is required');
           }
@@ -326,18 +571,22 @@ export class ConfigManager {
         );
       }
     } finally {
-      rl.close();
+      if (!existingRl) {
+        rl.close();
+      }
     }
   }
 
   /**
    * Ask user to select a security profile with explanations
    */
-  static async promptForSecurityProfile(): Promise<string> {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
+  static async promptForSecurityProfile(existingRl?: readline.Interface): Promise<string> {
+    const rl =
+      existingRl ||
+      readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
 
     try {
       console.log('\n🔒 Security Profile Selection');
@@ -385,18 +634,22 @@ export class ConfigManager {
         }
       }
     } finally {
-      rl.close();
+      if (!existingRl) {
+        rl.close();
+      }
     }
   }
 
   /**
    * Ask user if they want to setup daemon configuration
    */
-  static async promptForDaemonSetup(): Promise<boolean> {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
+  static async promptForDaemonSetup(existingRl?: readline.Interface): Promise<boolean> {
+    const rl =
+      existingRl ||
+      readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
 
     try {
       console.log('\n🤖 Automated Scheduling Setup');
@@ -430,7 +683,9 @@ export class ConfigManager {
 
       return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
     } finally {
-      rl.close();
+      if (!existingRl) {
+        rl.close();
+      }
     }
   }
 
@@ -532,13 +787,22 @@ export class ConfigManager {
       fs.copyFileSync(srcPath, destPath);
       templatesCopied.push(serviceFile);
 
-      instructions.push('🐧 Linux systemd Service Setup:');
-      instructions.push(`1. Copy service file: cp "${destPath}" ~/.config/systemd/user/`);
-      instructions.push('2. Reload systemd: systemctl --user daemon-reload');
-      instructions.push('3. Enable service: systemctl --user enable eai-security-check.service');
-      instructions.push('4. Start service: systemctl --user start eai-security-check.service');
-      instructions.push('5. Enable auto-start: sudo loginctl enable-linger $USER');
-      instructions.push('6. Check status: systemctl --user status eai-security-check.service');
+      instructions.push('🐧 Linux systemd Service Setup (copy/paste these commands):');
+      instructions.push('');
+      instructions.push('# Create systemd user directory and copy service file');
+      instructions.push('mkdir -p ~/.config/systemd/user');
+      instructions.push(`cp "${destPath}" ~/.config/systemd/user/`);
+      instructions.push('');
+      instructions.push('# Reload systemd and enable the service');
+      instructions.push('systemctl --user daemon-reload');
+      instructions.push('systemctl --user enable eai-security-check.service');
+      instructions.push('systemctl --user start eai-security-check.service');
+      instructions.push('');
+      instructions.push('# Enable auto-start on boot (optional)');
+      instructions.push('sudo loginctl enable-linger $USER');
+      instructions.push('');
+      instructions.push('# Check service status');
+      instructions.push('systemctl --user status eai-security-check.service');
     }
   }
 
@@ -556,14 +820,20 @@ export class ConfigManager {
       fs.copyFileSync(srcPath, destPath);
       templatesCopied.push(plistFile);
 
-      instructions.push('🍎 macOS launchd Service Setup:');
-      instructions.push(`1. Copy plist file: cp "${destPath}" ~/Library/LaunchAgents/`);
-      instructions.push(
-        '2. Load service: launchctl load ~/Library/LaunchAgents/com.eai.security-check.plist'
-      );
-      instructions.push('3. Start service: launchctl start com.eai.security-check');
-      instructions.push('4. Check status: launchctl list | grep com.eai.security-check');
-      instructions.push('5. Auto-starts on login (no additional setup needed)');
+      instructions.push('🍎 macOS launchd Service Setup (copy/paste these commands):');
+      instructions.push('');
+      instructions.push('# Create LaunchAgents directory and copy plist file');
+      instructions.push('mkdir -p ~/Library/LaunchAgents');
+      instructions.push(`cp "${destPath}" ~/Library/LaunchAgents/`);
+      instructions.push('');
+      instructions.push('# Load and start the service');
+      instructions.push('launchctl load ~/Library/LaunchAgents/com.eai.security-check.plist');
+      instructions.push('launchctl start com.eai.security-check');
+      instructions.push('');
+      instructions.push('# Verify service is running');
+      instructions.push('launchctl list | grep com.eai.security-check');
+      instructions.push('');
+      instructions.push('✅ Service will auto-start on login (no additional setup needed)');
     }
   }
 
@@ -598,14 +868,20 @@ export class ConfigManager {
       fs.writeFileSync(destPath, scriptContent);
       templatesCopied.push(scriptFile);
 
-      instructions.push('🪟 Windows Task Scheduler Setup:');
-      instructions.push(`1. Edit script: Update the path in "${destPath}"`);
-      instructions.push('2. Run PowerShell as Administrator');
-      instructions.push(`3. Execute script: & "${destPath}"`);
-      instructions.push('4. Check task: Get-ScheduledTask -TaskName "EAI Security Check Daemon"');
-      instructions.push(
-        '5. Manual start: Start-ScheduledTask -TaskName "EAI Security Check Daemon"'
-      );
+      instructions.push('🪟 Windows Task Scheduler Setup (copy/paste these commands):');
+      instructions.push('');
+      instructions.push('# 1. Edit the PowerShell script to update the executable path');
+      instructions.push(`notepad "${destPath}"`);
+      instructions.push('');
+      instructions.push('# 2. Run PowerShell as Administrator and execute the script');
+      instructions.push('# Open PowerShell as Administrator, then run:');
+      instructions.push(`& "${destPath}"`);
+      instructions.push('');
+      instructions.push('# 3. Verify the task was created');
+      instructions.push('Get-ScheduledTask -TaskName "EAI Security Check Daemon"');
+      instructions.push('');
+      instructions.push('# 4. Manually test the task (optional)');
+      instructions.push('Start-ScheduledTask -TaskName "EAI Security Check Daemon"');
     }
   }
 
@@ -618,24 +894,68 @@ export class ConfigManager {
 
     switch (platform) {
       case Platform.LINUX:
-        instructions.push('🐧 Linux Manual Setup:');
+        instructions.push('🐧 Linux Manual Setup (copy/paste these commands):');
+        instructions.push('');
+        instructions.push('# Create systemd user service directory');
+        instructions.push('mkdir -p ~/.config/systemd/user');
+        instructions.push('');
         instructions.push(
-          '1. Create systemd user service file at ~/.config/systemd/user/eai-security-check.service'
+          '# Create service file (copy this content to ~/.config/systemd/user/eai-security-check.service)'
         );
-        instructions.push('2. Use "eai-security-check daemon --help" for service file template');
-        instructions.push(
-          '3. Run: systemctl --user daemon-reload && systemctl --user enable eai-security-check.service'
-        );
+        instructions.push('cat > ~/.config/systemd/user/eai-security-check.service << EOF');
+        instructions.push('[Unit]');
+        instructions.push('Description=EAI Security Check Daemon');
+        instructions.push('After=network.target');
+        instructions.push('');
+        instructions.push('[Service]');
+        instructions.push('Type=simple');
+        instructions.push('ExecStart=/usr/local/bin/eai-security-check daemon');
+        instructions.push('Restart=always');
+        instructions.push('RestartSec=10');
+        instructions.push('');
+        instructions.push('[Install]');
+        instructions.push('WantedBy=default.target');
+        instructions.push('EOF');
+        instructions.push('');
+        instructions.push('# Enable and start the service');
+        instructions.push('systemctl --user daemon-reload');
+        instructions.push('systemctl --user enable eai-security-check.service');
+        instructions.push('systemctl --user start eai-security-check.service');
         break;
       case Platform.MACOS:
-        instructions.push('🍎 macOS Manual Setup:');
+        instructions.push('🍎 macOS Manual Setup (copy/paste these commands):');
+        instructions.push('');
+        instructions.push('# Create LaunchAgents directory');
+        instructions.push('mkdir -p ~/Library/LaunchAgents');
+        instructions.push('');
         instructions.push(
-          '1. Create LaunchAgent plist at ~/Library/LaunchAgents/com.eai.security-check.plist'
+          '# Create plist file (copy this content to ~/Library/LaunchAgents/com.eai.security-check.plist)'
         );
-        instructions.push('2. Use "eai-security-check daemon --help" for plist template');
+        instructions.push('cat > ~/Library/LaunchAgents/com.eai.security-check.plist << EOF');
+        instructions.push('<?xml version="1.0" encoding="UTF-8"?>');
         instructions.push(
-          '3. Run: launchctl load ~/Library/LaunchAgents/com.eai.security-check.plist'
+          '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
         );
+        instructions.push('<plist version="1.0">');
+        instructions.push('<dict>');
+        instructions.push('    <key>Label</key>');
+        instructions.push('    <string>com.eai.security-check</string>');
+        instructions.push('    <key>ProgramArguments</key>');
+        instructions.push('    <array>');
+        instructions.push('        <string>/usr/local/bin/eai-security-check</string>');
+        instructions.push('        <string>daemon</string>');
+        instructions.push('    </array>');
+        instructions.push('    <key>RunAtLoad</key>');
+        instructions.push('    <true/>');
+        instructions.push('    <key>KeepAlive</key>');
+        instructions.push('    <true/>');
+        instructions.push('</dict>');
+        instructions.push('</plist>');
+        instructions.push('EOF');
+        instructions.push('');
+        instructions.push('# Load and start the service');
+        instructions.push('launchctl load ~/Library/LaunchAgents/com.eai.security-check.plist');
+        instructions.push('launchctl start com.eai.security-check');
         break;
       case Platform.WINDOWS:
         instructions.push('🪟 Windows Manual Setup:');
@@ -806,7 +1126,164 @@ export class ConfigManager {
   }
 
   /**
-   * Setup global installation across platforms
+   * Get comprehensive system status including global install and daemon status
+   */
+  static async getSystemStatus(): Promise<{
+    globalInstall: {
+      exists: boolean;
+      isDifferentVersion: boolean;
+      globalVersion: string | null;
+      currentVersion: string;
+    };
+    daemon: {
+      isRunning: boolean;
+      needsUpdate: boolean;
+      daemonVersion: string | null;
+      currentVersion: string;
+    };
+    config: {
+      configDirectory: string;
+      securityConfigExists: boolean;
+      schedulingConfigExists: boolean;
+      securityConfigPath: string;
+      schedulingConfigPath: string;
+    };
+  }> {
+    const [globalCheck, daemonCheck, configStatus] = await Promise.all([
+      this.checkGlobalInstallVersion(),
+      this.checkDaemonVersion(),
+      Promise.resolve(this.getConfigStatus())
+    ]);
+
+    return {
+      globalInstall: globalCheck,
+      daemon: daemonCheck,
+      config: configStatus
+    };
+  }
+
+  /**
+   * Remove global installation
+   */
+  static async removeGlobalInstall(): Promise<void> {
+    const platform = os.platform();
+    const execAsync = promisify(exec);
+
+    switch (platform) {
+      case 'darwin':
+      case 'linux': {
+        const targetPath = '/usr/local/bin/eai-security-check';
+        if (fs.existsSync(targetPath)) {
+          console.log('🗑️  Removing global installation...');
+
+          const { promptForPassword } = await import('../utils/password-utils');
+          const password = await promptForPassword(
+            'Enter your password to remove the global installation: '
+          );
+
+          await execAsync(`echo "${password}" | sudo -S rm "${targetPath}"`);
+          console.log('✅ Global installation removed');
+        } else {
+          console.log('ℹ️  No global installation found');
+        }
+        break;
+      }
+      case 'win32': {
+        console.log('💡 Windows global installation removal requires manual action:');
+        console.log('   - Remove from PATH environment variable');
+        console.log('   - Or delete executable from installed location');
+        break;
+      }
+      default:
+        throw new Error(`Platform not supported: ${platform}`);
+    }
+  }
+
+  /**
+   * Manage daemon operations
+   */
+  static async manageDaemon(
+    action: 'start' | 'stop' | 'restart' | 'status' | 'remove'
+  ): Promise<void> {
+    const { SchedulingService } = await import('../services/scheduling-service');
+    const configPath = this.getSchedulingConfigPath();
+    const statePath = this.getDaemonStatePath();
+
+    if (!fs.existsSync(configPath) && action !== 'status' && action !== 'remove') {
+      throw new Error('Daemon configuration not found. Run setup first.');
+    }
+
+    switch (action) {
+      case 'start': {
+        console.log('🚀 Starting daemon...');
+        const schedulingService = new SchedulingService(configPath, statePath);
+        await schedulingService.startDaemon();
+        console.log('✅ Daemon started successfully');
+        break;
+      }
+      case 'stop': {
+        console.log('🛑 Stopping daemon...');
+        const result = await SchedulingService.stopDaemon();
+        if (result.success) {
+          console.log('✅ Daemon stopped successfully');
+        } else {
+          throw new Error(`Failed to stop daemon: ${result.message}`);
+        }
+        break;
+      }
+      case 'restart': {
+        console.log('🔄 Restarting daemon...');
+        const result = await SchedulingService.restartDaemon(configPath, statePath);
+        if (result.success) {
+          console.log('✅ Daemon restarted successfully');
+        } else {
+          throw new Error(`Failed to restart daemon: ${result.message}`);
+        }
+        break;
+      }
+      case 'status': {
+        if (fs.existsSync(configPath)) {
+          const schedulingService = new SchedulingService(configPath, statePath);
+          const status = schedulingService.getDaemonStatus();
+          console.log('🤖 Daemon Status:');
+          console.log(`   Running: ${status.running ? '✅ Yes' : '❌ No'}`);
+          if (status.running) {
+            console.log(`   Version: ${status.state.currentVersion || 'Unknown'}`);
+            console.log(
+              `   Last Check: ${new Date(status.state.lastReportSent || 0).toLocaleString() || 'Never'}`
+            );
+            console.log(`   Reports Sent: ${status.state.totalReportsGenerated}`);
+          }
+        } else {
+          console.log('🤖 Daemon Status:');
+          console.log('   Running: ❌ No');
+          console.log('   Configuration: ❌ Not found');
+        }
+        break;
+      }
+      case 'remove': {
+        console.log('🗑️  Removing daemon configuration...');
+        const result = await SchedulingService.uninstallDaemon({
+          configPath,
+          stateFilePath: statePath,
+          force: true
+        });
+        if (result.success) {
+          console.log('✅ Daemon configuration removed successfully');
+          if (result.removedFiles.length > 0) {
+            console.log('📁 Removed files:');
+            result.removedFiles.forEach(file => console.log(`   - ${file}`));
+          }
+        } else {
+          throw new Error(`Failed to remove daemon: ${result.message}`);
+        }
+        break;
+      }
+    }
+  }
+
+  /**
+   * Setup global installation (with confirmation)
    */
   static async setupGlobalInstallation(): Promise<void> {
     const platform = os.platform();
@@ -914,7 +1391,12 @@ export class ConfigManager {
             return;
           } else {
             console.log('⚠️  Existing symbolic link points to different executable, removing...');
-            await execAsync(`sudo rm "${targetPath}"`);
+            // Use sudo with password prompt handling
+            const { promptForPassword } = await import('../utils/password-utils');
+            const password = await promptForPassword(
+              'Enter your password to update the global installation: '
+            );
+            await execAsync(`echo "${password}" | sudo -S rm "${targetPath}"`);
           }
         } else {
           throw new Error(`File ${targetPath} exists but is not a symbolic link`);
@@ -926,8 +1408,16 @@ export class ConfigManager {
 
     // Create symbolic link
     try {
-      console.log('💡 Creating symbolic link (requires sudo)...');
-      await execAsync(`sudo ln -s "${executablePath}" "${targetPath}"`);
+      console.log('💡 Creating symbolic link (requires administrator privileges)...');
+
+      // Import password utilities
+      const { promptForPassword } = await import('../utils/password-utils');
+      const password = await promptForPassword(
+        'Enter your password to create the global installation: '
+      );
+
+      // Create symlink using sudo with password
+      await execAsync(`echo "${password}" | sudo -S ln -s "${executablePath}" "${targetPath}"`);
 
       // Verify the link was created
       if (fs.existsSync(targetPath)) {
