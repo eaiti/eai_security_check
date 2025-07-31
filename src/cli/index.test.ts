@@ -237,7 +237,7 @@ describe('CLI Interactive Mode', () => {
     mockConfigManager.getSchedulingConfigPath.mockReturnValue(
       '/test/config/scheduling-config.json'
     );
-    
+
     // Add new mock methods for centralized file structure
     mockConfigManager.installGlobally.mockResolvedValue({
       success: true,

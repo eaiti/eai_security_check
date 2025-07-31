@@ -20,7 +20,7 @@ export class ConfigManager {
    */
   static getActualExecutablePath(): string {
     const executablePath = process.execPath;
-    
+
     try {
       // Check if it's a symlink and resolve it
       const stats = fs.lstatSync(executablePath);
@@ -36,7 +36,7 @@ export class ConfigManager {
       // If we can't resolve symlink, fall back to original path
       console.warn('Warning: Could not resolve symlink:', error);
     }
-    
+
     return executablePath;
   }
 
@@ -99,20 +99,20 @@ export class ConfigManager {
   /**
    * Install the application globally with symlinks
    */
-  static async installGlobally(): Promise<{ 
-    success: boolean; 
-    message: string; 
+  static async installGlobally(): Promise<{
+    success: boolean;
+    message: string;
     executablePath?: string;
     symlinkPath?: string;
   }> {
     const platform = os.platform();
     const executablePath = this.getActualExecutablePath();
     const executableName = path.basename(executablePath);
-    
+
     // Determine the global installation paths
     let targetDir: string;
     let symlinkPath: string;
-    
+
     if (platform === 'win32') {
       // Windows doesn't use symlinks, we'll copy to a standard location
       targetDir = 'C:\\Program Files\\eai-security-check';
@@ -133,7 +133,8 @@ export class ConfigManager {
         } catch {
           return {
             success: false,
-            message: 'This operation requires sudo privileges. Please run with elevated permissions or run: sudo eai-security-check install'
+            message:
+              'This operation requires sudo privileges. Please run with elevated permissions or run: sudo eai-security-check install'
           };
         }
       }
@@ -158,7 +159,7 @@ export class ConfigManager {
         const configDir = path.join(execDir, 'config');
         const reportsDir = path.join(execDir, 'reports');
         const logsDir = path.join(execDir, 'logs');
-        
+
         if (fs.existsSync(configDir)) {
           await this.copyDirectory(configDir, path.join(targetDir, 'config'));
         }
@@ -172,13 +173,13 @@ export class ConfigManager {
         // Unix: copy executable with sudo
         await execAsync(`sudo cp "${executablePath}" "${targetPath}"`);
         await execAsync(`sudo chmod +x "${targetPath}"`);
-        
+
         // Copy data directories if they exist
         const execDir = this.getExecutableDirectory();
         const configDir = path.join(execDir, 'config');
         const reportsDir = path.join(execDir, 'reports');
         const logsDir = path.join(execDir, 'logs');
-        
+
         if (fs.existsSync(configDir)) {
           await execAsync(`sudo cp -r "${configDir}" "${targetDir}/"`);
         }
@@ -198,13 +199,13 @@ export class ConfigManager {
 
       return {
         success: true,
-        message: platform === 'win32' 
-          ? `Successfully installed to ${targetPath}`
-          : `Successfully installed with symlink: ${symlinkPath} → ${targetPath}`,
+        message:
+          platform === 'win32'
+            ? `Successfully installed to ${targetPath}`
+            : `Successfully installed with symlink: ${symlinkPath} → ${targetPath}`,
         executablePath: targetPath,
         symlinkPath: platform === 'win32' ? undefined : symlinkPath
       };
-
     } catch (error) {
       return {
         success: false,
@@ -222,10 +223,10 @@ export class ConfigManager {
   }> {
     const platform = os.platform();
     const execAsync = promisify(exec);
-    
+
     let targetDir: string;
     let symlinkPath: string;
-    
+
     if (platform === 'win32') {
       targetDir = 'C:\\Program Files\\eai-security-check';
       symlinkPath = path.join(targetDir, 'eai-security-check.exe');
@@ -242,12 +243,13 @@ export class ConfigManager {
         } catch {
           return {
             success: false,
-            message: 'This operation requires sudo privileges. Please run with elevated permissions.'
+            message:
+              'This operation requires sudo privileges. Please run with elevated permissions.'
           };
         }
       }
 
-      let removedItems: string[] = [];
+      const removedItems: string[] = [];
 
       // Remove symlink (Unix only)
       if (platform !== 'win32' && fs.existsSync(symlinkPath)) {
@@ -267,10 +269,10 @@ export class ConfigManager {
           removedItems.push(`installation directory and all data: ${targetDir}`);
         } else {
           // Only remove the executable, keep data
-          const executableFiles = fs.readdirSync(targetDir).filter(f => 
-            !['config', 'reports', 'logs'].includes(f)
-          );
-          
+          const executableFiles = fs
+            .readdirSync(targetDir)
+            .filter(f => !['config', 'reports', 'logs'].includes(f));
+
           for (const file of executableFiles) {
             const filePath = path.join(targetDir, file);
             if (platform === 'win32') {
@@ -288,7 +290,6 @@ export class ConfigManager {
         success: true,
         message: `Successfully uninstalled: ${removedItems.join(', ')}`
       };
-
     } catch (error) {
       return {
         success: false,
@@ -304,13 +305,13 @@ export class ConfigManager {
     if (!fs.existsSync(dest)) {
       fs.mkdirSync(dest, { recursive: true });
     }
-    
+
     const items = fs.readdirSync(src);
-    
+
     for (const item of items) {
       const srcPath = path.join(src, item);
       const destPath = path.join(dest, item);
-      
+
       const stat = fs.statSync(srcPath);
       if (stat.isDirectory()) {
         await this.copyDirectory(srcPath, destPath);
@@ -331,16 +332,16 @@ export class ConfigManager {
   }> {
     const platform = os.platform();
     const execAsync = promisify(exec);
-    
+
     try {
       const currentVersion = this.getCurrentVersion();
-      
+
       // Determine the download URL based on platform
       let downloadUrl: string;
       let executableName: string;
-      
+
       const baseUrl = 'https://github.com/eaiti/eai_security_check/releases/latest/download';
-      
+
       switch (platform) {
         case 'darwin':
           downloadUrl = `${baseUrl}/eai-security-check-macos`;
@@ -362,20 +363,21 @@ export class ConfigManager {
       }
 
       // Create temporary directory
-      const tempDir = path.join(require('os').tmpdir(), 'eai-security-check-update');
+      const tempDir = path.join(os.tmpdir(), 'eai-security-check-update');
       if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true });
       }
 
       const tempExecutable = path.join(tempDir, executableName);
-      
+
       // Download the new executable
-      const downloadCommand = platform === 'win32' 
-        ? `powershell -Command "Invoke-WebRequest -Uri '${downloadUrl}' -OutFile '${tempExecutable}'"`
-        : `curl -L -o "${tempExecutable}" "${downloadUrl}"`;
-        
+      const downloadCommand =
+        platform === 'win32'
+          ? `powershell -Command "Invoke-WebRequest -Uri '${downloadUrl}' -OutFile '${tempExecutable}'"`
+          : `curl -L -o "${tempExecutable}" "${downloadUrl}"`;
+
       await execAsync(downloadCommand);
-      
+
       if (!fs.existsSync(tempExecutable)) {
         return {
           success: false,
@@ -390,8 +392,9 @@ export class ConfigManager {
 
       // Determine where to install the update
       const currentPath = this.getActualExecutablePath();
-      const isGlobalInstall = currentPath.includes('/usr/local/') || currentPath.includes('Program Files');
-      
+      const isGlobalInstall =
+        currentPath.includes('/usr/local/') || currentPath.includes('Program Files');
+
       if (isGlobalInstall) {
         // Update global installation
         if (platform !== 'win32') {
@@ -400,7 +403,8 @@ export class ConfigManager {
           } catch {
             return {
               success: false,
-              message: 'Global update requires sudo privileges. Please run with elevated permissions.'
+              message:
+                'Global update requires sudo privileges. Please run with elevated permissions.'
             };
           }
           await execAsync(`sudo cp "${tempExecutable}" "${currentPath}"`);
@@ -425,7 +429,6 @@ export class ConfigManager {
         oldVersion: currentVersion,
         newVersion: 'latest'
       };
-
     } catch (error) {
       return {
         success: false,

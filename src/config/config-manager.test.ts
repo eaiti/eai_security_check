@@ -212,9 +212,7 @@ describe('ConfigManager', () => {
       const result = ConfigManager.hasSecurityConfig();
 
       expect(result).toBe(true);
-      expect(mockedFs.existsSync).toHaveBeenCalledWith(
-        '/test/app/config/security-config.json'
-      );
+      expect(mockedFs.existsSync).toHaveBeenCalledWith('/test/app/config/security-config.json');
     });
 
     it('should return false if security config does not exist', () => {
@@ -273,8 +271,7 @@ describe('ConfigManager', () => {
     it('should return complete config status', () => {
       mockedFs.existsSync.mockImplementation(path => {
         if (path === '/test/app/config/security-config.json') return true;
-        if (path === '/test/app/config/scheduling-config.json')
-          return false;
+        if (path === '/test/app/config/scheduling-config.json') return false;
         return false;
       });
 
