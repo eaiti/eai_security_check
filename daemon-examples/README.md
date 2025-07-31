@@ -6,14 +6,11 @@ This directory contains example configuration files for setting up the EAI Secur
 
 ## Quick Setup
 
-The easiest way to set up the daemon is using the interactive init command:
+The easiest way to set up the daemon is using interactive management mode:
 
 ```bash
-# Interactive setup with daemon configuration
-eai-security-check init
-
-# Choose "Yes" when prompted for daemon setup
-# Follow the guided configuration for email, scheduling, and service setup
+# Launch interactive management and choose daemon automation option
+eai-security-check interactive
 ```
 
 ## Platform-Specific Service Setup
@@ -80,7 +77,7 @@ eai-security-check init
 
 - **Update paths**: Modify the executable paths in the configuration files to match your installation
 - **User permissions**: These examples run the daemon as the current user, not as root/administrator
-- **Prerequisites**: Ensure that `eai-security-check init` has been run and daemon configuration exists
+- **Prerequisites**: Ensure that `eai-security-check interactive` has been run and daemon configuration exists
 - **Logging**: Check system logs for daemon output and error messages
 
 ## Current Daemon Capabilities

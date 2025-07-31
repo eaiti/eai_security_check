@@ -4,9 +4,9 @@ import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import * as readline from 'readline';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { select, confirm } from '@inquirer/prompts';
 import { SecurityAuditor } from '../services/auditor';
 import { SecurityConfig } from '../types';
 import { OutputUtils, OutputFormat } from '../utils/output-utils';
@@ -97,47 +97,37 @@ function resolveProfileConfigPath(profile: string): string | null {
  * Prompt user if they want to attempt automatic service setup
  */
 async function promptForAutoServiceSetup(platform: string): Promise<boolean> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
+  let canAutoSetup = false;
+  let setupDescription = '';
 
-  try {
-    let canAutoSetup = false;
-    let setupDescription = '';
-
-    switch (platform) {
-      case 'Linux':
-        canAutoSetup = true;
-        setupDescription = 'copy the systemd service file to the correct location';
-        break;
-      case 'macOS':
-        canAutoSetup = true;
-        setupDescription = 'copy the LaunchAgent plist file to the correct location';
-        break;
-      case 'Windows':
-        canAutoSetup = false;
-        setupDescription = 'setup requires Administrator privileges (manual setup recommended)';
-        break;
-      default:
-        return false;
-    }
-
-    if (!canAutoSetup) {
-      console.log(`💡 Note: Automatic setup not available for ${platform} - ${setupDescription}`);
+  switch (platform) {
+    case 'Linux':
+      canAutoSetup = true;
+      setupDescription = 'copy the systemd service file to the correct location';
+      break;
+    case 'macOS':
+      canAutoSetup = true;
+      setupDescription = 'copy the LaunchAgent plist file to the correct location';
+      break;
+    case 'Windows':
+      canAutoSetup = false;
+      setupDescription = 'setup requires Administrator privileges (manual setup recommended)';
+      break;
+    default:
       return false;
-    }
-
-    console.log(`🤖 Auto-Setup Available: I can ${setupDescription} for you.\n`);
-
-    const answer = await new Promise<string>(resolve => {
-      rl.question('Would you like me to attempt automatic service setup? (y/N): ', resolve);
-    });
-
-    return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
-  } finally {
-    rl.close();
   }
+
+  if (!canAutoSetup) {
+    console.log(`💡 Note: Automatic setup not available for ${platform} - ${setupDescription}`);
+    return false;
+  }
+
+  console.log(`🤖 Auto-Setup Available: I can ${setupDescription} for you.\n`);
+
+  return await confirm({
+    message: 'Would you like me to attempt automatic service setup?',
+    default: false
+  });
 }
 
 /**
@@ -242,6 +232,1055 @@ async function attemptMacOSServiceSetup(templatesDir: string): Promise<void> {
   }
 }
 
+/**
+ * Run the full interactive management mode
+ */
+async function runInteractiveMode(): Promise<void> {
+  console.log('🎛️  Welcome to EAI Security Check Interactive Management!\n');
+
+  // Ensure configuration and reports directories exist on first run
+  ConfigManager.ensureConfigDirectory();
+  const reportsDir = ConfigManager.getReportsDirectory();
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir, { recursive: true });
+  }
+
+  // Get current system status once
+  const systemStatus = await ConfigManager.getSystemStatus();
+
+  while (true) {
+    // Display current status
+    console.log('📊 Current System Status:');
+    console.log(`📦 Version: ${ConfigManager.getCurrentVersion()}`);
+    console.log(
+      `🌍 Global Install: ${systemStatus.globalInstall.exists ? '✅ Installed' : '❌ Not installed'}`
+    );
+    console.log(
+      `🤖 Daemon Config: ${systemStatus.config.schedulingConfigExists ? '✅ Configured' : '❌ Not configured'}`
+    );
+    console.log(
+      `🔒 Security Config: ${systemStatus.config.securityConfigExists ? '✅ Found' : '❌ Missing'}`
+    );
+    console.log(`📁 Config Directory: ${systemStatus.config.configDirectory}`);
+    console.log(`📄 Reports Directory: ${systemStatus.config.reportsDirectory}`);
+    console.log('');
+
+    try {
+      const choice = await select({
+        message: '🎯 What would you like to do?',
+        choices: [
+          {
+            name: '1. Security Check - Run security audits',
+            value: '1',
+            description: 'Run security checks with different profiles and options'
+          },
+          {
+            name: '2. Configuration - Manage security configurations',
+            value: '2',
+            description: 'Setup, view, and modify security profiles and settings'
+          },
+          {
+            name: '3. Daemon - Automated security monitoring',
+            value: '3',
+            description: 'Setup and manage automated security checks and reports'
+          },
+          {
+            name: '4. Global - System-wide installation',
+            value: '4',
+            description: 'Install, update, or remove global system access'
+          },
+          {
+            name: '5. System - System information and diagnostics',
+            value: '5',
+            description: 'View system status, check for updates, and diagnostics'
+          },
+          {
+            name: '6. Verify - Report integrity verification',
+            value: '6',
+            description: 'Verify the integrity of security reports and files'
+          },
+          {
+            name: '7. Exit - Exit interactive mode',
+            value: '7',
+            description: 'Exit interactive mode'
+          }
+        ],
+        pageSize: 10
+      });
+
+      console.log('');
+
+      switch (choice) {
+        case '1':
+          await showSecurityCheckMenu();
+          break;
+        case '2':
+          await showConfigurationMenu();
+          break;
+        case '3':
+          await showDaemonMenu();
+          break;
+        case '4':
+          await showGlobalMenu();
+          break;
+        case '5':
+          await showSystemMenu();
+          break;
+        case '6':
+          await showVerifyMenu();
+          break;
+        case '7':
+          console.log('👋 Thank you for using EAI Security Check!');
+          console.log('💡 You can always return to this menu with: eai-security-check interactive');
+          console.log('');
+          return;
+        default:
+          console.log('❌ Invalid choice. Please try again.');
+          console.log('');
+      }
+    } catch (error) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'name' in error &&
+        error.name === 'ExitPromptError'
+      ) {
+        // User pressed Ctrl+C
+        console.log('\n👋 Thank you for using EAI Security Check!');
+        return;
+      }
+      console.error(`❌ Error: ${error}`);
+      console.log('');
+    }
+
+    // Ask if user wants to continue
+    try {
+      const continueChoice = await confirm({
+        message: 'Would you like to return to the main menu?',
+        default: true
+      });
+
+      if (!continueChoice) {
+        console.log('👋 Thank you for using EAI Security Check!');
+        return;
+      }
+      console.log('');
+    } catch (error) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'name' in error &&
+        error.name === 'ExitPromptError'
+      ) {
+        console.log('\n👋 Thank you for using EAI Security Check!');
+        return;
+      }
+      // If any other error, just exit gracefully
+      console.log('\n👋 Thank you for using EAI Security Check!');
+      return;
+    }
+  }
+}
+
+/**
+ * Security Check submenu
+ */
+async function showSecurityCheckMenu(): Promise<void> {
+  while (true) {
+    console.log('🔍 Security Check Menu\n');
+
+    const choice = await select({
+      message: 'Choose a security check option:',
+      choices: [
+        {
+          name: '1. Interactive Security Check - Select profile and options',
+          value: '1',
+          description: 'Run a security audit with interactive profile selection'
+        },
+        {
+          name: '2. Quick Security Check - Use default profile',
+          value: '2',
+          description: 'Run a quick security audit with default settings'
+        },
+        {
+          name: '3. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await runInteractiveSecurityCheck();
+        break;
+      case '2':
+        await runQuickSecurityCheck();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the Security Check menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
+  }
+}
+
+/**
+ * Configuration submenu
+ */
+async function showConfigurationMenu(): Promise<void> {
+  while (true) {
+    console.log('🔧 Configuration Menu\n');
+
+    const choice = await select({
+      message: 'Choose a configuration option:',
+      choices: [
+        {
+          name: '1. Setup/Modify Security Configurations',
+          value: '1',
+          description: 'Create or modify security profiles and settings'
+        },
+        {
+          name: '2. View Configuration Status',
+          value: '2',
+          description: 'View current configuration status and available profiles'
+        },
+        {
+          name: '3. Reset All Configurations',
+          value: '3',
+          description: 'Reset all configurations to default'
+        },
+        {
+          name: '4. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await setupOrModifyConfigurations();
+        break;
+      case '2':
+        await viewConfigurationStatus();
+        break;
+      case '3':
+        await resetAllConfigurations();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the Configuration menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
+  }
+}
+
+/**
+ * Daemon submenu
+ */
+async function showDaemonMenu(): Promise<void> {
+  while (true) {
+    console.log('🤖 Daemon Menu\n');
+
+    const choice = await select({
+      message: 'Choose a daemon option:',
+      choices: [
+        {
+          name: '1. Setup Daemon Automation',
+          value: '1',
+          description: 'Setup automated security checks and email reports'
+        },
+        {
+          name: '2. Start/Stop/Restart Daemon',
+          value: '2',
+          description: 'Manage daemon service status'
+        },
+        {
+          name: '3. View Daemon Status',
+          value: '3',
+          description: 'Check current daemon status and configuration'
+        },
+        {
+          name: '4. Remove Daemon Configuration',
+          value: '4',
+          description: 'Remove daemon automation and configuration'
+        },
+        {
+          name: '5. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await setupDaemonAutomation();
+        break;
+      case '2':
+        await manageDaemonService();
+        break;
+      case '3':
+        await viewDaemonStatus();
+        break;
+      case '4':
+        await removeDaemonConfiguration();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the Daemon menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
+  }
+}
+
+/**
+ * Global submenu
+ */
+async function showGlobalMenu(): Promise<void> {
+  while (true) {
+    console.log('🌍 Global Installation Menu\n');
+
+    const choice = await select({
+      message: 'Choose a global installation option:',
+      choices: [
+        {
+          name: '1. Install Globally (system-wide access)',
+          value: '1',
+          description: 'Install for system-wide access via command line'
+        },
+        {
+          name: '2. Update Global Installation',
+          value: '2',
+          description: 'Update existing global installation to current version'
+        },
+        {
+          name: '3. Remove Global Installation',
+          value: '3',
+          description: 'Remove system-wide access'
+        },
+        {
+          name: '4. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await installGlobally();
+        break;
+      case '2':
+        await updateGlobalInstallation();
+        break;
+      case '3':
+        await removeGlobalInstallation();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the Global Installation menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
+  }
+}
+
+/**
+ * System submenu
+ */
+async function showSystemMenu(): Promise<void> {
+  while (true) {
+    console.log('📊 System Menu\n');
+
+    const choice = await select({
+      message: 'Choose a system option:',
+      choices: [
+        {
+          name: '1. View Detailed System Information',
+          value: '1',
+          description: 'Show comprehensive system and application information'
+        },
+        {
+          name: '2. Check for Version Updates',
+          value: '2',
+          description: 'Check version status and update tracking'
+        },
+        {
+          name: '3. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await viewDetailedSystemInfo();
+        break;
+      case '2':
+        await checkForUpdates();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the System menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
+  }
+}
+
+/**
+ * Verify submenu
+ */
+async function showVerifyMenu(): Promise<void> {
+  while (true) {
+    console.log('🔍 Verify Menu\n');
+
+    const choice = await select({
+      message: 'Choose a verification option:',
+      choices: [
+        {
+          name: '1. Verify Local Reports',
+          value: '1',
+          description: 'Verify the integrity of locally saved security reports'
+        },
+        {
+          name: '2. Verify Specific File',
+          value: '2',
+          description: 'Verify the integrity of a specific report file'
+        },
+        {
+          name: '3. Verify Directory',
+          value: '3',
+          description: 'Verify all reports in a specific directory'
+        },
+        {
+          name: '4. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await verifyLocalReports();
+        break;
+      case '2':
+        await verifySpecificFile();
+        break;
+      case '3':
+        await verifyDirectory();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the Verify menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
+  }
+}
+
+/**
+ * Interactive security check with profile selection
+ */
+async function runInteractiveSecurityCheck(): Promise<void> {
+  console.log('🔍 Security Check - Profile Selection\n');
+
+  const profile = await ConfigManager.promptForSecurityProfile();
+  console.log(`\n🚀 Running security check with '${profile}' profile...\n`);
+
+  // Run the security check
+  const config = getConfigForProfile(profile);
+  if (!config) {
+    throw new Error(`Could not load configuration for profile: ${profile}`);
+  }
+
+  const auditor = new SecurityAuditor();
+  const report = await auditor.generateReport(config);
+
+  // Display results
+  console.log(report);
+}
+
+/**
+ * Quick security check with default profile
+ */
+async function runQuickSecurityCheck(): Promise<void> {
+  console.log('🚀 Running quick security check with default profile...\n');
+
+  const config = getConfigForProfile('default');
+  if (!config) {
+    throw new Error('Could not load default configuration');
+  }
+
+  const auditor = new SecurityAuditor();
+  const report = await auditor.generateReport(config);
+
+  // Display results
+  console.log(report);
+}
+
+/**
+ * Setup or modify security configurations
+ */
+async function setupOrModifyConfigurations(): Promise<void> {
+  console.log('🔧 Security Configuration Management\n');
+
+  if (!ConfigManager.hasSecurityConfig()) {
+    console.log('📝 No security configuration found. Setting up for first time...\n');
+
+    const profile = await ConfigManager.promptForSecurityProfile();
+    ConfigManager.createAllSecurityConfigs(false, profile);
+
+    console.log('✅ Security configurations created successfully!');
+  } else {
+    console.log('🔧 Security configuration exists. What would you like to do?\n');
+
+    const choice = await select({
+      message: 'Choose an option:',
+      choices: [
+        { name: 'View current configuration', value: '1' },
+        { name: 'Change default profile', value: '2' },
+        { name: 'Recreate all configurations', value: '3' },
+        { name: 'Go back', value: '4' }
+      ]
+    });
+
+    switch (choice) {
+      case '1': {
+        const config = ConfigManager.loadSecurityConfig();
+        console.log('\n📋 Current Security Configuration:');
+        console.log(JSON.stringify(config, null, 2));
+        break;
+      }
+      case '2': {
+        const profile = await ConfigManager.promptForSecurityProfile();
+        const force = await ConfigManager.promptForForceOverwrite();
+        ConfigManager.createAllSecurityConfigs(force, profile);
+        console.log(`✅ Security configurations updated to '${profile}' profile!`);
+        break;
+      }
+      case '3': {
+        const profile = await ConfigManager.promptForSecurityProfile();
+        ConfigManager.createAllSecurityConfigs(true, profile);
+        console.log('✅ All security configurations recreated!');
+        break;
+      }
+      case '4':
+        return;
+      default:
+        console.log('❌ Invalid choice.');
+    }
+  }
+}
+
+/**
+ * View configuration status
+ */
+async function viewConfigurationStatus(): Promise<void> {
+  console.log('📊 Configuration Status Report\n');
+
+  const status = ConfigManager.getConfigStatus();
+
+  console.log(`📁 Configuration Directory: ${status.configDirectory}`);
+  console.log(`🔒 Security Config: ${status.securityConfigExists ? '✅ Found' : '❌ Missing'}`);
+  if (status.securityConfigExists) {
+    console.log(`   Location: ${status.securityConfigPath}`);
+  }
+
+  console.log(`🤖 Daemon Config: ${status.schedulingConfigExists ? '✅ Found' : '❌ Missing'}`);
+  if (status.schedulingConfigExists) {
+    console.log(`   Location: ${status.schedulingConfigPath}`);
+  }
+
+  // Show available profiles
+  console.log('\n📋 Available Security Profiles:');
+  const profiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
+  for (const profile of profiles) {
+    const profilePath =
+      profile === 'default'
+        ? status.securityConfigPath
+        : path.join(status.configDirectory, `${profile}-config.json`);
+    const exists = fs.existsSync(profilePath);
+    console.log(`   ${profile}: ${exists ? '✅' : '❌'}`);
+  }
+
+  console.log('');
+}
+
+/**
+ * Reset all configurations
+ */
+async function resetAllConfigurations(): Promise<void> {
+  console.log('🔄 Reset All Configurations\n');
+
+  if (await ConfigManager.promptForConfigReset()) {
+    ConfigManager.resetAllConfigurations();
+    console.log('✅ All configurations have been reset!');
+    console.log('💡 You can now set up fresh configurations if needed.');
+  } else {
+    console.log('❌ Reset cancelled.');
+  }
+}
+
+/**
+ * Setup daemon automation
+ */
+async function setupDaemonAutomation(): Promise<void> {
+  console.log('🤖 Daemon Automation Setup\n');
+
+  if (ConfigManager.hasSchedulingConfig()) {
+    console.log('⚠️  Daemon configuration already exists.');
+
+    const reconfigure = await confirm({
+      message: 'Do you want to reconfigure it?',
+      default: false
+    });
+
+    if (!reconfigure) {
+      console.log('❌ Daemon setup cancelled.');
+      return;
+    }
+  }
+
+  // Ensure security config exists first
+  if (!ConfigManager.hasSecurityConfig()) {
+    console.log('📝 Setting up security configuration first...\n');
+    const profile = await ConfigManager.promptForSecurityProfile();
+    ConfigManager.createAllSecurityConfigs(false, profile);
+  }
+
+  // Setup daemon configuration
+  await ConfigManager.createSchedulingConfigInteractive('default');
+
+  // Ask if user wants to setup system service
+  const setupService = await ConfigManager.promptForDaemonSetup();
+  if (setupService) {
+    const serviceSetup = ConfigManager.copyDaemonServiceTemplates();
+
+    console.log('\n🎯 Service Setup Instructions:');
+    serviceSetup.instructions.forEach(instruction => console.log(instruction));
+
+    if (serviceSetup.templatesCopied.length > 0) {
+      console.log(`\n📁 Template files copied: ${serviceSetup.templatesCopied.join(', ')}`);
+    }
+
+    // Ask if user wants to attempt automatic setup
+    if (await promptForAutoServiceSetup(serviceSetup.platform)) {
+      await attemptAutoServiceSetup(serviceSetup);
+    }
+  }
+
+  console.log('\n✅ Daemon automation setup complete!');
+}
+
+/**
+ * Manage daemon service (start/stop/restart)
+ */
+async function manageDaemonService(): Promise<void> {
+  console.log('🤖 Daemon Service Management\n');
+
+  if (!ConfigManager.hasSchedulingConfig()) {
+    console.log('❌ No daemon configuration found. Please set up daemon automation first.');
+    return;
+  }
+
+  const choice = await select({
+    message: 'What would you like to do?',
+    choices: [
+      { name: 'Start daemon', value: '1' },
+      { name: 'Stop daemon', value: '2' },
+      { name: 'Restart daemon', value: '3' },
+      { name: 'Go back', value: '4' }
+    ]
+  });
+
+  switch (choice) {
+    case '1':
+      await ConfigManager.manageDaemon('start');
+      break;
+    case '2':
+      await ConfigManager.manageDaemon('stop');
+      break;
+    case '3':
+      await ConfigManager.manageDaemon('restart');
+      break;
+    case '4':
+      return;
+    default:
+      console.log('❌ Invalid choice.');
+  }
+}
+
+/**
+ * View daemon status
+ */
+async function viewDaemonStatus(): Promise<void> {
+  console.log('🤖 Daemon Status\n');
+  await ConfigManager.manageDaemon('status');
+}
+
+/**
+ * Remove daemon configuration
+ */
+async function removeDaemonConfiguration(): Promise<void> {
+  console.log('🗑️  Remove Daemon Configuration\n');
+
+  if (!ConfigManager.hasSchedulingConfig()) {
+    console.log('ℹ️  No daemon configuration found.');
+    return;
+  }
+
+  console.log('⚠️  This will remove all daemon configuration and stop the service.');
+  const confirmRemoval = await confirm({
+    message: 'Are you sure?',
+    default: false
+  });
+
+  if (confirmRemoval) {
+    await ConfigManager.manageDaemon('remove');
+  } else {
+    console.log('❌ Removal cancelled.');
+  }
+}
+
+/**
+ * Install globally
+ */
+async function installGlobally(): Promise<void> {
+  console.log('🌍 Global Installation\n');
+
+  const systemStatus = await ConfigManager.getSystemStatus();
+
+  if (systemStatus.globalInstall.exists) {
+    if (systemStatus.globalInstall.isDifferentVersion) {
+      console.log(`⚠️  Different version already installed globally:`);
+      console.log(`   Current: ${systemStatus.globalInstall.currentVersion}`);
+      console.log(`   Global: ${systemStatus.globalInstall.globalVersion || 'Unknown'}`);
+      console.log('');
+
+      const updateInstall = await confirm({
+        message: 'Do you want to update the global installation?',
+        default: false
+      });
+
+      if (updateInstall) {
+        await ConfigManager.setupGlobalInstallation();
+      } else {
+        console.log('❌ Global installation cancelled.');
+      }
+    } else {
+      console.log('✅ Global installation already up to date.');
+    }
+  } else {
+    if (await ConfigManager.promptForGlobalInstall()) {
+      await ConfigManager.setupGlobalInstallation();
+    } else {
+      console.log('❌ Global installation cancelled.');
+    }
+  }
+}
+
+/**
+ * Update global installation
+ */
+async function updateGlobalInstallation(): Promise<void> {
+  console.log('🔄 Update Global Installation\n');
+
+  const systemStatus = await ConfigManager.getSystemStatus();
+
+  if (!systemStatus.globalInstall.exists) {
+    console.log('❌ No global installation found. Use "Install globally" option first.');
+    return;
+  }
+
+  if (systemStatus.globalInstall.isDifferentVersion) {
+    console.log(`🔄 Updating global installation:`);
+    console.log(`   From: ${systemStatus.globalInstall.globalVersion || 'Unknown'}`);
+    console.log(`   To: ${systemStatus.globalInstall.currentVersion}\n`);
+
+    await ConfigManager.setupGlobalInstallation();
+  } else {
+    console.log('✅ Global installation is already up to date.');
+  }
+}
+
+/**
+ * Remove global installation
+ */
+async function removeGlobalInstallation(): Promise<void> {
+  console.log('🗑️  Remove Global Installation\n');
+
+  const systemStatus = await ConfigManager.getSystemStatus();
+
+  if (!systemStatus.globalInstall.exists) {
+    console.log('ℹ️  No global installation found.');
+    return;
+  }
+
+  console.log('⚠️  This will remove system-wide access to eai-security-check.');
+  const confirmRemoval = await confirm({
+    message: 'Are you sure?',
+    default: false
+  });
+
+  if (confirmRemoval) {
+    await ConfigManager.removeGlobalInstall();
+  } else {
+    console.log('❌ Removal cancelled.');
+  }
+}
+
+/**
+ * View detailed system information
+ */
+async function viewDetailedSystemInfo(): Promise<void> {
+  console.log('📊 Detailed System Information\n');
+
+  const systemStatus = await ConfigManager.getSystemStatus();
+  const platform = await PlatformDetector.detectPlatform();
+  const version = ConfigManager.getCurrentVersion();
+
+  console.log('🖥️  System Information:');
+  console.log(`   Platform: ${platform.platform} (${platform.version})`);
+  console.log(`   Architecture: ${os.arch()}`);
+  console.log(`   Node.js: ${process.version}`);
+  console.log('');
+
+  console.log('📦 Application Information:');
+  console.log(`   Version: ${version}`);
+  console.log(`   Executable: ${process.execPath}`);
+  console.log(`   Working Directory: ${process.cwd()}`);
+  console.log('');
+
+  console.log('🌍 Global Installation:');
+  console.log(`   Installed: ${systemStatus.globalInstall.exists ? 'Yes' : 'No'}`);
+  if (systemStatus.globalInstall.exists) {
+    console.log(`   Version: ${systemStatus.globalInstall.globalVersion || 'Unknown'}`);
+    console.log(`   Up to date: ${!systemStatus.globalInstall.isDifferentVersion ? 'Yes' : 'No'}`);
+  }
+  console.log('');
+
+  console.log('🤖 Daemon Status:');
+  console.log(`   Configured: ${systemStatus.config.schedulingConfigExists ? 'Yes' : 'No'}`);
+  console.log(`   Running: ${systemStatus.daemon.isRunning ? 'Yes' : 'No'}`);
+  if (systemStatus.daemon.daemonVersion) {
+    console.log(`   Version: ${systemStatus.daemon.daemonVersion}`);
+    console.log(`   Up to date: ${!systemStatus.daemon.needsUpdate ? 'Yes' : 'No'}`);
+  }
+  console.log('');
+
+  console.log('🔧 Configuration:');
+  console.log(`   Directory: ${systemStatus.config.configDirectory}`);
+  console.log(`   Reports Directory: ${systemStatus.config.reportsDirectory}`);
+  console.log(
+    `   Security Config: ${systemStatus.config.securityConfigExists ? 'Found' : 'Missing'}`
+  );
+  console.log(
+    `   Scheduling Config: ${systemStatus.config.schedulingConfigExists ? 'Found' : 'Missing'}`
+  );
+
+  // Show available profiles
+  const profiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
+  console.log('   Available Profiles:');
+  for (const profile of profiles) {
+    const profilePath =
+      profile === 'default'
+        ? systemStatus.config.securityConfigPath
+        : path.join(systemStatus.config.configDirectory, `${profile}-config.json`);
+    const exists = fs.existsSync(profilePath);
+    console.log(`     ${profile}: ${exists ? '✅' : '❌'}`);
+  }
+  console.log('');
+}
+
+/**
+ * Check for updates
+ */
+async function checkForUpdates(): Promise<void> {
+  console.log('🔍 Checking for Updates\n');
+
+  const currentVersion = ConfigManager.getCurrentVersion();
+  const isUpgrade = ConfigManager.isVersionUpgrade();
+  const lastVersion = ConfigManager.getLastTrackedVersion();
+
+  console.log(`📦 Current Version: ${currentVersion}`);
+  console.log(`📊 Last Tracked Version: ${lastVersion || 'None'}`);
+  console.log(`🔄 Version Upgrade: ${isUpgrade ? 'Yes' : 'No'}`);
+  console.log('');
+
+  if (isUpgrade) {
+    console.log('🎉 You have upgraded to a newer version!');
+    console.log('💡 Consider updating global installation and daemon if needed.');
+
+    // Update tracked version
+    ConfigManager.updateTrackedVersion();
+    console.log('✅ Version tracking updated.');
+  } else {
+    console.log('✅ You are running the latest tracked version.');
+    console.log('💡 For the latest releases, check: https://github.com/eaiti/eai_security_check');
+  }
+
+  console.log('');
+}
+
+/**
+ * Verify locally saved security reports
+ */
+async function verifyLocalReports(): Promise<void> {
+  console.log('🔍 Verify Local Reports\n');
+
+  const reportsDir = ConfigManager.getReportsDirectory();
+  
+  if (!fs.existsSync(reportsDir)) {
+    console.log('❌ Reports directory not found:');
+    console.log(`   ${reportsDir}`);
+    console.log(
+      '💡 Reports will be created here when the daemon runs or when you save reports manually.'
+    );
+    console.log('');
+    return;
+  }
+
+  console.log(`📂 Scanning reports directory: ${reportsDir}\n`);
+
+  try {
+    const files = fs
+      .readdirSync(reportsDir)
+      .filter(file => file.includes('security-report-') && file.endsWith('.txt'))
+      .sort((a, b) => {
+        // Sort by modification time, newest first
+        const statA = fs.statSync(path.join(reportsDir, a));
+        const statB = fs.statSync(path.join(reportsDir, b));
+        return statB.mtime.getTime() - statA.mtime.getTime();
+      });
+
+    if (files.length === 0) {
+      console.log('ℹ️  No security reports found in the reports directory.');
+      console.log(
+        '💡 Reports are automatically saved when the daemon runs or when you manually save reports.'
+      );
+      console.log('');
+      return;
+    }
+
+    console.log(`📋 Found ${files.length} report file${files.length === 1 ? '' : 's'}:\n`);
+
+    let verifiedCount = 0;
+    let failedCount = 0;
+
+    for (const file of files) {
+      const filePath = path.join(reportsDir, file);
+      const stats = fs.statSync(filePath);
+      
+      console.log(`📄 ${file}`);
+      console.log(`   📅 Created: ${stats.mtime.toLocaleString()}`);
+      console.log(`   📏 Size: ${(stats.size / 1024).toFixed(1)} KB`);
+      
+      // Basic integrity checks
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        
+        // Check if file has expected structure
+        const hasHeader =
+          content.includes('EAI Security Check Report') ||
+          content.includes('Security Audit Report');
+        const hasTimestamp = /\d{4}-\d{2}-\d{2}/.test(content);
+        const hasResults = content.includes('PASSED') || content.includes('FAILED');
+        
+        if (hasHeader && hasTimestamp && hasResults) {
+          console.log('   ✅ Basic integrity: PASSED');
+          verifiedCount++;
+        } else {
+          console.log('   ❌ Basic integrity: FAILED (missing expected content)');
+          failedCount++;
+        }
+      } catch (error) {
+        console.log(`   ❌ Read error: ${error}`);
+        failedCount++;
+      }
+      
+      console.log('');
+    }
+
+    // Summary
+    console.log('📊 Verification Summary:');
+    console.log(`   ✅ Verified: ${verifiedCount}`);
+    console.log(`   ❌ Failed: ${failedCount}`);
+    console.log(`   📁 Total: ${files.length}`);
+    
+    if (failedCount === 0) {
+      console.log('\n🎉 All reports passed basic integrity checks!');
+    } else {
+      console.log('\n⚠️  Some reports failed verification. Consider re-running security checks.');
+    }
+  } catch (error) {
+    console.error('❌ Error accessing reports directory:', error);
+  }
+
+  console.log('');
+}
+
 const program = new Command();
 
 program
@@ -249,7 +1288,7 @@ program
   .description(
     "🔒 Cross-Platform Security Audit Tool - Check your system's security settings against configurable requirements"
   )
-  .version('1.0.0')
+  .version('1.0.1')
   .addHelpText(
     'before',
     `
@@ -348,7 +1387,9 @@ Security Profiles:
 
         if (!fs.existsSync(configPath)) {
           console.error(`❌ Configuration file not found: ${configPath}`);
-          console.log('💡 Use "eai-security-check init" to create a sample configuration file.');
+          console.log(
+            '💡 Use "eai-security-check interactive" to setup configurations interactively.'
+          );
           process.exit(1);
         }
 
@@ -578,262 +1619,54 @@ Security Profiles:
   });
 
 program
-  .command('init')
-  .description('🏠 Initialize EAI Security Check configuration directory and files interactively')
+  .command('interactive')
+  .alias('manage')
+  .description(
+    '�️  Interactive management mode - manage configurations, global install, and daemon'
+  )
   .addHelpText(
     'after',
     `
 Examples:
-  $ eai-security-check init                           # Interactive setup with all options
+  $ eai-security-check interactive                   # Full interactive management
+  $ eai-security-check manage                        # Same as interactive (alias)
 
-Interactive Setup:
-  The init command will guide you through:
-  1. Choosing a default security profile with explanations
-  2. Setting up configuration directory and files
-  3. Optionally configuring automated daemon scheduling with email and SCP
-  4. Optionally installing executable globally for system-wide access
-  5. Providing next steps for using the tool
+Interactive Management:
+  The interactive command provides a menu-driven interface for:
+  1. Running security checks with different profiles
+  2. Managing security configurations and profiles
+  3. Setting up and managing daemon automation
+  4. Installing/updating/removing global system access
+  5. Viewing comprehensive system status
+  6. Managing all aspects of the security check system
 
-Global Installation:
-  During interactive setup, you can choose to install globally:
-  - macOS/Linux: Create symbolic links in /usr/local/bin for system-wide access  
-  - Windows: Add executable to PATH or create shortcuts
-  - Requires appropriate permissions (sudo on macOS/Linux, admin on Windows)
+Features Available:
+  🔍 Security Checks      - Run checks with any profile, view results
+  🔧 Configuration        - Setup, view, modify security profiles
+  🤖 Daemon Management    - Setup, start/stop, configure automated checks
+  🌍 Global Installation  - Install/remove system-wide access
+  📊 System Status        - View comprehensive system information
+  ⚙️  Reset & Cleanup     - Reset configurations, cleanup files
 
-Configuration Directory:
-  The init command creates an OS-appropriate configuration directory:
-  - macOS: ~/Library/Application Support/eai-security-check/
-  - Linux: ~/.config/eai-security-check/
-  - Windows: %APPDATA%/eai-security-check/
+Supported Operations:
+  - First-time setup wizard for new installations
+  - Configuration management (create, modify, reset)
+  - Daemon setup with email and SCP configuration
+  - Global installation with platform-specific methods
+  - System status monitoring and diagnostics
+  - Version management and upgrade detection
 
-This directory will contain:
-  - security-config.json: Default security check requirements (using chosen profile)
-  - default-config.json, strict-config.json, relaxed-config.json, developer-config.json, eai-config.json: All available profiles
-  - scheduling-config.json: Daemon scheduling, email, and SCP settings (if daemon setup is chosen)
-  - daemon-state.json: Daemon runtime state (created automatically when daemon runs)
-
-Security Profiles Available:
-  default     - Recommended security settings (7-min auto-lock timeout)
-  strict      - Maximum security, minimal convenience (3-min auto-lock timeout)
-  relaxed     - Balanced security with convenience (15-min auto-lock timeout)  
-  developer   - Developer-friendly with remote access enabled
-  eai         - EAI focused security (10+ char passwords, 180-day expiration)
-
-After running init, you can use any profile with:
-  $ eai-security-check check [profile]              # Use specific profile
-  $ eai-security-check check                        # Use your chosen default profile
+Platform Support:
+  🍎 macOS: Full support with LaunchAgent integration
+  🐧 Linux: Complete support with systemd user services
+  🪟 Windows: Basic support with Task Scheduler
 `
   )
   .action(async () => {
     try {
-      console.log('🏠 Welcome to EAI Security Check Interactive Setup!\n');
-      console.log(
-        'This wizard will guide you through configuring security profiles and optional automated scheduling.\n'
-      );
-
-      // Show current configuration status
-      const initialStatus = ConfigManager.getConfigStatus();
-      console.log(`📁 Configuration directory: ${initialStatus.configDirectory}`);
-
-      let forceOverwrite = false;
-
-      if (initialStatus.securityConfigExists || initialStatus.schedulingConfigExists) {
-        console.log('\n⚠️  Existing Configuration Detected:');
-        if (initialStatus.securityConfigExists) {
-          console.log(`  ✅ Security config exists: ${initialStatus.securityConfigPath}`);
-        }
-        if (initialStatus.schedulingConfigExists) {
-          console.log(`  ✅ Daemon config exists: ${initialStatus.schedulingConfigPath}`);
-        }
-
-        forceOverwrite = await ConfigManager.promptForForceOverwrite();
-
-        if (!forceOverwrite) {
-          console.log('\n🔄 Running in update mode - will preserve existing configurations');
-        } else {
-          console.log('\n🔄 Force mode enabled - will overwrite existing configurations');
-        }
-        console.log('');
-      }
-
-      // Interactive profile selection
-      const selectedProfile = await ConfigManager.promptForSecurityProfile();
-      console.log(`\n✅ Selected profile: ${selectedProfile}\n`);
-
-      // Ensure config directory exists
-      ConfigManager.ensureConfigDirectory();
-      console.log('✅ Configuration directory ready\n');
-
-      // Create all security configurations
-      console.log(`📋 Creating security configurations (default profile: ${selectedProfile})...`);
-      ConfigManager.createAllSecurityConfigs(forceOverwrite, selectedProfile);
-      console.log('');
-
-      // Interactive daemon setup
-      const wantsDaemon = await ConfigManager.promptForDaemonSetup();
-
-      if (wantsDaemon) {
-        const currentStatus = ConfigManager.getConfigStatus();
-        if (currentStatus.schedulingConfigExists && !forceOverwrite) {
-          console.log(
-            `\n⚠️  Daemon configuration already exists: ${currentStatus.schedulingConfigPath}`
-          );
-          console.log('Configuration preserved since force overwrite was not selected.');
-          console.log('');
-        } else {
-          try {
-            console.log('\n🔧 Setting up daemon configuration...\n');
-
-            if (currentStatus.schedulingConfigExists && forceOverwrite) {
-              console.log('🗑️  Removing existing daemon configuration...');
-              fs.unlinkSync(currentStatus.schedulingConfigPath);
-            }
-
-            await ConfigManager.createSchedulingConfigInteractive(selectedProfile);
-
-            // Enhanced daemon setup - copy service templates and provide instructions
-            console.log('\n🛠️  Setting up system service templates...\n');
-            const serviceSetup = ConfigManager.copyDaemonServiceTemplates();
-
-            if (serviceSetup.templatesCopied.length > 0) {
-              console.log('✅ Service template files copied to your config directory:');
-              for (const file of serviceSetup.templatesCopied) {
-                const fullPath = path.join(
-                  ConfigManager.getConfigDirectory(),
-                  'daemon-templates',
-                  file
-                );
-                console.log(`   📄 ${fullPath}`);
-              }
-              console.log('');
-            }
-
-            // Show platform-specific setup instructions
-            console.log('🔧 Platform-Specific Setup Instructions:\n');
-            for (const instruction of serviceSetup.instructions) {
-              if (
-                instruction.startsWith('🐧') ||
-                instruction.startsWith('🍎') ||
-                instruction.startsWith('🪟')
-              ) {
-                console.log(instruction);
-              } else {
-                console.log(`   ${instruction}`);
-              }
-            }
-            console.log('');
-
-            // Offer automatic setup help where possible
-            const shouldAttemptAutoSetup = await promptForAutoServiceSetup(serviceSetup.platform);
-            if (shouldAttemptAutoSetup) {
-              await attemptAutoServiceSetup(serviceSetup);
-            }
-
-            // Offer to start daemon
-            const shouldStartDaemon = await ConfigManager.promptToStartDaemon();
-            if (shouldStartDaemon) {
-              console.log('\n🔄 Starting daemon...');
-              try {
-                const { SchedulingService } = await import('../services/scheduling-service');
-                const configPath = ConfigManager.getSchedulingConfigPath();
-                const statePath = ConfigManager.getDaemonStatePath();
-                const schedulingService = new SchedulingService(configPath, statePath);
-
-                // Start daemon in background (non-blocking)
-                setTimeout(async () => {
-                  try {
-                    await schedulingService.startDaemon();
-                  } catch (error) {
-                    console.error(`⚠️  Daemon start error: ${error}`);
-                  }
-                }, 100);
-
-                console.log('✅ Daemon startup initiated - it will run in the background');
-                console.log('💡 Use "eai-security-check daemon --status" to check daemon status');
-              } catch (error) {
-                console.error(`❌ Failed to start daemon: ${error}`);
-                console.log('💡 You can start it manually later with "eai-security-check daemon"');
-              }
-            } else {
-              console.log(
-                '\n⏭️  Daemon configured but not started - use "eai-security-check daemon" to start it later'
-              );
-            }
-
-            console.log('');
-          } catch (error) {
-            console.error(`❌ Error creating daemon configuration: ${error}`);
-            process.exit(1);
-          }
-        }
-      } else {
-        console.log(
-          '\n⏭️  Skipping daemon setup - you can configure it later with "eai-security-check init"'
-        );
-        console.log('');
-      }
-
-      // Show comprehensive summary
-      console.log('🎉 Setup Complete!\n');
-      console.log('📊 Configuration Summary:');
-      const finalStatus = ConfigManager.getConfigStatus();
-      console.log(`  📁 Config Directory: ${finalStatus.configDirectory}`);
-      console.log(
-        `  🔒 Security Config (default): ${finalStatus.securityConfigExists ? '✅' : '❌'} ${finalStatus.securityConfigPath}`
-      );
-
-      // Show profile-specific configs
-      const profiles = ['strict', 'relaxed', 'developer', 'eai'];
-      for (const profile of profiles) {
-        const profilePath = path.join(finalStatus.configDirectory, `${profile}-config.json`);
-        const exists = fs.existsSync(profilePath);
-        console.log(`  🔒 Security Config (${profile}): ${exists ? '✅' : '❌'} ${profilePath}`);
-      }
-
-      console.log(
-        `  🤖 Daemon Config: ${finalStatus.schedulingConfigExists ? '✅' : '❌'} ${finalStatus.schedulingConfigPath}`
-      );
-
-      console.log('\n🚀 Next Steps:');
-      console.log(`  1. Run your first security audit: eai-security-check check`);
-      console.log(`  2. Your default profile is: eai-security-check check ${selectedProfile}`);
-      console.log(`  3. Try other profiles: eai-security-check check strict`);
-      console.log(`  4. Get help anytime: eai-security-check --help`);
-
-      if (finalStatus.schedulingConfigExists) {
-        console.log(`  5. Start automated monitoring: eai-security-check daemon`);
-        console.log(`  6. Check daemon status: eai-security-check daemon --status`);
-        console.log(`  7. Test email setup: eai-security-check daemon --test-email`);
-      } else {
-        console.log(`  5. Setup automated monitoring later: eai-security-check init`);
-      }
-
-      console.log('\n📚 Additional Resources:');
-      console.log('  • Verify reports: eai-security-check verify <file>');
-      console.log('  • View all options: eai-security-check check --help');
-      console.log('  • Reconfigure anytime: Run this init command again');
-
-      // Global installation option - always ask during interactive setup
-      const wantsGlobalInstall = await ConfigManager.promptForGlobalInstall();
-
-      if (wantsGlobalInstall) {
-        console.log('\n🌍 Setting up global installation...\n');
-        try {
-          await ConfigManager.setupGlobalInstallation();
-          console.log('✅ Global installation completed successfully!');
-          console.log('💡 You can now run "eai-security-check" from any directory');
-        } catch (error) {
-          console.error(`⚠️  Global installation failed: ${error}`);
-          console.log('💡 You can still use the tool from this directory');
-        }
-        console.log('');
-      }
-
-      console.log(
-        '\n🔒 Ready to secure your system! Run "eai-security-check check" to get started.'
-      );
+      await runInteractiveMode();
     } catch (error) {
-      console.error('❌ Error during setup:', error);
+      console.error('❌ Error in interactive mode:', error);
       process.exit(1);
     }
   });
@@ -1042,8 +1875,8 @@ Examples:
   $ eai-security-check daemon --check-now                 # Force immediate check
 
 Setup:
-  Before using daemon mode, initialize your configuration:
-  $ eai-security-check init                            # Interactive setup (choose daemon when prompted)
+  Before using daemon mode, set up your configuration:
+  $ eai-security-check interactive                    # Interactive setup (choose daemon automation)
 
 Daemon Control:
   $ eai-security-check daemon --stop                      # Stop running daemon
@@ -1168,8 +2001,8 @@ Service Setup:
       // Check if scheduling config exists
       if (!fs.existsSync(configPath)) {
         console.error(`❌ Scheduling configuration not found: ${configPath}`);
-        console.log('💡 Initialize daemon configuration first:');
-        console.log('   eai-security-check init (choose yes for daemon setup)');
+        console.log('💡 Set up daemon configuration first:');
+        console.log('   eai-security-check interactive (choose daemon automation)');
         process.exit(1);
       }
 
@@ -1192,7 +2025,18 @@ Service Setup:
         console.log(`  Started: ${status.state.daemonStarted}`);
         console.log(`  Version: ${status.state.currentVersion}`);
         console.log(`  Check Interval: ${status.config.intervalDays} days`);
-        console.log(`  Email Recipients: ${status.config.email.to.join(', ')}`);
+        if (status.config.email?.to?.length) {
+          console.log(`  📧 Email Recipients: ${status.config.email.to.join(', ')}`);
+        } else {
+          console.log('  📧 Email Recipients: ❌ Not configured');
+        }
+        if (status.config.scp?.enabled) {
+          console.log(
+            `  📤 SCP Transfer: ✅ ${status.config.scp.username}@${status.config.scp.host}`
+          );
+        } else {
+          console.log('  📤 SCP Transfer: ❌ Not configured');
+        }
         console.log(`  Security Profile: ${status.config.securityProfile}`);
         console.log(`  Config Path: ${configPath}`);
         console.log(`  State Path: ${statePath}`);
@@ -1258,7 +2102,7 @@ program
         cmd.help();
       } else {
         console.error(`❌ Unknown command: ${command}`);
-        console.log('Available commands: check, init, verify, daemon, help');
+        console.log('Available commands: check, interactive, verify, daemon, help');
       }
     } else {
       console.log(`
@@ -1270,22 +2114,22 @@ configurable requirements and generates detailed reports with actionable
 recommendations.
 
 QUICK START:
-  1. Initialize configuration:        eai-security-check init
+  1. Setup configuration:             eai-security-check interactive
   2. Run security audit:              eai-security-check check
   3. Review results and fix issues:   Follow report recommendations
-  4. Setup daemon (optional):         eai-security-check init --daemon
+  4. Setup daemon (optional):        eai-security-check interactive (choose daemon automation)
 
 COMMON WORKFLOWS:
   📋 Basic setup and audit:
-    $ eai-security-check init
+    $ eai-security-check interactive
     $ eai-security-check check
 
   🔍 Custom security profile:
-    $ eai-security-check init -p strict
+    $ eai-security-check interactive
     $ eai-security-check check
 
   🤖 Automated monitoring:
-    $ eai-security-check init --daemon
+    $ eai-security-check interactive
     $ eai-security-check daemon
 
   📊 Generate report file:
@@ -1315,3 +2159,197 @@ For detailed command help: eai-security-check help <command>
   });
 
 program.parse(process.argv);
+
+/**
+ * Quick security check with default profile
+ */
+async function runQuickSecurityCheck(): Promise<void> {
+  console.log('⚡ Quick Security Check - Using Default Profile\n');
+
+  // Use the 'eai' profile as default
+  const profile = 'eai';
+  console.log(`🚀 Running security check with '${profile}' profile...\n`);
+
+  // Run the security check
+  const config = getConfigForProfile(profile);
+  if (!config) {
+    throw new Error(`Could not load configuration for profile: ${profile}`);
+  }
+
+  const auditor = new SecurityAuditor();
+  const report = await auditor.performSecurityCheck(config);
+
+  // Always save report locally for quick checks
+  const reportPath = await SchedulingService.saveReportLocally(report);
+  console.log(`\n✅ Security check completed successfully!`);
+  console.log(`📄 Report saved to: ${reportPath}`);
+}
+
+/**
+ * Verify local reports in the reports directory
+ */
+async function verifyLocalReports(): Promise<void> {
+  console.log('🔍 Verifying Local Reports\n');
+
+  try {
+    const reportsDir = ConfigManager.getReportsDirectory();
+    console.log(`📁 Checking reports directory: ${reportsDir}`);
+
+    if (!fs.existsSync(reportsDir)) {
+      console.log('❌ Reports directory does not exist');
+      return;
+    }
+
+    const files = fs.readdirSync(reportsDir).filter(file => file.endsWith('.json'));
+    
+    if (files.length === 0) {
+      console.log('📂 No report files found in the reports directory');
+      return;
+    }
+
+    console.log(`📊 Found ${files.length} report file(s):`);
+    let validReports = 0;
+    let invalidReports = 0;
+
+    for (const file of files) {
+      const filePath = path.join(reportsDir, file);
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        JSON.parse(content); // Verify it's valid JSON
+        console.log(`  ✅ ${file} - Valid`);
+        validReports++;
+      } catch (error) {
+        console.log(`  ❌ ${file} - Invalid: ${error instanceof Error ? error.message : String(error)}`);
+        invalidReports++;
+      }
+    }
+
+    console.log(`\n📈 Summary: ${validReports} valid, ${invalidReports} invalid report(s)`);
+  } catch (error) {
+    console.error(`❌ Error verifying local reports: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Verify a specific file
+ */
+async function verifySpecificFile(): Promise<void> {
+  console.log('🔍 Verify Specific File\n');
+
+  try {
+    const filePath = await input({
+      message: 'Enter the path to the file you want to verify:',
+      validate: (value) => {
+        if (!value.trim()) {
+          return 'File path cannot be empty';
+        }
+        if (!fs.existsSync(value.trim())) {
+          return 'File does not exist';
+        }
+        return true;
+      }
+    });
+
+    const trimmedPath = filePath.trim();
+    console.log(`\n📄 Verifying file: ${trimmedPath}`);
+
+    try {
+      const content = fs.readFileSync(trimmedPath, 'utf-8');
+      
+      // Check if it's a JSON file
+      if (trimmedPath.endsWith('.json')) {
+        JSON.parse(content); // Verify it's valid JSON
+        console.log('✅ File is valid JSON');
+      } else {
+        console.log('✅ File is readable');
+      }
+
+      // Get file stats
+      const stats = fs.statSync(trimmedPath);
+      console.log(`📊 File size: ${stats.size} bytes`);
+      console.log(`📅 Last modified: ${stats.mtime.toISOString()}`);
+
+    } catch (error) {
+      console.log(`❌ File verification failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } catch (error) {
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'ExitPromptError') {
+      return; // User cancelled
+    }
+    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Verify all files in a directory
+ */
+async function verifyDirectory(): Promise<void> {
+  console.log('🔍 Verify Directory\n');
+
+  try {
+    const dirPath = await input({
+      message: 'Enter the path to the directory you want to verify:',
+      validate: (value) => {
+        if (!value.trim()) {
+          return 'Directory path cannot be empty';
+        }
+        if (!fs.existsSync(value.trim())) {
+          return 'Directory does not exist';
+        }
+        if (!fs.statSync(value.trim()).isDirectory()) {
+          return 'Path is not a directory';
+        }
+        return true;
+      }
+    });
+
+    const trimmedPath = dirPath.trim();
+    console.log(`\n📁 Verifying directory: ${trimmedPath}`);
+
+    const files = fs.readdirSync(trimmedPath);
+    
+    if (files.length === 0) {
+      console.log('📂 Directory is empty');
+      return;
+    }
+
+    console.log(`📊 Found ${files.length} file(s):`);
+    let validFiles = 0;
+    let invalidFiles = 0;
+    let directories = 0;
+
+    for (const file of files) {
+      const filePath = path.join(trimmedPath, file);
+      const stats = fs.statSync(filePath);
+      
+      if (stats.isDirectory()) {
+        console.log(`  📁 ${file} - Directory`);
+        directories++;
+        continue;
+      }
+
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        
+        // Check if it's a JSON file
+        if (file.endsWith('.json')) {
+          JSON.parse(content); // Verify it's valid JSON
+          console.log(`  ✅ ${file} - Valid JSON (${stats.size} bytes)`);
+        } else {
+          console.log(`  ✅ ${file} - Readable (${stats.size} bytes)`);
+        }
+        validFiles++;
+      } catch (error) {
+        console.log(`  ❌ ${file} - Error: ${error instanceof Error ? error.message : String(error)}`);
+        invalidFiles++;
+      }
+    }
+
+    console.log(`\n📈 Summary: ${validFiles} valid files, ${invalidFiles} invalid files, ${directories} directories`);
+  } catch (error) {
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'ExitPromptError') {
+      return; // User cancelled
+    }
+    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}

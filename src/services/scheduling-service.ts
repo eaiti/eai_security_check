@@ -9,6 +9,7 @@ import { SecurityConfig, SchedulingConfig, DaemonState } from '../types';
 import { OutputUtils, OutputFormat } from '../utils/output-utils';
 import { PlatformDetector, Platform } from '../utils/platform-detector';
 import { VersionUtils } from '../utils/version-utils';
+import { ConfigManager } from '../config/config-manager';
 
 const execAsync = promisify(exec);
 
@@ -46,9 +47,14 @@ export class SchedulingService {
       const content = fs.readFileSync(resolvedPath, 'utf-8');
       const config = JSON.parse(content) as SchedulingConfig;
 
-      // Validate required fields
-      if (!config.email?.smtp?.host || !config.email?.to?.length) {
-        throw new Error('Invalid scheduling configuration: missing email settings');
+      // Validate configuration - at least one delivery method must be configured
+      const hasEmail = config.email?.smtp?.host && config.email?.to?.length > 0;
+      const hasScp = config.scp?.enabled && config.scp?.host;
+
+      if (!hasEmail && !hasScp) {
+        console.warn(
+          'Warning: No delivery methods configured (email or SCP). Reports will be generated but not delivered.'
+        );
       }
 
       return config;
@@ -122,9 +128,16 @@ export class SchedulingService {
 
     const lastSent = new Date(state.lastReportSent);
     const now = new Date();
-    const daysSinceLastReport = (now.getTime() - lastSent.getTime()) / (1000 * 60 * 60 * 24);
 
-    return daysSinceLastReport >= this.config.intervalDays;
+    if (this.config.intervalMinutes) {
+      // Use minute-based intervals for testing
+      const minutesSinceLastReport = (now.getTime() - lastSent.getTime()) / (1000 * 60);
+      return minutesSinceLastReport >= this.config.intervalMinutes;
+    } else {
+      // Use day-based intervals for production
+      const daysSinceLastReport = (now.getTime() - lastSent.getTime()) / (1000 * 60 * 60 * 24);
+      return daysSinceLastReport >= this.config.intervalDays;
+    }
   }
 
   /**
@@ -254,9 +267,14 @@ export class SchedulingService {
 
       if (!this.shouldSendReport(state)) {
         const lastSent = new Date(state.lastReportSent);
-        const nextCheck = new Date(
-          lastSent.getTime() + this.config.intervalDays * 24 * 60 * 60 * 1000
-        );
+        let nextCheck: Date;
+
+        if (this.config.intervalMinutes) {
+          nextCheck = new Date(lastSent.getTime() + this.config.intervalMinutes * 60 * 1000);
+        } else {
+          nextCheck = new Date(lastSent.getTime() + this.config.intervalDays * 24 * 60 * 60 * 1000);
+        }
+
         console.log(`Report not due yet. Next report scheduled for: ${nextCheck.toLocaleString()}`);
         return;
       }
@@ -290,6 +308,9 @@ export class SchedulingService {
         reportMetadata
       );
 
+      // Always save report locally
+      await this.saveReportLocally(formattedOutput.content, reportMetadata);
+
       // Send email
       await this.sendEmailReport(formattedOutput.content, auditResult.overallPassed);
 
@@ -321,9 +342,82 @@ export class SchedulingService {
   }
 
   /**
-   * Send email report using nodemailer
+   * Save report locally with rotation (keep max 10 reports)
+   */
+  private async saveReportLocally(
+    reportContent: string,
+    reportMetadata: Record<string, unknown>
+  ): Promise<void> {
+    try {
+      // Create reports directory in the same config directory structure
+      const configDir = ConfigManager.getConfigDirectory();
+      const reportsDir = path.join(configDir, 'reports');
+
+      // Ensure directory exists
+      if (!fs.existsSync(reportsDir)) {
+        fs.mkdirSync(reportsDir, { recursive: true });
+      }
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const userIdPrefix = this.config.userId ? `${this.config.userId}-` : '';
+      const status = reportMetadata.overallPassed ? 'PASSED' : 'FAILED';
+      const filename = `${userIdPrefix}security-report-${timestamp}-${status}.txt`;
+      const filePath = path.join(reportsDir, filename);
+
+      // Save the report
+      fs.writeFileSync(filePath, reportContent, 'utf8');
+      console.log(`📄 Report saved locally: ${filePath}`);
+
+      // Rotate old reports (keep max 10)
+      this.rotateLocalReports(reportsDir);
+    } catch (error) {
+      console.error('❌ Failed to save report locally:', error);
+      // Don't fail the entire process if local saving fails
+    }
+  }
+
+  /**
+   * Rotate local reports to keep maximum of 10 files
+   */
+  private rotateLocalReports(reportsDir: string): void {
+    try {
+      const files = fs
+        .readdirSync(reportsDir)
+        .filter(file => file.startsWith('security-report-') || file.includes('security-report-'))
+        .map(file => ({
+          name: file,
+          path: path.join(reportsDir, file),
+          mtime: fs.statSync(path.join(reportsDir, file)).mtime
+        }))
+        .sort((a, b) => b.mtime.getTime() - a.mtime.getTime()); // Sort by newest first
+
+      // If we have more than 10 reports, delete the oldest ones
+      if (files.length > 10) {
+        const filesToDelete = files.slice(10); // Keep first 10 (newest), delete rest
+        filesToDelete.forEach(file => {
+          try {
+            fs.unlinkSync(file.path);
+            console.log(`🗑️ Deleted old report: ${file.name}`);
+          } catch (deleteError) {
+            console.error(`Failed to delete old report ${file.name}:`, deleteError);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Failed to rotate local reports:', error);
+    }
+  }
+
+  /**
+   * Send email report using nodemailer (only if email is configured)
    */
   private async sendEmailReport(reportContent: string, overallPassed: boolean): Promise<void> {
+    if (!this.config.email?.smtp?.host || !this.config.email?.to?.length) {
+      console.log('📧 Email not configured, skipping email delivery');
+      return;
+    }
+
     const transporter = nodemailer.createTransport({
       host: this.config.email.smtp.host,
       port: this.config.email.smtp.port,
@@ -349,7 +443,7 @@ export class SchedulingService {
 
     try {
       await transporter.sendMail(mailOptions);
-      console.log(`Email sent to: ${this.config.email.to.join(', ')}`);
+      console.log(`📧 Email sent to: ${this.config.email.to.join(', ')}`);
     } catch (error) {
       throw new Error(`Failed to send email: ${error}`);
     }
@@ -457,9 +551,25 @@ export class SchedulingService {
     }
 
     console.log(`Starting EAI Security Check daemon v${VersionUtils.getCurrentVersion()}...`);
-    console.log(`Check interval: every ${this.config.intervalDays} days`);
-    console.log(`Email recipients: ${this.config.email.to.join(', ')}`);
-    console.log(`Security profile: ${this.config.securityProfile}`);
+
+    if (this.config.intervalMinutes) {
+      console.log(`Check interval: every ${this.config.intervalMinutes} minutes`);
+    } else {
+      console.log(`Check interval: every ${this.config.intervalDays} days`);
+    }
+    if (this.config.email?.to?.length) {
+      console.log(`📧 Email recipients: ${this.config.email.to.join(', ')}`);
+    } else {
+      console.log('📧 Email notifications: ❌ Disabled');
+    }
+    if (this.config.scp?.enabled) {
+      console.log(
+        `📤 SCP transfer: ✅ Enabled (${this.config.scp.username}@${this.config.scp.host})`
+      );
+    } else {
+      console.log('📤 SCP transfer: ❌ Disabled');
+    }
+    console.log(`🔒 Security profile: ${this.config.securityProfile}`);
 
     const state = this.loadDaemonState();
     console.log(
