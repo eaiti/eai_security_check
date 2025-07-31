@@ -291,4 +291,21 @@ export class PlatformDetector {
     const info = await this.detectPlatform();
     return info.isSupported;
   }
+
+  /**
+   * Get simple platform name synchronously (for basic platform detection)
+   */
+  static getSimplePlatform(): Platform {
+    const platform = os.platform();
+    
+    if (platform === 'darwin') {
+      return Platform.MACOS;
+    } else if (platform === 'linux') {
+      return Platform.LINUX;
+    } else if (platform === 'win32') {
+      return Platform.WINDOWS;
+    } else {
+      return Platform.UNSUPPORTED;
+    }
+  }
 }

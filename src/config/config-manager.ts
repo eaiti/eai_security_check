@@ -399,8 +399,22 @@ export class ConfigManager {
         'The daemon can automatically run security checks on a schedule and email results.'
       );
       console.log(
-        'This is optional - you can always run checks manually with "eai-security-check check".\n'
+        'This is optional - you can always run checks manually with "eai-security-check check".'
       );
+      
+      // Show platform-specific capabilities
+      const { SchedulingService } = require('../services/scheduling-service');
+      const platformInfo = SchedulingService.getDaemonPlatformInfo();
+      
+      console.log(`\n📱 Platform: ${platformInfo.platform}`);
+      console.log(`✅ Supports scheduled execution: ${platformInfo.supportsScheduling ? 'Yes' : 'No'}`);
+      console.log(`✅ Supports manual restart: ${platformInfo.supportsRestart ? 'Yes' : 'No'}`);
+      console.log(`⚠️  Auto-starts on boot: ${platformInfo.supportsAutoStart ? 'Yes' : 'Requires manual setup'}`);
+      
+      if (!platformInfo.supportsAutoStart) {
+        console.log('💡 Note: Daemon runs as user process, not system service');
+        console.log('💡 For auto-start on boot, see platform-specific setup in daemon --help\n');
+      }
 
       const answer = await new Promise<string>(resolve => {
         rl.question('Would you like to set up automated scheduling (daemon)? (y/N): ', resolve);

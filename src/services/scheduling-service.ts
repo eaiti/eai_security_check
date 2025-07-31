@@ -7,7 +7,7 @@ import { promisify } from 'util';
 import { SecurityAuditor } from './auditor';
 import { SecurityConfig, SchedulingConfig, DaemonState } from '../types';
 import { OutputUtils, OutputFormat } from '../utils/output-utils';
-import { PlatformDetector } from '../utils/platform-detector';
+import { PlatformDetector, Platform } from '../utils/platform-detector';
 import { VersionUtils } from '../utils/version-utils';
 
 const execAsync = promisify(exec);
@@ -813,6 +813,89 @@ export class SchedulingService {
         message: `Error during uninstall: ${error}`,
         removedFiles
       };
+    }
+  }
+
+  /**
+   * Get platform-specific daemon setup information
+   */
+  static getDaemonPlatformInfo(): {
+    platform: string;
+    supportsScheduling: boolean;
+    supportsRestart: boolean;
+    supportsAutoStart: boolean;
+    setupInstructions: string[];
+    limitations: string[];
+  } {
+    const platform = PlatformDetector.getSimplePlatform();
+    
+    switch (platform) {
+      case Platform.WINDOWS:
+        return {
+          platform: 'Windows',
+          supportsScheduling: true,
+          supportsRestart: true,
+          supportsAutoStart: false, // Would require Windows Service setup
+          setupInstructions: [
+            'Daemon runs as a Node.js process with cron-based scheduling',
+            'Manual restart supported via "eai-security-check daemon --restart"',
+            'For auto-start on boot, consider using Windows Task Scheduler',
+            'Example: Create a startup task to run "eai-security-check daemon"'
+          ],
+          limitations: [
+            'Does not automatically start on system boot (requires manual setup)',
+            'Runs as user process, not Windows Service',
+            'Requires manual restart if system reboots'
+          ]
+        };
+      
+      case Platform.MACOS:
+        return {
+          platform: 'macOS',
+          supportsScheduling: true,
+          supportsRestart: true,
+          supportsAutoStart: false, // Would require launchd plist
+          setupInstructions: [
+            'Daemon runs as a Node.js process with cron-based scheduling',
+            'Manual restart supported via "eai-security-check daemon --restart"',
+            'For auto-start on boot, create a launchd plist file',
+            'Example location: ~/Library/LaunchAgents/com.eai.security-check.plist'
+          ],
+          limitations: [
+            'Does not automatically start on system boot (requires launchd setup)',
+            'Runs as user process, not system daemon',
+            'Requires manual restart if system reboots'
+          ]
+        };
+      
+      case Platform.LINUX:
+        return {
+          platform: 'Linux',
+          supportsScheduling: true,
+          supportsRestart: true,
+          supportsAutoStart: false, // Would require systemd service
+          setupInstructions: [
+            'Daemon runs as a Node.js process with cron-based scheduling',
+            'Manual restart supported via "eai-security-check daemon --restart"',
+            'For auto-start on boot, create a systemd service unit',
+            'Example location: ~/.config/systemd/user/eai-security-check.service'
+          ],
+          limitations: [
+            'Does not automatically start on system boot (requires systemd setup)',
+            'Runs as user process, not system service',
+            'Requires manual restart if system reboots'
+          ]
+        };
+      
+      default:
+        return {
+          platform: 'Unknown',
+          supportsScheduling: false,
+          supportsRestart: false,
+          supportsAutoStart: false,
+          setupInstructions: ['Platform not supported'],
+          limitations: ['Daemon functionality not available on this platform']
+        };
     }
   }
 }

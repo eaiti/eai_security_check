@@ -439,14 +439,12 @@ Security Profiles:
 
 program
   .command('init')
-  .option('--global-install', 'Offer to install executable globally for system-wide access')
   .description('🏠 Initialize EAI Security Check configuration directory and files interactively')
   .addHelpText(
     'after',
     `
 Examples:
-  $ eai-security-check init                           # Interactive setup
-  $ eai-security-check init --global-install          # Include global installation option
+  $ eai-security-check init                           # Interactive setup with all options
 
 Interactive Setup:
   The init command will guide you through:
@@ -457,7 +455,7 @@ Interactive Setup:
   5. Providing next steps for using the tool
 
 Global Installation:
-  When --global-install is specified, the init command can:
+  During interactive setup, you can choose to install globally:
   - macOS/Linux: Create symbolic links in /usr/local/bin for system-wide access  
   - Windows: Add executable to PATH or create shortcuts
   - Requires appropriate permissions (sudo on macOS/Linux, admin on Windows)
@@ -486,7 +484,7 @@ After running init, you can use any profile with:
   $ eai-security-check check                        # Use your chosen default profile
 `
   )
-  .action(async options => {
+  .action(async () => {
     try {
       console.log('🏠 Welcome to EAI Security Check Interactive Setup!\n');
       console.log(
@@ -637,22 +635,20 @@ After running init, you can use any profile with:
       console.log('  • View all options: eai-security-check check --help');
       console.log('  • Reconfigure anytime: Run this init command again');
 
-      // Global installation option if requested
-      if (options.globalInstall) {
-        const wantsGlobalInstall = await ConfigManager.promptForGlobalInstall();
+      // Global installation option - always ask during interactive setup
+      const wantsGlobalInstall = await ConfigManager.promptForGlobalInstall();
 
-        if (wantsGlobalInstall) {
-          console.log('\n🌍 Setting up global installation...\n');
-          try {
-            await ConfigManager.setupGlobalInstallation();
-            console.log('✅ Global installation completed successfully!');
-            console.log('💡 You can now run "eai-security-check" from any directory');
-          } catch (error) {
-            console.error(`⚠️  Global installation failed: ${error}`);
-            console.log('💡 You can still use the tool from this directory');
-          }
-          console.log('');
+      if (wantsGlobalInstall) {
+        console.log('\n🌍 Setting up global installation...\n');
+        try {
+          await ConfigManager.setupGlobalInstallation();
+          console.log('✅ Global installation completed successfully!');
+          console.log('💡 You can now run "eai-security-check" from any directory');
+        } catch (error) {
+          console.error(`⚠️  Global installation failed: ${error}`);
+          console.log('💡 You can still use the tool from this directory');
         }
+        console.log('');
       }
 
       console.log(
@@ -902,10 +898,18 @@ SCP File Transfer:
   - Password authentication requires 'sshpass' utility to be installed
 
 Service Setup:
-  To run as a system service that restarts automatically:
-  - Linux: Create systemd service unit file
-  - macOS: Create launchd plist file
-  - See documentation for platform-specific setup instructions
+  Cross-platform daemon capabilities:
+  ✅ Scheduled execution: All platforms (cron-based scheduling)
+  ✅ Manual restart: All platforms via --restart option
+  ⚠️  Auto-start on boot: Requires manual OS-specific setup
+
+  Platform-specific auto-start setup (optional):
+  - Windows: Use Task Scheduler to run on startup/login
+  - macOS: Create LaunchAgent plist in ~/Library/LaunchAgents/
+  - Linux: Create systemd user service in ~/.config/systemd/user/
+
+  Current implementation runs as user process, not system service.
+  Use "eai-security-check daemon --status" to check daemon capabilities on your platform.
 `
   )
   .action(async options => {
@@ -995,6 +999,8 @@ Service Setup:
       // Handle status option
       if (options.status) {
         const status = schedulingService.getDaemonStatus();
+        const platformInfo = SchedulingService.getDaemonPlatformInfo();
+        
         console.log('📊 Daemon Status:');
         console.log(`  Running: ${status.running}`);
         console.log(`  Last Report: ${status.state.lastReportSent || 'Never'}`);
@@ -1006,6 +1012,27 @@ Service Setup:
         console.log(`  Security Profile: ${status.config.securityProfile}`);
         console.log(`  Config Path: ${configPath}`);
         console.log(`  State Path: ${statePath}`);
+        
+        console.log('\n🔧 Platform Capabilities:');
+        console.log(`  Platform: ${platformInfo.platform}`);
+        console.log(`  Scheduled Execution: ${platformInfo.supportsScheduling ? '✅' : '❌'}`);
+        console.log(`  Manual Restart: ${platformInfo.supportsRestart ? '✅' : '❌'}`);
+        console.log(`  Auto-start on Boot: ${platformInfo.supportsAutoStart ? '✅' : '⚠️  Manual setup required'}`);
+        
+        if (platformInfo.limitations.length > 0) {
+          console.log('\n⚠️  Current Limitations:');
+          platformInfo.limitations.forEach(limitation => {
+            console.log(`  • ${limitation}`);
+          });
+        }
+        
+        if (platformInfo.setupInstructions.length > 0) {
+          console.log('\n💡 Setup Information:');
+          platformInfo.setupInstructions.forEach(instruction => {
+            console.log(`  • ${instruction}`);
+          });
+        }
+        
         return;
       }
 
