@@ -364,20 +364,21 @@ Security Profiles:
           const outputPath = path.resolve(outputFilename);
           fs.writeFileSync(outputPath, signedContent);
           console.log(`📄 Tamper-evident report saved to: ${outputPath}`);
-          console.log(`🔐 Report hash: ${hashShort}`);
+          console.log(`🔐 Report hash: ${hashShort} (HMAC-SHA256)`);
           console.log(`🔍 Verify with: eai-security-check verify "${outputFilename}"`);
         } else {
           // Output to console with hash header
           console.log(`\n🔒 TAMPER-EVIDENT SECURITY REPORT`);
           console.log(`🔐 Hash: ${hashShort} | Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`);
+          console.log(`🛡️  Security: HMAC-SHA256`);
           console.log(`${'='.repeat(80)}\n`);
           console.log(signedContent);
         }
 
         if (options.clipboard) {
           const clipboardContent = outputFilename ?
-            `Security audit completed. Hash: ${hashShort}. Verify: eai-security-check verify "${outputFilename}"` :
-            `Security audit completed. Hash: ${hashShort}. Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`;
+            `Security audit completed. Hash: ${hashShort} (HMAC-SHA256). Verify: eai-security-check verify "${outputFilename}"` :
+            `Security audit completed. Hash: ${hashShort} (HMAC-SHA256). Generated: ${new Date(hashedReport.timestamp).toLocaleString()}`;
           const clipboardAvailable = await OutputUtils.isClipboardAvailable();
           if (clipboardAvailable) {
             const success = await OutputUtils.copyToClipboard(clipboardContent);
@@ -780,7 +781,7 @@ program
         cmd.help();
       } else {
         console.error(`❌ Unknown command: ${command}`);
-        console.log('Available commands: check, init, daemon, verify, help');
+        console.log('Available commands: check, init, verify, daemon, help');
       }
     } else {
       console.log(`

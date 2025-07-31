@@ -7,6 +7,7 @@ export interface HashedReport {
   hash: string;
   algorithm: string;
   timestamp: string;
+  salt?: string;
   metadata: {
     platform: string;
     hostname: string;
@@ -23,16 +24,42 @@ export interface VerificationResult {
 }
 
 export class CryptoUtils {
-  private static readonly HASH_ALGORITHM = 'sha256';
   private static readonly SIGNATURE_SEPARATOR = '\n--- SECURITY SIGNATURE ---\n';
+  private static readonly HMAC_ALGORITHM = 'sha256';
+  
+  /**
+   * Get the current build secret (required)
+   */
+  private static getBuildSecret(): string {
+    const secret = process.env.EAI_BUILD_SECRET;
+    if (!secret) {
+      throw new Error('EAI_BUILD_SECRET environment variable is required for tamper detection');
+    }
+    return secret;
+  }
 
   /**
-   * Generate a hash for the report content
+   * Generate a cryptographically secure random salt
    */
-  static generateHash(content: string, algorithm: string = this.HASH_ALGORITHM): string {
-    const hash = crypto.createHash(algorithm);
-    hash.update(content);
-    return hash.digest('hex');
+  private static generateSalt(): string {
+    return crypto.randomBytes(16).toString('hex');
+  }
+
+  /**
+   * Derive a key from the build secret using PBKDF2
+   */
+  private static deriveKey(salt: string): Buffer {
+    return crypto.pbkdf2Sync(this.getBuildSecret(), salt, 10000, 32, 'sha256');
+  }
+
+  /**
+   * Generate HMAC for tamper detection
+   */
+  static generateSecureHash(content: string, salt: string): string {
+    const derivedKey = this.deriveKey(salt);
+    const hmac = crypto.createHmac(this.HMAC_ALGORITHM, derivedKey);
+    hmac.update(content);
+    return hmac.digest('hex');
   }
 
   /**
@@ -54,15 +81,21 @@ export class CryptoUtils {
     // Create content without signature for hashing
     const cleanContent = this.stripExistingSignature(content);
     
-    // Generate hash of the clean content + metadata
-    const hashInput = cleanContent + JSON.stringify(reportMetadata) + timestamp;
-    const hash = this.generateHash(hashInput);
+    // Generate salt for security
+    const salt = this.generateSalt();
+    
+    // Create hash input with additional entropy
+    const hashInput = cleanContent + JSON.stringify(reportMetadata) + timestamp + salt;
+    
+    // Use HMAC for secure tamper detection
+    const hash = this.generateSecureHash(hashInput, salt);
 
     return {
       content: cleanContent,
       hash,
-      algorithm: this.HASH_ALGORITHM,
+      algorithm: 'hmac-sha256',
       timestamp,
+      salt,
       metadata: reportMetadata
     };
   }
@@ -75,6 +108,7 @@ export class CryptoUtils {
       hash: hashedReport.hash,
       algorithm: hashedReport.algorithm,
       timestamp: hashedReport.timestamp,
+      salt: hashedReport.salt,
       metadata: hashedReport.metadata
     };
 
@@ -119,7 +153,7 @@ export class CryptoUtils {
       }
 
       // Validate signature structure
-      if (!signature.hash || !signature.algorithm || !signature.timestamp || !signature.metadata) {
+      if (!signature.hash || !signature.algorithm || !signature.timestamp || !signature.metadata || !signature.salt) {
         return {
           isValid: false,
           originalHash: signature.hash || '',
@@ -129,9 +163,20 @@ export class CryptoUtils {
         };
       }
 
-      // Recalculate hash
-      const hashInput = content + JSON.stringify(signature.metadata) + signature.timestamp;
-      const calculatedHash = this.generateHash(hashInput, signature.algorithm);
+      // Only support HMAC-SHA256
+      if (signature.algorithm !== 'hmac-sha256') {
+        return {
+          isValid: false,
+          originalHash: signature.hash,
+          calculatedHash: '',
+          message: `Unsupported algorithm: ${signature.algorithm}. Only HMAC-SHA256 is supported.`,
+          tampered: true
+        };
+      }
+
+      // Recalculate hash using HMAC
+      const hashInput = content + JSON.stringify(signature.metadata) + signature.timestamp + signature.salt;
+      const calculatedHash = this.generateSecureHash(hashInput, signature.salt);
 
       const isValid = calculatedHash === signature.hash;
       
@@ -254,7 +299,7 @@ export class CryptoUtils {
   }
 
   /**
-   * Create a tamper-evident report with multiple verification methods
+   * Create a tamper-evident report
    */
   static createTamperEvidentReport(content: string, metadata?: any): { signedContent: string; hashedReport: HashedReport } {
     const hashedReport = this.createHashedReport(content, metadata);
@@ -268,14 +313,13 @@ export class CryptoUtils {
    * Validate hash algorithm
    */
   static isValidHashAlgorithm(algorithm: string): boolean {
-    const validAlgorithms = ['sha256', 'sha512', 'sha1', 'md5'];
-    return validAlgorithms.includes(algorithm.toLowerCase());
+    return algorithm.toLowerCase() === 'hmac-sha256';
   }
 
   /**
    * Get available hash algorithms
    */
   static getAvailableHashAlgorithms(): string[] {
-    return crypto.getHashes().filter(this.isValidHashAlgorithm);
+    return ['hmac-sha256'];
   }
 }

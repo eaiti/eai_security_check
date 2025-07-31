@@ -32,7 +32,7 @@ A cross-platform Node.js + TypeScript tool for auditing security settings on mac
 
 ### 🔐 Advanced Features
 - **Clipboard Integration**: Copy results directly to clipboard
-- **Cryptographic Verification**: Generate SHA-256 hashes for tamper detection
+- **Cryptographic Verification**: Enhanced tamper detection with HMAC-SHA256 signatures
 - **Summary Mode**: One-line status for quick sharing
 - **Password Management**: Secure password input with platform-aware prompts
 - **Multiple Profiles**: Predefined security configurations (default, strict, relaxed, developer, EAI)
@@ -547,10 +547,37 @@ npm run pkg:build         # Build standalone executables
 - Version compatibility checking with warnings
 - Graceful fallbacks for unsupported features
 
-### Cryptographic Features
-- SHA-256 hashing for tamper detection
-- Embedded metadata in reports (platform, hostname, timestamp)
-- Secure random hash generation
+### 🔐 Enhanced Cryptographic Security
+
+The tool provides **enhanced tamper detection** with cryptographically secure signatures:
+
+#### Security Levels
+- **Basic Security**: SHA-256 hashing (development/testing)
+- **Enhanced Security**: HMAC-SHA256 with build-time secrets (production recommended)
+
+#### Key Features
+- **Build-time Secret Injection**: Cryptographic secrets embedded during build process
+- **HMAC Authentication**: Uses Hash-based Message Authentication Code for tamper detection  
+- **Key Derivation**: PBKDF2 with 10,000 iterations for additional security
+- **Salt Generation**: Unique cryptographically secure salt per report
+- **Tamper Detection**: HMAC-SHA256 cryptographic signatures with build-time secrets
+
+#### Usage
+```bash
+# Check current security status
+eai-security-check security-status
+
+# Create tamper-evident report (basic security)
+eai-security-check check default --hash
+
+# Build with enhanced security
+EAI_BUILD_SECRET="$(openssl rand -hex 32)" npm run build:secure
+
+# Verify report integrity
+eai-security-check verify report.txt
+```
+
+**📖 Detailed Security Documentation**: See [SECURITY.md](SECURITY.md) for complete security analysis, threat model, and implementation details.
 
 ## 🚪 Exit Codes
 
