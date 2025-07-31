@@ -16,10 +16,15 @@
     "format": "prettier --write src/**/*.ts",
     "format:check": "prettier --check src/**/*.ts",
     "test": "jest",
-    "pkg:build": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64,node18-linux-x64 --out-path ./bin",
+    "pkg:build": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64,node18-linux-x64,node18-win-x64 --out-path ./bin",
     "pkg:macos": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64 --out-path ./bin",
     "pkg:linux": "npm run build && pkg dist/cli/index.js --targets node18-linux-x64 --out-path ./bin",
-    "pkg:local": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64 --out-path ./bin"
+    "pkg:windows": "npm run build && pkg dist/cli/index.js --targets node18-win-x64 --out-path ./bin",
+    "pkg:local": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64 --out-path ./bin",
+    "sign:macos": "node scripts/sign-macos.js",
+    "sign:linux": "node scripts/sign-linux.js",
+    "sign:windows": "node scripts/sign-windows.js",
+    "sign:all": "npm run sign:macos && npm run sign:linux && npm run sign:windows"
   },
   "keywords": [
     "macos",

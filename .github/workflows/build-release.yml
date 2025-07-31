@@ -11,7 +11,7 @@ permissions:
   packages: write
 
 jobs:
-  build:
+  build-linux-macos:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -36,18 +36,151 @@ jobs:
       - name: Build TypeScript
         run: npm run build
 
-      - name: Build executables
-        run: npm run pkg:build
+      - name: Build Linux and macOS executables
+        run: |
+          npm run pkg:linux
+          npm run pkg:macos
 
-      - name: Upload artifacts
+      - name: Install osslsigncode for cross-platform Windows signing
+        run: sudo apt-get update && sudo apt-get install -y osslsigncode
+
+      - name: Setup GPG for Linux signing
+        if: env.GPG_PRIVATE_KEY != ''
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | base64 -d | gpg --batch --import
+          echo "GPG key imported successfully"
+
+      - name: Sign Linux executable
+        env:
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: npm run sign:linux
+
+      - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: executables
+          name: linux-executables
+          path: |
+            bin/index-linux
+            bin/index-linux.sig
+            bin/index-linux.sha256
+          retention-days: 30
+
+      - name: Upload macOS artifacts (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-executables-unsigned
+          path: bin/index-macos
+          retention-days: 30
+
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Build Windows executable
+        run: npm run pkg:windows
+
+      - name: Setup certificate for Windows signing
+        if: env.WINDOWS_CERT_FILE != ''
+        env:
+          WINDOWS_CERT_FILE: ${{ secrets.WINDOWS_CERT_FILE }}
+        shell: powershell
+        run: |
+          $certBytes = [System.Convert]::FromBase64String($env:WINDOWS_CERT_FILE)
+          [System.IO.File]::WriteAllBytes("$env:TEMP\certificate.p12", $certBytes)
+          echo "WINDOWS_CERT_FILE_PATH=$env:TEMP\certificate.p12" >> $env:GITHUB_ENV
+
+      - name: Sign Windows executable
+        env:
+          WINDOWS_CERT_FILE: ${{ env.WINDOWS_CERT_FILE_PATH }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: npm run sign:windows
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-executables
+          path: |
+            bin/index.exe
+            bin/index.exe.sha256
+          retention-days: 30
+
+  sign-macos:
+    runs-on: macos-latest
+    needs: build-linux-macos
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download unsigned macOS executable
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-executables-unsigned
           path: bin/
+
+      - name: Setup Apple certificates
+        if: env.APPLE_CERTIFICATE_P12 != ''
+        env:
+          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          # Create certificate file
+          echo "$APPLE_CERTIFICATE_P12" | base64 -d > certificate.p12
+          
+          # Create temporary keychain
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          
+          # Import certificate
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+          
+          # Clean up certificate file
+          rm certificate.p12
+
+      - name: Sign macOS executable
+        env:
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          APPLE_NOTARIZATION_USERNAME: ${{ secrets.APPLE_NOTARIZATION_USERNAME }}
+          APPLE_NOTARIZATION_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Install Node.js for signing script
+          export PATH="/usr/local/bin:$PATH"
+          node scripts/sign-macos.js
+
+      - name: Upload signed macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-executables-signed
+          path: bin/index-macos
           retention-days: 30
 
   release:
-    needs: build
+    needs: [build-linux-macos, build-windows, sign-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
 
@@ -55,10 +188,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download artifacts
+      - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
-          name: executables
+          name: linux-executables
+          path: bin/
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-executables
+          path: bin/
+
+      - name: Download signed macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-executables-signed
+          path: bin/
+        continue-on-error: true
+
+      - name: Download unsigned macOS artifacts (fallback)
+        if: ${{ hashFiles('bin/index-macos') == '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-executables-unsigned
           path: bin/
 
       - name: List files for debugging
@@ -67,8 +220,23 @@ jobs:
       - name: Rename executables with version
         run: |
           VERSION=${{ github.ref_name }}
-          mv bin/index bin/eai-security-check-macos-${VERSION}
+          
+          # Rename executables
+          mv bin/index-macos bin/eai-security-check-macos-${VERSION}
           mv bin/index-linux bin/eai-security-check-linux-${VERSION}
+          mv bin/index.exe bin/eai-security-check-windows-${VERSION}.exe
+          
+          # Rename signature and checksum files
+          if [ -f bin/index-linux.sig ]; then
+            mv bin/index-linux.sig bin/eai-security-check-linux-${VERSION}.sig
+          fi
+          if [ -f bin/index-linux.sha256 ]; then
+            mv bin/index-linux.sha256 bin/eai-security-check-linux-${VERSION}.sha256
+          fi
+          if [ -f bin/index.exe.sha256 ]; then
+            mv bin/index.exe.sha256 bin/eai-security-check-windows-${VERSION}.exe.sha256
+          fi
+          
           ls -la bin/
 
       - name: Create Release
@@ -76,18 +244,41 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=${{ github.ref_name }}
+          
+          # Build file list for release
+          RELEASE_FILES=()
+          RELEASE_FILES+=("./bin/eai-security-check-macos-${VERSION}")
+          RELEASE_FILES+=("./bin/eai-security-check-linux-${VERSION}")
+          RELEASE_FILES+=("./bin/eai-security-check-windows-${VERSION}.exe")
+          
+          # Add signature files if they exist
+          if [ -f "./bin/eai-security-check-linux-${VERSION}.sig" ]; then
+            RELEASE_FILES+=("./bin/eai-security-check-linux-${VERSION}.sig")
+          fi
+          if [ -f "./bin/eai-security-check-linux-${VERSION}.sha256" ]; then
+            RELEASE_FILES+=("./bin/eai-security-check-linux-${VERSION}.sha256")
+          fi
+          if [ -f "./bin/eai-security-check-windows-${VERSION}.exe.sha256" ]; then
+            RELEASE_FILES+=("./bin/eai-security-check-windows-${VERSION}.exe.sha256")
+          fi
+          
           gh release create ${{ github.ref_name }} \
             --title "Release ${{ github.ref_name }}" \
             --notes "## EAI Security Check Release
 
           ### 📦 Standalone Executables
           Download the executables for your platform:
-          - **macOS**: \`eai-security-check-macos-${VERSION}\`
-          - **Linux**: \`eai-security-check-linux-${VERSION}\`
+          - **macOS**: \`eai-security-check-macos-${VERSION}\` $([ -f ./bin/eai-security-check-macos-${VERSION} ] && codesign -dv ./bin/eai-security-check-macos-${VERSION} 2>&1 | grep -q 'Authority=' && echo '✅ **Code Signed**' || echo '⚠️  Unsigned')
+          - **Linux**: \`eai-security-check-linux-${VERSION}\` $([ -f ./bin/eai-security-check-linux-${VERSION}.sig ] && echo '✅ **GPG Signed**' || echo '⚠️  Unsigned')
+          - **Windows**: \`eai-security-check-windows-${VERSION}.exe\` $([ -f ./bin/eai-security-check-windows-${VERSION}.exe.sha256 ] && echo '✅ **Checksum Available**' || echo '⚠️  No checksum')
 
-          No Node.js installation required! Just download and run.
+          ### 🔐 Security & Verification
+          - All executables are built from source with reproducible builds
+          - GPG signatures provided for Linux executables (verify with \`.sig\` files)
+          - SHA256 checksums provided for integrity verification
+          - Code signing certificates used where available
 
-          ### 🔍 Quick Start
+          ### 🚀 Quick Start
           \`\`\`bash
           # macOS
           chmod +x eai-security-check-macos-${VERSION}
@@ -96,13 +287,36 @@ jobs:
           # Linux
           chmod +x eai-security-check-linux-${VERSION}
           ./eai-security-check-linux-${VERSION} check eai
+
+          # Windows (PowerShell)
+          ./eai-security-check-windows-${VERSION}.exe check eai
+          \`\`\`
+
+          ### 🔍 Signature Verification
+
+          **Linux GPG Verification:**
+          \`\`\`bash
+          # Import signing key (first time only)
+          curl -fsSL https://github.com/eaiti/eai_security_check/releases/download/${VERSION}/signing-key.pub | gpg --import
+          
+          # Verify signature
+          gpg --verify eai-security-check-linux-${VERSION}.sig eai-security-check-linux-${VERSION}
+          \`\`\`
+
+          **Checksum Verification:**
+          \`\`\`bash
+          # Linux/macOS
+          sha256sum -c eai-security-check-linux-${VERSION}.sha256
+          
+          # Windows (PowerShell)
+          Get-FileHash eai-security-check-windows-${VERSION}.exe -Algorithm SHA256
           \`\`\`
 
           ### 📋 Features
-          - FileVault encryption check
-          - Password protection verification
-          - Auto-lock timeout validation
-          - Multiple security profiles (default, strict, relaxed, developer, eai)
-          - Detailed reporting with actionable recommendations" \
-            ./bin/eai-security-check-macos-${VERSION} \
-            ./bin/eai-security-check-linux-${VERSION}
+          - **Cross-platform**: Now supports macOS, Linux, and Windows
+          - **Security-focused**: FileVault, disk encryption, firewall, and access control checks
+          - **Multiple profiles**: default, strict, relaxed, developer, eai configurations
+          - **Detailed reporting**: Actionable recommendations with educational content
+          - **Daemon mode**: Scheduled automated security audits with email notifications
+          - **Signed executables**: Reduced security warnings on supported platforms" \
+            \${RELEASE_FILES[@]}
