@@ -1,4 +1,4 @@
-import { SchedulingService } from '../scheduling-service';
+import { SchedulingService } from './scheduling-service';
 import * as fs from 'fs';
 
 describe('Daemon Controls', () => {

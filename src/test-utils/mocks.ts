@@ -1,5 +1,5 @@
-import { MacOSSecurityChecker } from '../security-checker';
-import { LegacyMacOSSecurityChecker } from '../legacy-security-checker';
+import { MacOSSecurityChecker } from '../checkers/security-checker';
+import { LegacyMacOSSecurityChecker } from '../checkers/legacy-security-checker';
 
 export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
   async checkFileVault(): Promise<boolean> {

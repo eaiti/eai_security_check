@@ -81,15 +81,15 @@ npm run build
 ### 1. Initialize Configuration
 
 ```bash
-# Initialize configuration directory and create default security config
+# Interactive setup - guides you through profile selection and daemon configuration
 ./eai-security-check init
-
-# Initialize with daemon setup (interactive email configuration)
-./eai-security-check init --daemon
-
-# Initialize with specific security profile
-./eai-security-check init -p strict --daemon
 ```
+
+The interactive setup wizard will:
+1. **Profile Selection**: Choose from 5 security profiles with detailed explanations
+2. **Directory Setup**: Create OS-appropriate configuration directory
+3. **Daemon Configuration**: Optionally set up automated scheduling with SMTP email
+4. **Next Steps**: Clear guidance on running your first security audit
 
 **Configuration Directory Locations:**
 - **macOS**: `~/Library/Application Support/eai-security-check/`
@@ -151,21 +151,27 @@ npm run build
 ### Init Command
 
 ```bash
-./eai-security-check init [options]
+./eai-security-check init
 ```
 
-Initialize EAI Security Check configuration directory and files.
+Interactive setup wizard that guides you through configuration. **No options needed!**
 
-**Options:**
-- `-p, --profile <type>` - Security profile: default, strict, relaxed, developer, eai
-- `--daemon` - Also setup daemon configuration interactively
-- `--force` - Overwrite existing configuration files
+**What it does:**
+1. **Profile Selection**: Interactive menu to choose your default security profile with detailed explanations
+2. **Directory Setup**: Creates OS-appropriate configuration directory and all profile files
+3. **Daemon Setup**: Optional automated scheduling configuration with SMTP email and SCP file transfer
+4. **Next Steps**: Clear guidance on running your first security audit
+
+**Security Profiles Available:**
+- `default` - Recommended security settings (7-min auto-lock timeout)
+- `strict` - Maximum security, minimal convenience (3-min auto-lock timeout)
+- `relaxed` - Balanced security with convenience (15-min auto-lock timeout)  
+- `developer` - Developer-friendly with remote access enabled
+- `eai` - EAI focused security (10+ char passwords, 180-day expiration)
 
 **Examples:**
 ```bash
-./eai-security-check init                      # Basic setup
-./eai-security-check init --daemon            # Setup with daemon configuration
-./eai-security-check init -p strict --daemon  # Strict profile with daemon
+./eai-security-check init                      # Interactive setup wizard
 ```
 
 ### Check Command
@@ -194,10 +200,28 @@ Initialize EAI Security Check configuration directory and files.
 ### Verify Command
 
 ```bash
-./eai-security-check verify <file>
+./eai-security-check verify [options] <path>
 ```
 
-Verify the integrity of a tamper-evident security report generated with `--hash`.
+Verify the integrity of tamper-evident security reports generated with `--hash`. 
+Supports both single files and directories containing multiple reports.
+
+**Options:**
+- `--verbose` - Show detailed verification information
+
+**Examples:**
+```bash
+./eai-security-check verify security-report.txt     # Verify single report integrity
+./eai-security-check verify --verbose report.txt    # Show detailed verification info
+./eai-security-check verify ./reports/              # Verify all reports in directory
+./eai-security-check verify report.json             # Works with all formats (JSON, markdown, etc.)
+```
+
+**Directory Verification:**
+When verifying a directory, all files are checked and a summary is provided. Only files with valid security report signatures are processed. Files without signatures are automatically skipped.
+
+**Supported Formats:** All output formats support verification (plain, markdown, json, email)
+**Exit Codes:** 0 = all verifications passed, 1 = any verification failed or file error
 
 ### Daemon Command
 
@@ -210,11 +234,12 @@ Run security checks on a schedule and automatically send email reports. This com
 **Setup:**
 Before using daemon mode, initialize your configuration:
 ```bash
-./eai-security-check init --daemon  # Interactive setup
+./eai-security-check init  # Interactive setup - choose daemon when prompted
 ```
 
 **Options:**
 - `-c, --config <path>` - Path to scheduling configuration file (default: uses centralized config)
+- `--security-config <path>` - Path to security configuration file (overrides profile in schedule config)
 - `-s, --state <path>` - Path to daemon state file (default: uses centralized state) 
 - `--status` - Show current daemon status and exit
 - `--test-email` - Send a test email and exit
@@ -222,11 +247,13 @@ Before using daemon mode, initialize your configuration:
 - `--stop` - Stop the running daemon
 - `--restart` - Restart the daemon
 - `--uninstall` - Remove daemon files and configurations
+- `--remove-executable` - Also remove the executable when uninstalling (requires --force)
+- `--force` - Force operations that normally require confirmation
 
 **Examples:**
 ```bash
 # Initialize daemon configuration (interactive setup)
-./eai-security-check init --daemon
+./eai-security-check init
 
 # Start daemon with centralized configuration
 ./eai-security-check daemon
@@ -239,11 +266,20 @@ Before using daemon mode, initialize your configuration:
 
 # Use custom configuration files
 ./eai-security-check daemon -c /path/to/my-schedule.json
+./eai-security-check daemon --security-config /path/to/custom-security.json
+
+# Daemon control operations
+./eai-security-check daemon --stop                    # Stop running daemon
+./eai-security-check daemon --restart                 # Restart daemon service
+./eai-security-check daemon --uninstall               # Remove daemon files
+./eai-security-check daemon --uninstall --force       # Remove daemon files and config
+./eai-security-check daemon --uninstall --remove-executable --force  # Full uninstall
 ```
 
 **Daemon Features:**
 - Runs security checks on a configurable schedule (default: weekly)
 - Sends email reports to configured recipients using SMTP
+- Optionally transfers reports to remote server via SCP (SSH/SFTP)
 - Tracks when last report was sent to avoid duplicates
 - Automatically restarts checks after system reboot (when configured as service)
 - Graceful shutdown on SIGINT/SIGTERM signals
@@ -256,17 +292,17 @@ For automatic startup on system reboot, use the provided setup script:
 
 ```bash
 # Linux (systemd)
-sudo ./examples/setup-daemon.sh install
+sudo ./daemon-examples/setup-daemon.sh install
 
 # macOS (launchd)
-./examples/setup-daemon.sh install
+./daemon-examples/setup-daemon.sh install
 
 # Check service status
-./examples/setup-daemon.sh status
+./daemon-examples/setup-daemon.sh status
 
 # Uninstall service
-sudo ./examples/setup-daemon.sh uninstall  # Linux
-./examples/setup-daemon.sh uninstall       # macOS
+sudo ./daemon-examples/setup-daemon.sh uninstall  # Linux
+./daemon-examples/setup-daemon.sh uninstall       # macOS
 ```
 
 **Configuration Files:**
@@ -276,7 +312,7 @@ The daemon uses configuration files stored in the centralized config directory:
 1. **Security Configuration** (`security-config.json`): Defines security requirements
 2. **Scheduling Configuration** (`scheduling-config.json`): Email and scheduling settings
 
-Interactive setup (`init --daemon`) will create a scheduling configuration like:
+Interactive setup (`init`) will create a scheduling configuration like:
 
 ```json
 {
@@ -297,30 +333,48 @@ Interactive setup (`init --daemon`) will create a scheduling configuration like:
     "to": ["admin@company.com", "security@company.com"],
     "subject": "Weekly Security Audit Report"
   },
+  "scp": {
+    "enabled": true,
+    "host": "backup.company.com",
+    "username": "backup-user",
+    "destinationDirectory": "/secure/audit-reports",
+    "port": 22,
+    "authMethod": "key",
+    "privateKeyPath": "/home/user/.ssh/id_rsa"
+  },
   "reportFormat": "email",
   "securityProfile": "default"
 }
 ```
+
+**SCP Configuration (Optional):**
+- `enabled` - Enable/disable SCP file transfer
+- `host` - Remote server hostname or IP address
+- `username` - SSH username for authentication
+- `destinationDirectory` - Directory on remote server to store reports
+- `port` - SSH port (default: 22)
+- `authMethod` - Authentication method: `"key"` (recommended) or `"password"`
+- `privateKeyPath` - Path to SSH private key file (for key-based auth)
+- `password` - SSH password (for password-based auth, requires `sshpass` utility)
 
 ## 🖥️ Platform-Specific Examples
 
 ### macOS Example
 
 ```bash
-# Initialize and run complete macOS security audit
-./eai-security-check init -p eai
+# Initialize and run complete macOS security audit  
+./eai-security-check init  # Choose eai profile in interactive setup
 ./eai-security-check check --password "myMacPassword" --output ~/Documents/macos-security.txt
 
-# Check against strict security requirements
-./eai-security-check init -p strict
-./eai-security-check check --format email --clipboard
+# Run strict security check after setup
+./eai-security-check check strict --format email --clipboard
 ```
 
 ### Linux (Fedora) Example
 
 ```bash
 # Initialize and run Fedora security audit (primary supported distribution)
-./eai-security-check init -p default
+./eai-security-check init  # Choose default profile in interactive setup  
 ./eai-security-check check --password "mySudoPassword" --output ~/Documents/fedora-security.txt
 
 # Quick summary for email sharing

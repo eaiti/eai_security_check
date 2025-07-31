@@ -1,4 +1,4 @@
-import { OutputUtils, OutputFormat } from '../output-utils';
+import { OutputUtils, OutputFormat } from './output-utils';
 
 // Mock os and exec
 jest.mock('os');
@@ -230,17 +230,17 @@ describe('OutputUtils', () => {
             (callback as unknown as MockExecCallback)(null, {
               stdout: '/usr/bin/xclip',
               stderr: ''
-            } as any);
+            });
           } else if (command === 'which xsel') {
             (callback as unknown as MockExecCallback)(new Error('not found'), {
               stdout: '',
               stderr: ''
-            } as any);
+            });
           } else if (command === 'which wl-copy') {
             (callback as unknown as MockExecCallback)(null, {
               stdout: '/usr/bin/wl-copy',
               stderr: ''
-            } as any);
+            });
           }
         }
         return {} as unknown as ChildProcess;
@@ -268,7 +268,7 @@ describe('OutputUtils', () => {
           (callback as unknown as MockExecCallback)(new Error('not found'), {
             stdout: '',
             stderr: ''
-          } as any);
+          });
         }
         return {} as unknown as ChildProcess;
       });

@@ -1,4 +1,4 @@
-import { PlatformDetector, Platform } from '../platform-detector';
+import { PlatformDetector, Platform } from './platform-detector';
 
 // Mock os and exec
 jest.mock('os');
@@ -53,7 +53,7 @@ describe('PlatformDetector', () => {
             (callback as unknown as MockExecCallback)(null, {
               stdout: 'ID=fedora\nVERSION_ID=38',
               stderr: ''
-            } as any);
+            });
           }
         }
         return {} as unknown as ChildProcess;
@@ -87,7 +87,7 @@ describe('PlatformDetector', () => {
             (callback as unknown as MockExecCallback)(null, {
               stdout: '14.5',
               stderr: ''
-            } as any);
+            });
           }
         }
         return {} as unknown as ChildProcess;
@@ -110,7 +110,7 @@ describe('PlatformDetector', () => {
             (callback as unknown as MockExecCallback)(null, {
               stdout: '16.0',
               stderr: ''
-            } as any);
+            });
           }
         }
         return {} as unknown as ChildProcess;
@@ -134,7 +134,7 @@ describe('PlatformDetector', () => {
             (callback as unknown as MockExecCallback)(null, {
               stdout: 'ID=arch\nVERSION_ID=rolling',
               stderr: ''
-            } as any);
+            });
           }
         }
         return {} as unknown as ChildProcess;
@@ -156,7 +156,7 @@ describe('PlatformDetector', () => {
           (callback as unknown as MockExecCallback)(null, {
             stdout: '15.5',
             stderr: ''
-          } as any);
+          });
         }
         return {} as unknown as ChildProcess;
       });
@@ -172,7 +172,7 @@ describe('PlatformDetector', () => {
           (callback as unknown as MockExecCallback)(null, {
             stdout: 'ID=fedora\nVERSION_ID=38',
             stderr: ''
-          } as any);
+          });
         }
         return {} as unknown as ChildProcess;
       });
@@ -188,7 +188,7 @@ describe('PlatformDetector', () => {
           (callback as unknown as MockExecCallback)(null, {
             stdout: '15.5',
             stderr: ''
-          } as any);
+          });
         }
         return {} as unknown as ChildProcess;
       });

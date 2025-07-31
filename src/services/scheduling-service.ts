@@ -2,11 +2,15 @@ import * as cron from 'node-cron';
 import * as nodemailer from 'nodemailer';
 import * as fs from 'fs';
 import * as path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { SecurityAuditor } from './auditor';
-import { SecurityConfig, SchedulingConfig, DaemonState } from './types';
-import { OutputUtils, OutputFormat } from './output-utils';
-import { PlatformDetector } from './platform-detector';
-import { VersionUtils } from './version-utils';
+import { SecurityConfig, SchedulingConfig, DaemonState } from '../types';
+import { OutputUtils, OutputFormat } from '../utils/output-utils';
+import { PlatformDetector } from '../utils/platform-detector';
+import { VersionUtils } from '../utils/version-utils';
+
+const execAsync = promisify(exec);
 
 /**
  * SchedulingService handles the daemon mode for automated security checks
@@ -41,7 +45,7 @@ export class SchedulingService {
     try {
       const content = fs.readFileSync(resolvedPath, 'utf-8');
       const config = JSON.parse(content) as SchedulingConfig;
-      
+
       // Validate required fields
       if (!config.email?.smtp?.host || !config.email?.to?.length) {
         throw new Error('Invalid scheduling configuration: missing email settings');
@@ -73,7 +77,7 @@ export class SchedulingService {
     try {
       const content = fs.readFileSync(this.stateFilePath, 'utf-8');
       const state = JSON.parse(content) as DaemonState;
-      
+
       // Update version info if not present or different
       const currentVersion = VersionUtils.getCurrentVersion();
       if (!state.currentVersion || state.currentVersion !== currentVersion) {
@@ -81,7 +85,7 @@ export class SchedulingService {
         state.lastVersionCheck = new Date().toISOString();
         this.saveDaemonState(state);
       }
-      
+
       return state;
     } catch (error) {
       console.error('Failed to load daemon state, creating new:', error);
@@ -250,7 +254,9 @@ export class SchedulingService {
 
       if (!this.shouldSendReport(state)) {
         const lastSent = new Date(state.lastReportSent);
-        const nextCheck = new Date(lastSent.getTime() + (this.config.intervalDays * 24 * 60 * 60 * 1000));
+        const nextCheck = new Date(
+          lastSent.getTime() + this.config.intervalDays * 24 * 60 * 60 * 1000
+        );
         console.log(`Report not due yet. Next report scheduled for: ${nextCheck.toLocaleString()}`);
         return;
       }
@@ -277,19 +283,38 @@ export class SchedulingService {
         overallPassed: auditResult.overallPassed,
         ...(this.config.userId && { userId: this.config.userId })
       };
-      
-      const formattedOutput = OutputUtils.formatReport(report, this.config.reportFormat as OutputFormat, reportMetadata);
+
+      const formattedOutput = OutputUtils.formatReport(
+        report,
+        this.config.reportFormat as OutputFormat,
+        reportMetadata
+      );
 
       // Send email
       await this.sendEmailReport(formattedOutput.content, auditResult.overallPassed);
+
+      // Send via SCP if configured
+      if (this.config.scp?.enabled) {
+        try {
+          await this.sendScpReport(
+            formattedOutput.content,
+            auditResult.overallPassed,
+            reportMetadata
+          );
+        } catch (error) {
+          console.error(`[${new Date().toISOString()}] Failed to send report via SCP:`, error);
+          // Don't fail the entire process if SCP fails, just log the error
+        }
+      }
 
       // Update state
       state.lastReportSent = new Date().toISOString();
       state.totalReportsGenerated++;
       this.saveDaemonState(state);
 
-      console.log(`[${new Date().toISOString()}] Security report sent successfully. Overall status: ${auditResult.overallPassed ? 'PASSED' : 'FAILED'}`);
-
+      console.log(
+        `[${new Date().toISOString()}] Security report sent successfully. Overall status: ${auditResult.overallPassed ? 'PASSED' : 'FAILED'}`
+      );
     } catch (error) {
       console.error(`[${new Date().toISOString()}] Error running scheduled check:`, error);
     }
@@ -310,7 +335,8 @@ export class SchedulingService {
     });
 
     const userIdPrefix = this.config.userId ? `[${this.config.userId}] ` : '';
-    const subject = this.config.email.subject || 
+    const subject =
+      this.config.email.subject ||
       `${userIdPrefix}Security Audit Report - ${overallPassed ? 'PASSED' : 'FAILED'} - ${new Date().toLocaleDateString()}`;
 
     const mailOptions = {
@@ -338,6 +364,83 @@ export class SchedulingService {
   }
 
   /**
+   * Send report via SCP to remote server
+   */
+  private async sendScpReport(
+    reportContent: string,
+    overallPassed: boolean,
+    _reportMetadata: any
+  ): Promise<void> {
+    if (!this.config.scp?.enabled) {
+      return;
+    }
+
+    const scpConfig = this.config.scp;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const userIdPrefix = this.config.userId
+      ? `${this.config.userId.replace(/[^a-zA-Z0-9]/g, '_')}-`
+      : '';
+    const status = overallPassed ? 'PASSED' : 'FAILED';
+    const filename = `${userIdPrefix}security-report-${status}-${timestamp}.txt`;
+
+    // Create temporary file
+    const tempDir = path.join(__dirname, '../../tmp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const tempFilePath = path.join(tempDir, filename);
+
+    try {
+      // Write report to temporary file
+      fs.writeFileSync(tempFilePath, reportContent);
+
+      // Build SCP command
+      const port = scpConfig.port || 22;
+      const remoteDestination = `${scpConfig.username}@${scpConfig.host}:${scpConfig.destinationDirectory}/${filename}`;
+
+      let scpCommand: string;
+
+      if (scpConfig.authMethod === 'key' && scpConfig.privateKeyPath) {
+        // Key-based authentication
+        scpCommand = `scp -P ${port} -i "${scpConfig.privateKeyPath}" -o StrictHostKeyChecking=no "${tempFilePath}" "${remoteDestination}"`;
+      } else if (scpConfig.authMethod === 'password' && scpConfig.password) {
+        // Password authentication using sshpass
+        scpCommand = `sshpass -p "${scpConfig.password}" scp -P ${port} -o StrictHostKeyChecking=no "${tempFilePath}" "${remoteDestination}"`;
+      } else {
+        throw new Error('Invalid SCP configuration: missing authentication credentials');
+      }
+
+      console.log(
+        `[${new Date().toISOString()}] Transferring report via SCP to ${scpConfig.host}:${scpConfig.destinationDirectory}/`
+      );
+
+      // Execute SCP command
+      const { stderr } = await execAsync(scpCommand);
+
+      if (stderr && !stderr.includes('Warning:')) {
+        console.warn(`SCP stderr: ${stderr}`);
+      }
+
+      console.log(
+        `[${new Date().toISOString()}] Report successfully transferred via SCP: ${filename}`
+      );
+    } catch (error) {
+      console.error(`SCP transfer failed:`, error);
+      throw error;
+    } finally {
+      // Clean up temporary file
+      if (fs.existsSync(tempFilePath)) {
+        try {
+          fs.unlinkSync(tempFilePath);
+        } catch (cleanupError) {
+          console.warn(`Failed to cleanup temporary file: ${tempFilePath}`, cleanupError);
+        }
+      }
+    }
+  }
+
+  /**
    * Start the daemon with cron scheduling
    */
   async startDaemon(): Promise<void> {
@@ -359,7 +462,9 @@ export class SchedulingService {
     console.log(`Security profile: ${this.config.securityProfile}`);
 
     const state = this.loadDaemonState();
-    console.log(`Daemon state: ${state.totalReportsGenerated} reports sent, last report: ${state.lastReportSent || 'never'}`);
+    console.log(
+      `Daemon state: ${state.totalReportsGenerated} reports sent, last report: ${state.lastReportSent || 'never'}`
+    );
 
     // Check for newer versions on startup
     console.log('🔍 Checking for newer versions...');
@@ -386,11 +491,14 @@ export class SchedulingService {
     });
 
     // Check for newer versions every hour
-    this.versionCheckInterval = setInterval(async () => {
-      if (!this.isShuttingDown) {
-        await this.checkForNewerVersions();
-      }
-    }, 60 * 60 * 1000); // Every hour
+    this.versionCheckInterval = setInterval(
+      async () => {
+        if (!this.isShuttingDown) {
+          await this.checkForNewerVersions();
+        }
+      },
+      60 * 60 * 1000
+    ); // Every hour
 
     console.log('Daemon started successfully. Scheduled to check daily at 9:00 AM.');
     console.log('🔄 Version checks will run hourly to detect newer versions.');
@@ -406,26 +514,25 @@ export class SchedulingService {
   private async checkForNewerVersions(): Promise<void> {
     try {
       const yieldCheck = await VersionUtils.shouldYieldToNewerVersion();
-      
+
       if (yieldCheck.shouldYield) {
         console.log(`⬆️  ${yieldCheck.reason}`);
         console.log('🔄 Gracefully shutting down to allow newer version to take over...');
-        
+
         // Update state with version check timestamp
         const state = this.loadDaemonState();
         state.lastVersionCheck = new Date().toISOString();
         this.saveDaemonState(state);
-        
+
         // Shutdown gracefully
         await this.shutdown('VERSION_UPGRADE');
         return;
       }
-      
+
       // Update version check timestamp
       const state = this.loadDaemonState();
       state.lastVersionCheck = new Date().toISOString();
       this.saveDaemonState(state);
-      
     } catch (error) {
       console.warn('Warning: Version check failed:', error);
     }
@@ -484,7 +591,7 @@ export class SchedulingService {
    */
   static async stopDaemon(lockFilePath?: string): Promise<{ success: boolean; message: string }> {
     const resolvedLockPath = lockFilePath || path.resolve('./daemon.lock');
-    
+
     try {
       if (!fs.existsSync(resolvedLockPath)) {
         return {
@@ -495,7 +602,7 @@ export class SchedulingService {
 
       const lockContent = fs.readFileSync(resolvedLockPath, 'utf-8');
       const lockInfo = JSON.parse(lockContent);
-      
+
       // Check if process is still running first
       try {
         process.kill(lockInfo.pid, 0);
@@ -511,19 +618,19 @@ export class SchedulingService {
       // Send SIGTERM to gracefully shutdown the daemon
       console.log(`Sending shutdown signal to daemon process ${lockInfo.pid}...`);
       process.kill(lockInfo.pid, 'SIGTERM');
-      
+
       // Wait for the process to shutdown and lock file to be removed
       let attempts = 0;
       const maxAttempts = 30; // Wait up to 30 seconds
-      
+
       while (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
         attempts++;
-        
+
         try {
           // Check if process is still running
           process.kill(lockInfo.pid, 0);
-          
+
           // Process still running, continue waiting
           if (attempts % 5 === 0) {
             console.log(`Waiting for daemon to shutdown... (${attempts}s)`);
@@ -534,24 +641,24 @@ export class SchedulingService {
           if (fs.existsSync(resolvedLockPath)) {
             fs.unlinkSync(resolvedLockPath);
           }
-          
+
           return {
             success: true,
             message: `Daemon stopped successfully after ${attempts} seconds.`
           };
         }
       }
-      
+
       // If we get here, the process didn't shutdown gracefully
       console.log('Daemon did not respond to graceful shutdown, forcing termination...');
       try {
         process.kill(lockInfo.pid, 'SIGKILL');
-        
+
         // Clean up lock file
         if (fs.existsSync(resolvedLockPath)) {
           fs.unlinkSync(resolvedLockPath);
         }
-        
+
         return {
           success: true,
           message: 'Daemon forcefully terminated after timeout.'
@@ -562,7 +669,6 @@ export class SchedulingService {
           message: `Failed to stop daemon: ${killError}`
         };
       }
-      
     } catch (error) {
       return {
         success: false,
@@ -574,9 +680,13 @@ export class SchedulingService {
   /**
    * Restart the daemon (stop current instance and start a new one)
    */
-  static async restartDaemon(configPath?: string, stateFilePath?: string, securityConfigPath?: string): Promise<{ success: boolean; message: string }> {
+  static async restartDaemon(
+    configPath?: string,
+    stateFilePath?: string,
+    securityConfigPath?: string
+  ): Promise<{ success: boolean; message: string }> {
     console.log('🔄 Restarting daemon...');
-    
+
     // First, stop the current daemon
     const stopResult = await this.stopDaemon();
     if (!stopResult.success && !stopResult.message.includes('not running')) {
@@ -585,18 +695,18 @@ export class SchedulingService {
         message: `Failed to stop current daemon: ${stopResult.message}`
       };
     }
-    
+
     console.log('✅ Current daemon stopped');
-    
+
     // Wait a moment to ensure cleanup is complete
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     try {
       // Start a new daemon instance
       console.log('🚀 Starting new daemon instance...');
       const newService = new SchedulingService(configPath, stateFilePath, securityConfigPath);
       await newService.startDaemon();
-      
+
       return {
         success: true,
         message: 'Daemon restarted successfully'
@@ -612,22 +722,28 @@ export class SchedulingService {
   /**
    * Uninstall daemon and clean up all related files
    */
-  static async uninstallDaemon(options: {
-    configPath?: string;
-    stateFilePath?: string;
-    removeExecutable?: boolean;
-    force?: boolean;
-  } = {}): Promise<{ success: boolean; message: string; removedFiles: string[] }> {
+  static async uninstallDaemon(
+    options: {
+      configPath?: string;
+      stateFilePath?: string;
+      removeExecutable?: boolean;
+      force?: boolean;
+    } = {}
+  ): Promise<{ success: boolean; message: string; removedFiles: string[] }> {
     const removedFiles: string[] = [];
     const messages: string[] = [];
-    
+
     try {
       // Stop daemon if running
       console.log('🛑 Stopping daemon...');
       const stopResult = await this.stopDaemon();
       if (stopResult.success) {
         messages.push('Daemon stopped successfully');
-      } else if (!stopResult.message.includes('not running') && !stopResult.message.includes('not found') && !stopResult.message.includes('may not be running')) {
+      } else if (
+        !stopResult.message.includes('not running') &&
+        !stopResult.message.includes('not found') &&
+        !stopResult.message.includes('may not be running')
+      ) {
         if (!options.force) {
           return {
             success: false,
@@ -671,7 +787,10 @@ export class SchedulingService {
       if (options.removeExecutable && options.force) {
         try {
           const executablePath = process.argv[0];
-          if (fs.existsSync(executablePath) && path.basename(executablePath).includes('eai-security-check')) {
+          if (
+            fs.existsSync(executablePath) &&
+            path.basename(executablePath).includes('eai-security-check')
+          ) {
             fs.unlinkSync(executablePath);
             removedFiles.push(executablePath);
             messages.push('Removed executable file');
@@ -688,7 +807,6 @@ export class SchedulingService {
         message: messages.join('\n'),
         removedFiles
       };
-
     } catch (error) {
       return {
         success: false,

@@ -1,4 +1,4 @@
-import { VersionUtils } from '../version-utils';
+import { VersionUtils } from './version-utils';
 import * as fs from 'fs';
 import * as path from 'path';
 
