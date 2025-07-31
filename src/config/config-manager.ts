@@ -16,102 +16,57 @@ export class ConfigManager {
   private static readonly APP_NAME = 'eai-security-check';
 
   /**
-   * Get the centralized configuration directory (platform-appropriate location)
-   * This follows OS conventions for application data storage
+   * Get the actual executable path, resolving symlinks
+   */
+  static getActualExecutablePath(): string {
+    const executablePath = process.execPath;
+
+    try {
+      // Check if it's a symlink and resolve it
+      const stats = fs.lstatSync(executablePath);
+      if (stats && stats.isSymbolicLink()) {
+        let resolvedPath = fs.readlinkSync(executablePath);
+        // If it's a relative symlink, resolve it relative to the symlink directory
+        if (!path.isAbsolute(resolvedPath)) {
+          resolvedPath = path.resolve(path.dirname(executablePath), resolvedPath);
+        }
+        return resolvedPath;
+      }
+    } catch (error) {
+      // If we can't resolve symlink, fall back to original path
+      console.warn('Warning: Could not resolve symlink:', error);
+    }
+
+    return executablePath;
+  }
+
+  /**
+   * Get the directory where the actual executable is located
+   */
+  static getExecutableDirectory(): string {
+    return path.dirname(this.getActualExecutablePath());
+  }
+
+  /**
+   * Get the centralized configuration directory (executable-relative)
+   * All application data is stored alongside the executable
    */
   static getCentralizedConfigDirectory(): string {
-    const platform = os.platform();
-    const homeDir = os.homedir();
-
-    switch (platform) {
-      case 'darwin': // macOS
-        return path.join(homeDir, 'Library', 'Application Support', this.APP_NAME);
-      case 'linux': {
-        // Use XDG_CONFIG_HOME if set, otherwise ~/.config
-        const xdgConfigHome = process.env.XDG_CONFIG_HOME;
-        if (xdgConfigHome) {
-          return path.join(xdgConfigHome, this.APP_NAME);
-        }
-        return path.join(homeDir, '.config', this.APP_NAME);
-      }
-      case 'win32': {
-        // Windows
-        const appData = process.env.APPDATA;
-        if (appData) {
-          return path.join(appData, this.APP_NAME);
-        }
-        return path.join(homeDir, 'AppData', 'Roaming', this.APP_NAME);
-      }
-      default:
-        // Fallback to a hidden directory in home
-        return path.join(homeDir, `.${this.APP_NAME}`);
-    }
+    return path.join(this.getExecutableDirectory(), 'config');
   }
 
   /**
-   * Get the centralized reports directory (platform-appropriate location)
-   * This follows OS conventions for application data storage
+   * Get the centralized reports directory (executable-relative)
    */
   static getCentralizedReportsDirectory(): string {
-    const platform = os.platform();
-    const homeDir = os.homedir();
-
-    switch (platform) {
-      case 'darwin': // macOS
-        return path.join(homeDir, 'Library', 'Application Support', this.APP_NAME, 'reports');
-      case 'linux': {
-        // Use XDG_CONFIG_HOME if set, otherwise ~/.config
-        const xdgConfigHome = process.env.XDG_CONFIG_HOME;
-        if (xdgConfigHome) {
-          return path.join(xdgConfigHome, this.APP_NAME, 'reports');
-        }
-        return path.join(homeDir, '.config', this.APP_NAME, 'reports');
-      }
-      case 'win32': {
-        // Windows
-        const appData = process.env.APPDATA;
-        if (appData) {
-          return path.join(appData, this.APP_NAME, 'reports');
-        }
-        return path.join(homeDir, 'AppData', 'Roaming', this.APP_NAME, 'reports');
-      }
-      default:
-        // Fallback to a hidden directory in home
-        return path.join(homeDir, `.${this.APP_NAME}`, 'reports');
-    }
+    return path.join(this.getExecutableDirectory(), 'reports');
   }
 
   /**
-   * Get the centralized logs directory (platform-appropriate location)
-   * This follows OS conventions for application data storage
+   * Get the centralized logs directory (executable-relative)
    */
   static getCentralizedLogsDirectory(): string {
-    const platform = os.platform();
-    const homeDir = os.homedir();
-
-    switch (platform) {
-      case 'darwin': // macOS
-        return path.join(homeDir, 'Library', 'Application Support', this.APP_NAME, 'logs');
-      case 'linux': {
-        // Use XDG_CONFIG_HOME if set, otherwise ~/.config
-        const xdgConfigHome = process.env.XDG_CONFIG_HOME;
-        if (xdgConfigHome) {
-          return path.join(xdgConfigHome, this.APP_NAME, 'logs');
-        }
-        return path.join(homeDir, '.config', this.APP_NAME, 'logs');
-      }
-      case 'win32': {
-        // Windows
-        const appData = process.env.APPDATA;
-        if (appData) {
-          return path.join(appData, this.APP_NAME, 'logs');
-        }
-        return path.join(homeDir, 'AppData', 'Roaming', this.APP_NAME, 'logs');
-      }
-      default:
-        // Fallback to a hidden directory in home
-        return path.join(homeDir, `.${this.APP_NAME}`, 'logs');
-    }
+    return path.join(this.getExecutableDirectory(), 'logs');
   }
 
   /**
@@ -142,38 +97,362 @@ export class ConfigManager {
   }
 
   /**
-   * Test and display the centralized file structure setup
+   * Install the application globally with symlinks
    */
+  static async installGlobally(): Promise<{
+    success: boolean;
+    message: string;
+    executablePath?: string;
+    symlinkPath?: string;
+  }> {
+    const platform = os.platform();
+    const executablePath = this.getActualExecutablePath();
+    const executableName = path.basename(executablePath);
+
+    // Determine the global installation paths
+    let targetDir: string;
+    let symlinkPath: string;
+
+    if (platform === 'win32') {
+      // Windows doesn't use symlinks, we'll copy to a standard location
+      targetDir = 'C:\\Program Files\\eai-security-check';
+      symlinkPath = path.join(targetDir, executableName);
+    } else {
+      // Unix-like systems
+      targetDir = '/usr/local/lib/eai-security-check';
+      symlinkPath = '/usr/local/bin/eai-security-check';
+    }
+
+    try {
+      const execAsync = promisify(exec);
+
+      // Check if we have necessary permissions
+      if (platform !== 'win32') {
+        try {
+          await execAsync('sudo -n true');
+        } catch {
+          return {
+            success: false,
+            message:
+              'This operation requires sudo privileges. Please run with elevated permissions or run: sudo eai-security-check install'
+          };
+        }
+      }
+
+      // Create target directory
+      if (!fs.existsSync(targetDir)) {
+        if (platform === 'win32') {
+          fs.mkdirSync(targetDir, { recursive: true });
+        } else {
+          await execAsync(`sudo mkdir -p "${targetDir}"`);
+        }
+      }
+
+      const targetPath = path.join(targetDir, executableName);
+
+      // Copy the executable to the target location
+      if (platform === 'win32') {
+        // Windows: copy the executable
+        fs.copyFileSync(executablePath, targetPath);
+        // Also copy any data directories if they exist
+        const execDir = this.getExecutableDirectory();
+        const configDir = path.join(execDir, 'config');
+        const reportsDir = path.join(execDir, 'reports');
+        const logsDir = path.join(execDir, 'logs');
+
+        if (fs.existsSync(configDir)) {
+          await this.copyDirectory(configDir, path.join(targetDir, 'config'));
+        }
+        if (fs.existsSync(reportsDir)) {
+          await this.copyDirectory(reportsDir, path.join(targetDir, 'reports'));
+        }
+        if (fs.existsSync(logsDir)) {
+          await this.copyDirectory(logsDir, path.join(targetDir, 'logs'));
+        }
+      } else {
+        // Unix: copy executable with sudo
+        await execAsync(`sudo cp "${executablePath}" "${targetPath}"`);
+        await execAsync(`sudo chmod +x "${targetPath}"`);
+
+        // Copy data directories if they exist
+        const execDir = this.getExecutableDirectory();
+        const configDir = path.join(execDir, 'config');
+        const reportsDir = path.join(execDir, 'reports');
+        const logsDir = path.join(execDir, 'logs');
+
+        if (fs.existsSync(configDir)) {
+          await execAsync(`sudo cp -r "${configDir}" "${targetDir}/"`);
+        }
+        if (fs.existsSync(reportsDir)) {
+          await execAsync(`sudo cp -r "${reportsDir}" "${targetDir}/"`);
+        }
+        if (fs.existsSync(logsDir)) {
+          await execAsync(`sudo cp -r "${logsDir}" "${targetDir}/"`);
+        }
+
+        // Create symlink in /usr/local/bin
+        if (fs.existsSync(symlinkPath)) {
+          await execAsync(`sudo rm "${symlinkPath}"`);
+        }
+        await execAsync(`sudo ln -s "${targetPath}" "${symlinkPath}"`);
+      }
+
+      return {
+        success: true,
+        message:
+          platform === 'win32'
+            ? `Successfully installed to ${targetPath}`
+            : `Successfully installed with symlink: ${symlinkPath} → ${targetPath}`,
+        executablePath: targetPath,
+        symlinkPath: platform === 'win32' ? undefined : symlinkPath
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Installation failed: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Uninstall the application globally
+   */
+  static async uninstallGlobally(cleanupData: boolean = false): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    const platform = os.platform();
+    const execAsync = promisify(exec);
+
+    let targetDir: string;
+    let symlinkPath: string;
+
+    if (platform === 'win32') {
+      targetDir = 'C:\\Program Files\\eai-security-check';
+      symlinkPath = path.join(targetDir, 'eai-security-check.exe');
+    } else {
+      targetDir = '/usr/local/lib/eai-security-check';
+      symlinkPath = '/usr/local/bin/eai-security-check';
+    }
+
+    try {
+      // Check permissions
+      if (platform !== 'win32') {
+        try {
+          await execAsync('sudo -n true');
+        } catch {
+          return {
+            success: false,
+            message:
+              'This operation requires sudo privileges. Please run with elevated permissions.'
+          };
+        }
+      }
+
+      const removedItems: string[] = [];
+
+      // Remove symlink (Unix only)
+      if (platform !== 'win32' && fs.existsSync(symlinkPath)) {
+        await execAsync(`sudo rm "${symlinkPath}"`);
+        removedItems.push(`symlink: ${symlinkPath}`);
+      }
+
+      // Remove installation directory
+      if (fs.existsSync(targetDir)) {
+        if (cleanupData) {
+          // Remove everything
+          if (platform === 'win32') {
+            fs.rmSync(targetDir, { recursive: true, force: true });
+          } else {
+            await execAsync(`sudo rm -rf "${targetDir}"`);
+          }
+          removedItems.push(`installation directory and all data: ${targetDir}`);
+        } else {
+          // Only remove the executable, keep data
+          const executableFiles = fs
+            .readdirSync(targetDir)
+            .filter(f => !['config', 'reports', 'logs'].includes(f));
+
+          for (const file of executableFiles) {
+            const filePath = path.join(targetDir, file);
+            if (platform === 'win32') {
+              fs.rmSync(filePath, { force: true });
+            } else {
+              await execAsync(`sudo rm -f "${path.join(targetDir, file)}"`);
+            }
+          }
+          removedItems.push(`executable files from: ${targetDir}`);
+          removedItems.push(`(kept configuration, reports, and logs)`);
+        }
+      }
+
+      return {
+        success: true,
+        message: `Successfully uninstalled: ${removedItems.join(', ')}`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Uninstallation failed: ${error}`
+      };
+    }
+  }
+
+  /**
+   * Helper method to copy directory recursively
+   */
+  private static async copyDirectory(src: string, dest: string): Promise<void> {
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest, { recursive: true });
+    }
+
+    const items = fs.readdirSync(src);
+
+    for (const item of items) {
+      const srcPath = path.join(src, item);
+      const destPath = path.join(dest, item);
+
+      const stat = fs.statSync(srcPath);
+      if (stat.isDirectory()) {
+        await this.copyDirectory(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
+
+  /**
+   * Update the application by downloading the latest version
+   */
+  static async updateApplication(): Promise<{
+    success: boolean;
+    message: string;
+    oldVersion?: string;
+    newVersion?: string;
+  }> {
+    const platform = os.platform();
+    const execAsync = promisify(exec);
+
+    try {
+      const currentVersion = this.getCurrentVersion();
+
+      // Determine the download URL based on platform
+      let downloadUrl: string;
+      let executableName: string;
+
+      const baseUrl = 'https://github.com/eaiti/eai_security_check/releases/latest/download';
+
+      switch (platform) {
+        case 'darwin':
+          downloadUrl = `${baseUrl}/eai-security-check-macos`;
+          executableName = 'eai-security-check-macos';
+          break;
+        case 'linux':
+          downloadUrl = `${baseUrl}/eai-security-check-linux`;
+          executableName = 'eai-security-check-linux';
+          break;
+        case 'win32':
+          downloadUrl = `${baseUrl}/eai-security-check-win.exe`;
+          executableName = 'eai-security-check-win.exe';
+          break;
+        default:
+          return {
+            success: false,
+            message: `Unsupported platform: ${platform}`
+          };
+      }
+
+      // Create temporary directory
+      const tempDir = path.join(os.tmpdir(), 'eai-security-check-update');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      const tempExecutable = path.join(tempDir, executableName);
+
+      // Download the new executable
+      const downloadCommand =
+        platform === 'win32'
+          ? `powershell -Command "Invoke-WebRequest -Uri '${downloadUrl}' -OutFile '${tempExecutable}'"`
+          : `curl -L -o "${tempExecutable}" "${downloadUrl}"`;
+
+      await execAsync(downloadCommand);
+
+      if (!fs.existsSync(tempExecutable)) {
+        return {
+          success: false,
+          message: 'Failed to download the new executable'
+        };
+      }
+
+      // Make executable (Unix only)
+      if (platform !== 'win32') {
+        await execAsync(`chmod +x "${tempExecutable}"`);
+      }
+
+      // Determine where to install the update
+      const currentPath = this.getActualExecutablePath();
+      const isGlobalInstall =
+        currentPath.includes('/usr/local/') || currentPath.includes('Program Files');
+
+      if (isGlobalInstall) {
+        // Update global installation
+        if (platform !== 'win32') {
+          try {
+            await execAsync('sudo -n true');
+          } catch {
+            return {
+              success: false,
+              message:
+                'Global update requires sudo privileges. Please run with elevated permissions.'
+            };
+          }
+          await execAsync(`sudo cp "${tempExecutable}" "${currentPath}"`);
+        } else {
+          fs.copyFileSync(tempExecutable, currentPath);
+        }
+      } else {
+        // Update local installation
+        fs.copyFileSync(tempExecutable, currentPath);
+      }
+
+      // Clean up temp file
+      fs.rmSync(tempExecutable, { force: true });
+      fs.rmSync(tempDir, { recursive: true, force: true });
+
+      // Update version tracking
+      this.updateTrackedVersion();
+
+      return {
+        success: true,
+        message: `Successfully updated from ${currentVersion} to latest version`,
+        oldVersion: currentVersion,
+        newVersion: 'latest'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Update failed: ${error}`
+      };
+    }
+  }
   static testCentralizedStructure(): {
     executablePath: string;
     resolvedPath: string;
+    executableDir: string;
     configDir: string;
     reportsDir: string;
     logsDir: string;
     isSymlink: boolean;
   } {
     const executablePath = process.execPath;
-    let resolvedPath = executablePath;
-    let isSymlink = false;
-
-    try {
-      // Check if it's a symlink and resolve it
-      const stats = fs.lstatSync(executablePath);
-      if (stats.isSymbolicLink()) {
-        isSymlink = true;
-        resolvedPath = fs.readlinkSync(executablePath);
-        // If it's a relative symlink, resolve it relative to the symlink directory
-        if (!path.isAbsolute(resolvedPath)) {
-          resolvedPath = path.resolve(path.dirname(process.execPath), resolvedPath);
-        }
-      }
-    } catch (error) {
-      console.warn('Warning: Could not check symlink status:', error);
-    }
+    const resolvedPath = this.getActualExecutablePath();
+    const isSymlink = executablePath !== resolvedPath;
 
     return {
       executablePath,
       resolvedPath,
+      executableDir: this.getExecutableDirectory(),
       configDir: this.getCentralizedConfigDirectory(),
       reportsDir: this.getCentralizedReportsDirectory(),
       logsDir: this.getCentralizedLogsDirectory(),

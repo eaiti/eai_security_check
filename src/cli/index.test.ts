@@ -238,6 +238,24 @@ describe('CLI Interactive Mode', () => {
       '/test/config/scheduling-config.json'
     );
 
+    // Add new mock methods for centralized file structure
+    mockConfigManager.installGlobally.mockResolvedValue({
+      success: true,
+      message: 'Successfully installed globally',
+      executablePath: '/usr/local/lib/eai-security-check/eai-security-check',
+      symlinkPath: '/usr/local/bin/eai-security-check'
+    });
+    mockConfigManager.uninstallGlobally.mockResolvedValue({
+      success: true,
+      message: 'Successfully uninstalled'
+    });
+    mockConfigManager.updateApplication.mockResolvedValue({
+      success: true,
+      message: 'Successfully updated',
+      oldVersion: '1.0.0',
+      newVersion: '1.1.0'
+    });
+
     // @ts-expect-error - Mock implementation complexity requires casting
     mockSecurityAuditor.mockImplementation(() => mockAuditorMethods as unknown as SecurityAuditor);
 
@@ -511,8 +529,7 @@ describe('CLI Interactive Mode', () => {
 
       await showGlobalMenu();
 
-      expect(mockConfigManager.getSystemStatus).toHaveBeenCalled();
-      expect(mockConfigManager.promptForGlobalInstall).toHaveBeenCalled();
+      expect(mockConfigManager.installGlobally).toHaveBeenCalled();
     });
 
     it('should handle global update', async () => {
@@ -523,7 +540,7 @@ describe('CLI Interactive Mode', () => {
 
       await showGlobalMenu();
 
-      expect(mockConfigManager.getSystemStatus).toHaveBeenCalled();
+      expect(mockConfigManager.updateApplication).toHaveBeenCalled();
     });
 
     it('should handle global removal', async () => {
@@ -531,40 +548,27 @@ describe('CLI Interactive Mode', () => {
         .mockResolvedValueOnce('3') // Remove global
         .mockResolvedValueOnce('back'); // Go back
       mockConfirm
+        .mockResolvedValueOnce(false) // Don't cleanup data
         .mockResolvedValueOnce(true) // Confirm removal
         .mockResolvedValueOnce(false); // Don't continue to menu
 
-      // Override for this test to show global install exists
-      mockConfigManager.getSystemStatus.mockResolvedValue({
-        globalInstall: {
-          exists: true,
-          isDifferentVersion: false,
-          globalVersion: '1.0.0',
-          currentVersion: '1.1.0'
-        },
-        config: {
-          configDirectory: '/test/config',
-          reportsDirectory: '/test/reports',
-          securityConfigExists: true,
-          securityConfigPath: '/test/config/security-config.json',
-          schedulingConfigExists: false,
-          schedulingConfigPath: '/test/config/scheduling-config.json'
-        },
-        daemon: {
-          isRunning: false,
-          needsUpdate: false,
-          daemonVersion: null,
-          currentVersion: '1.1.0'
-        }
+      // Mock the new uninstallGlobally method
+      mockConfigManager.uninstallGlobally.mockResolvedValue({
+        success: true,
+        message: 'Successfully uninstalled'
       });
 
       await showGlobalMenu();
 
       expect(mockConfirm).toHaveBeenCalledWith({
-        message: 'Are you sure?',
+        message: 'Do you also want to remove all configuration files and data?',
         default: false
       });
-      expect(mockConfigManager.removeGlobalInstall).toHaveBeenCalled();
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: 'Are you sure you want to uninstall (keeping configuration data)?',
+        default: false
+      });
+      expect(mockConfigManager.uninstallGlobally).toHaveBeenCalledWith(false);
     });
   });
 

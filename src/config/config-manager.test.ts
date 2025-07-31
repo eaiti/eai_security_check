@@ -20,10 +20,15 @@ jest.mock('readline', () => ({
 
 describe('ConfigManager', () => {
   const originalEnv = process.env;
+  const originalExecPath = process.execPath;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedOs.homedir.mockReturnValue('/home/testuser');
+    // Mock process.execPath to use a test executable path
+    Object.defineProperty(process, 'execPath', {
+      value: '/test/app/eai-security-check',
+      writable: true
+    });
     // Reset environment variables
     process.env = { ...originalEnv };
     delete process.env.XDG_CONFIG_HOME;
@@ -32,36 +37,35 @@ describe('ConfigManager', () => {
 
   afterEach(() => {
     process.env = originalEnv;
+    Object.defineProperty(process, 'execPath', {
+      value: originalExecPath,
+      writable: true
+    });
   });
 
   describe('configuration file paths', () => {
-    beforeEach(() => {
-      mockedOs.platform.mockReturnValue('linux');
-    });
-
     it('should return correct security config path', () => {
       const result = ConfigManager.getSecurityConfigPath();
-      expect(result).toBe('/home/testuser/.config/eai-security-check/security-config.json');
+      expect(result).toBe('/test/app/config/security-config.json');
     });
 
     it('should return correct scheduling config path', () => {
       const result = ConfigManager.getSchedulingConfigPath();
-      expect(result).toBe('/home/testuser/.config/eai-security-check/scheduling-config.json');
+      expect(result).toBe('/test/app/config/scheduling-config.json');
     });
 
     it('should return correct daemon state path', () => {
       const result = ConfigManager.getDaemonStatePath();
-      expect(result).toBe('/home/testuser/.config/eai-security-check/daemon-state.json');
+      expect(result).toBe('/test/app/config/daemon-state.json');
     });
   });
 
   describe('createSecurityConfig', () => {
     beforeEach(() => {
-      mockedOs.platform.mockReturnValue('linux');
       mockedFs.existsSync.mockImplementation(path => {
         // Config directory exists, config file doesn't
-        if (path === '/home/testuser/.config/eai-security-check') return true;
-        if (path === '/home/testuser/.config/eai-security-check/security-config.json') return false;
+        if (path === '/test/app/config') return true;
+        if (path === '/test/app/config/security-config.json') return false;
         return false;
       });
       mockedFs.mkdirSync.mockImplementation(() => undefined);
@@ -72,7 +76,7 @@ describe('ConfigManager', () => {
       ConfigManager.createSecurityConfig();
 
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/security-config.json',
+        '/test/app/config/security-config.json',
         expect.stringContaining('"diskEncryption"')
       );
     });
@@ -81,15 +85,15 @@ describe('ConfigManager', () => {
       ConfigManager.createSecurityConfig('strict');
 
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/security-config.json',
+        '/test/app/config/security-config.json',
         expect.stringContaining('"diskEncryption"')
       );
     });
 
     it('should throw error if config already exists', () => {
       mockedFs.existsSync.mockImplementation(path => {
-        if (path === '/home/testuser/.config/eai-security-check') return true;
-        if (path === '/home/testuser/.config/eai-security-check/security-config.json') return true;
+        if (path === '/test/app/config') return true;
+        if (path === '/test/app/config/security-config.json') return true;
         return false;
       });
 
@@ -104,7 +108,7 @@ describe('ConfigManager', () => {
       mockedOs.platform.mockReturnValue('linux');
       mockedFs.existsSync.mockImplementation(path => {
         // Config directory exists, config files don't
-        if (path === '/home/testuser/.config/eai-security-check') return true;
+        if (path === '/test/app/config') return true;
         return false;
       });
       mockedFs.mkdirSync.mockImplementation(() => undefined);
@@ -123,25 +127,25 @@ describe('ConfigManager', () => {
 
       // Should create main config file (default profile)
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/security-config.json',
+        '/test/app/config/security-config.json',
         expect.stringContaining('"diskEncryption"')
       );
 
       // Should create profile-specific config files
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/strict-config.json',
+        '/test/app/config/strict-config.json',
         expect.stringContaining('"diskEncryption"')
       );
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/relaxed-config.json',
+        '/test/app/config/relaxed-config.json',
         expect.stringContaining('"diskEncryption"')
       );
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/developer-config.json',
+        '/test/app/config/developer-config.json',
         expect.stringContaining('"diskEncryption"')
       );
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/eai-config.json',
+        '/test/app/config/eai-config.json',
         expect.stringContaining('"diskEncryption"')
       );
 
@@ -151,9 +155,9 @@ describe('ConfigManager', () => {
 
     it('should skip existing configs when force is false', () => {
       mockedFs.existsSync.mockImplementation(path => {
-        if (path === '/home/testuser/.config/eai-security-check') return true;
-        if (path === '/home/testuser/.config/eai-security-check/security-config.json') return true;
-        if (path === '/home/testuser/.config/eai-security-check/strict-config.json') return true;
+        if (path === '/test/app/config') return true;
+        if (path === '/test/app/config/security-config.json') return true;
+        if (path === '/test/app/config/strict-config.json') return true;
         return false;
       });
 
@@ -161,25 +165,25 @@ describe('ConfigManager', () => {
 
       // Should skip existing files
       expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/security-config.json',
+        '/test/app/config/security-config.json',
         expect.anything()
       );
       expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/strict-config.json',
+        '/test/app/config/strict-config.json',
         expect.anything()
       );
 
       // Should still create non-existing files
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/relaxed-config.json',
+        '/test/app/config/relaxed-config.json',
         expect.stringContaining('"diskEncryption"')
       );
     });
 
     it('should overwrite existing configs when force is true', () => {
       mockedFs.existsSync.mockImplementation(path => {
-        if (path === '/home/testuser/.config/eai-security-check') return true;
-        if (path === '/home/testuser/.config/eai-security-check/security-config.json') return true;
+        if (path === '/test/app/config') return true;
+        if (path === '/test/app/config/security-config.json') return true;
         return false;
       });
 
@@ -187,7 +191,7 @@ describe('ConfigManager', () => {
 
       // Should overwrite existing file
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/security-config.json',
+        '/test/app/config/security-config.json',
         expect.stringContaining('"diskEncryption"')
       );
 
@@ -208,9 +212,7 @@ describe('ConfigManager', () => {
       const result = ConfigManager.hasSecurityConfig();
 
       expect(result).toBe(true);
-      expect(mockedFs.existsSync).toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/security-config.json'
-      );
+      expect(mockedFs.existsSync).toHaveBeenCalledWith('/test/app/config/security-config.json');
     });
 
     it('should return false if security config does not exist', () => {
@@ -237,7 +239,7 @@ describe('ConfigManager', () => {
 
       expect(result).toEqual(mockConfig);
       expect(mockedFs.readFileSync).toHaveBeenCalledWith(
-        '/home/testuser/.config/eai-security-check/security-config.json',
+        '/test/app/config/security-config.json',
         'utf-8'
       );
     });
@@ -268,21 +270,20 @@ describe('ConfigManager', () => {
 
     it('should return complete config status', () => {
       mockedFs.existsSync.mockImplementation(path => {
-        if (path === '/home/testuser/.config/eai-security-check/security-config.json') return true;
-        if (path === '/home/testuser/.config/eai-security-check/scheduling-config.json')
-          return false;
+        if (path === '/test/app/config/security-config.json') return true;
+        if (path === '/test/app/config/scheduling-config.json') return false;
         return false;
       });
 
       const result = ConfigManager.getConfigStatus();
 
       expect(result).toEqual({
-        configDirectory: '/home/testuser/.config/eai-security-check',
-        reportsDirectory: '/home/testuser/.config/eai-security-check/reports',
+        configDirectory: '/test/app/config',
+        reportsDirectory: '/test/app/reports',
         securityConfigExists: true,
         schedulingConfigExists: false,
-        securityConfigPath: '/home/testuser/.config/eai-security-check/security-config.json',
-        schedulingConfigPath: '/home/testuser/.config/eai-security-check/scheduling-config.json'
+        securityConfigPath: '/test/app/config/security-config.json',
+        schedulingConfigPath: '/test/app/config/scheduling-config.json'
       });
     });
   });
