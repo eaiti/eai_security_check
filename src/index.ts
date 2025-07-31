@@ -430,14 +430,10 @@ Security Profiles:
 program
   .command('init')
   .description('🏠 Initialize EAI Security Check configuration directory and files')
-  .option('-p, --profile <type>', 'Security profile: default, strict, relaxed, developer, eai', 'default')
-  .option('--daemon', 'Also setup daemon configuration interactively')
   .option('--force', 'Overwrite existing configuration files')
   .addHelpText('after', `
 Examples:
-  $ eai-security-check init                           # Create config directory and default security config
-  $ eai-security-check init --daemon                 # Setup both security and daemon configs
-  $ eai-security-check init -p strict --daemon       # Use strict profile and setup daemon
+  $ eai-security-check init                           # Create config directory and all security profiles
   $ eai-security-check init --force                  # Overwrite existing configs
 
 Configuration Directory:
@@ -447,16 +443,21 @@ Configuration Directory:
   - Windows: %APPDATA%/eai-security-check/
 
 This directory will contain:
-  - security-config.json: Security check requirements
-  - scheduling-config.json: Daemon scheduling and email settings (if --daemon used)
+  - security-config.json: Default security check requirements
+  - default-config.json, strict-config.json, relaxed-config.json, developer-config.json, eai-config.json: Profile-specific configs
+  - scheduling-config.json: Daemon scheduling and email settings (if daemon setup is chosen)
   - daemon-state.json: Daemon runtime state (created automatically)
 
-Security Profiles:
-  default     - Recommended security settings (7-min auto-lock)
+Security Profiles Created:
+  default     - Main config file - Recommended security settings (7-min auto-lock)
   strict      - Maximum security, minimal convenience (3-min auto-lock)
   relaxed     - Balanced security with convenience (15-min auto-lock)  
   developer   - Developer-friendly with remote access enabled
   eai         - EAI focused security (10+ char passwords, 180-day expiration)
+
+After running init, you can use any profile with:
+  $ eai-security-check check [profile]              # Use specific profile
+  $ eai-security-check check                        # Use default profile
 `)
   .action(async (options) => {
     try {
@@ -470,41 +471,23 @@ Security Profiles:
       ConfigManager.ensureConfigDirectory();
       console.log('✅ Configuration directory created\n');
 
-      // Create security configuration
-      if (configStatus.securityConfigExists && !options.force) {
-        console.log(`⚠️  Security configuration already exists: ${configStatus.securityConfigPath}`);
-        console.log('💡 Use --force to overwrite existing configuration');
-      } else {
-        try {
-          if (configStatus.securityConfigExists && options.force) {
-            console.log('🔄 Overwriting existing security configuration...');
-          }
-          
-          // Remove existing file if force is used
-          if (options.force && configStatus.securityConfigExists) {
-            fs.unlinkSync(configStatus.securityConfigPath);
-          }
-          
-          ConfigManager.createSecurityConfig(options.profile);
-          console.log(`✅ Security configuration created: ${configStatus.securityConfigPath}`);
-          console.log(`📋 Profile: ${options.profile}\n`);
-        } catch (error) {
-          if (!options.force) {
-            console.error(`❌ Error creating security configuration: ${error}`);
-            process.exit(1);
-          }
-        }
-      }
+      // Create all security configurations
+      console.log('📋 Creating security configurations for all profiles...');
+      ConfigManager.createAllSecurityConfigs(options.force);
+      console.log('');
 
-      // Setup daemon configuration if requested
-      if (options.daemon) {
-        if (configStatus.schedulingConfigExists && !options.force) {
-          console.log(`⚠️  Daemon configuration already exists: ${configStatus.schedulingConfigPath}`);
+      // Ask user if they want daemon setup
+      const wantsDaemon = await ConfigManager.promptForDaemonSetup();
+      
+      if (wantsDaemon) {
+        const finalStatus = ConfigManager.getConfigStatus();
+        if (finalStatus.schedulingConfigExists && !options.force) {
+          console.log(`⚠️  Daemon configuration already exists: ${finalStatus.schedulingConfigPath}`);
           console.log('💡 Use --force to overwrite existing configuration');
         } else {
           try {
-            if (configStatus.schedulingConfigExists && options.force) {
-              fs.unlinkSync(configStatus.schedulingConfigPath);
+            if (finalStatus.schedulingConfigExists && options.force) {
+              fs.unlinkSync(finalStatus.schedulingConfigPath);
             }
             
             await ConfigManager.createSchedulingConfigInteractive();
@@ -519,16 +502,26 @@ Security Profiles:
       console.log('\n📊 Configuration Summary:');
       const finalStatus = ConfigManager.getConfigStatus();
       console.log(`  Config Directory: ${finalStatus.configDirectory}`);
-      console.log(`  Security Config: ${finalStatus.securityConfigExists ? '✅' : '❌'} ${finalStatus.securityConfigPath}`);
+      console.log(`  Security Config (default): ${finalStatus.securityConfigExists ? '✅' : '❌'} ${finalStatus.securityConfigPath}`);
+      
+      // Show profile-specific configs
+      const profiles = ['strict', 'relaxed', 'developer', 'eai'];
+      for (const profile of profiles) {
+        const profilePath = path.join(finalStatus.configDirectory, `${profile}-config.json`);
+        const exists = fs.existsSync(profilePath);
+        console.log(`  Security Config (${profile}): ${exists ? '✅' : '❌'} ${profilePath}`);
+      }
+      
       console.log(`  Daemon Config: ${finalStatus.schedulingConfigExists ? '✅' : '❌'} ${finalStatus.schedulingConfigPath}`);
 
       console.log('\n🎯 Next Steps:');
       console.log('  1. Run security audit: eai-security-check check');
+      console.log('  2. Try different profiles: eai-security-check check strict');
       if (finalStatus.schedulingConfigExists) {
-        console.log('  2. Start daemon: eai-security-check daemon');
-        console.log('  3. Check daemon status: eai-security-check daemon --status');
+        console.log('  3. Start daemon: eai-security-check daemon');
+        console.log('  4. Check daemon status: eai-security-check daemon --status');
       } else {
-        console.log('  2. Setup daemon: eai-security-check init --daemon');
+        console.log('  3. Setup daemon later: eai-security-check init (choose yes for daemon setup)');
       }
 
     } catch (error) {
@@ -623,7 +616,7 @@ Examples:
 
 Setup:
   Before using daemon mode, initialize your configuration:
-  $ eai-security-check init --daemon                      # Interactive setup
+  $ eai-security-check init                            # Interactive setup (choose daemon when prompted)
 
 Daemon Control:
   $ eai-security-check daemon --stop                      # Stop running daemon
@@ -726,7 +719,7 @@ Service Setup:
       if (!fs.existsSync(configPath)) {
         console.error(`❌ Scheduling configuration not found: ${configPath}`);
         console.log('💡 Initialize daemon configuration first:');
-        console.log('   eai-security-check init --daemon');
+        console.log('   eai-security-check init (choose yes for daemon setup)');
         process.exit(1);
       }
 

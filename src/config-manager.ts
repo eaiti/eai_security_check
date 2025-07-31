@@ -90,6 +90,47 @@ export class ConfigManager {
   }
 
   /**
+   * Create all security profile configuration files
+   */
+  static createAllSecurityConfigs(force: boolean = false): void {
+    const configDir = this.ensureConfigDirectory();
+    const profiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
+    const createdProfiles: string[] = [];
+    const skippedProfiles: string[] = [];
+
+    // Create main security config (default profile)
+    const mainConfigPath = this.getSecurityConfigPath();
+    if (!fs.existsSync(mainConfigPath) || force) {
+      const defaultConfig = getConfigByProfile('default');
+      fs.writeFileSync(mainConfigPath, JSON.stringify(defaultConfig, null, 2));
+      createdProfiles.push('default (main)');
+    } else {
+      skippedProfiles.push('default (main)');
+    }
+
+    // Create profile-specific config files
+    for (const profile of profiles) {
+      if (profile === 'default') continue; // Already handled above
+
+      const profileConfigPath = path.join(configDir, `${profile}-config.json`);
+      if (!fs.existsSync(profileConfigPath) || force) {
+        const config = getConfigByProfile(profile);
+        fs.writeFileSync(profileConfigPath, JSON.stringify(config, null, 2));
+        createdProfiles.push(profile);
+      } else {
+        skippedProfiles.push(profile);
+      }
+    }
+
+    if (createdProfiles.length > 0) {
+      console.log(`✅ Created security configs: ${createdProfiles.join(', ')}`);
+    }
+    if (skippedProfiles.length > 0) {
+      console.log(`⚠️  Skipped existing configs: ${skippedProfiles.join(', ')}`);
+    }
+  }
+
+  /**
    * Create a scheduling configuration file with interactive prompts
    */
   static async createSchedulingConfigInteractive(): Promise<void> {
@@ -165,6 +206,27 @@ export class ConfigManager {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
       console.log(`\n✅ Scheduling configuration created: ${configPath}`);
       
+    } finally {
+      rl.close();
+    }
+  }
+
+  /**
+   * Ask user if they want to setup daemon configuration
+   */
+  static async promptForDaemonSetup(): Promise<boolean> {
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    try {
+      const answer = await new Promise<string>((resolve) => {
+        rl.question('\n🤖 Would you like to set up automated scheduling (daemon)? (y/N): ', resolve);
+      });
+
+      return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
     } finally {
       rl.close();
     }

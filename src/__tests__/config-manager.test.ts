@@ -159,6 +159,103 @@ describe('ConfigManager', () => {
     });
   });
 
+  describe('createAllSecurityConfigs', () => {
+    beforeEach(() => {
+      mockedOs.platform.mockReturnValue('linux');
+      mockedFs.existsSync.mockImplementation(path => {
+        // Config directory exists, config files don't
+        if (path === '/home/testuser/.config/eai-security-check') return true;
+        return false;
+      });
+      mockedFs.mkdirSync.mockImplementation(() => undefined);
+      mockedFs.writeFileSync.mockImplementation(() => {});
+      
+      // Mock console.log to avoid test output
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should create all security profile configs', () => {
+      ConfigManager.createAllSecurityConfigs();
+
+      // Should create main config file (default profile)
+      expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
+        '/home/testuser/.config/eai-security-check/security-config.json',
+        expect.stringContaining('"diskEncryption"')
+      );
+
+      // Should create profile-specific config files
+      expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
+        '/home/testuser/.config/eai-security-check/strict-config.json',
+        expect.stringContaining('"diskEncryption"')
+      );
+      expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
+        '/home/testuser/.config/eai-security-check/relaxed-config.json',
+        expect.stringContaining('"diskEncryption"')
+      );
+      expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
+        '/home/testuser/.config/eai-security-check/developer-config.json',
+        expect.stringContaining('"diskEncryption"')
+      );
+      expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
+        '/home/testuser/.config/eai-security-check/eai-config.json',
+        expect.stringContaining('"diskEncryption"')
+      );
+
+      // Should create 5 files total (main + 4 profiles)
+      expect(mockedFs.writeFileSync).toHaveBeenCalledTimes(5);
+    });
+
+    it('should skip existing configs when force is false', () => {
+      mockedFs.existsSync.mockImplementation(path => {
+        if (path === '/home/testuser/.config/eai-security-check') return true;
+        if (path === '/home/testuser/.config/eai-security-check/security-config.json') return true;
+        if (path === '/home/testuser/.config/eai-security-check/strict-config.json') return true;
+        return false;
+      });
+
+      ConfigManager.createAllSecurityConfigs(false);
+
+      // Should skip existing files
+      expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
+        '/home/testuser/.config/eai-security-check/security-config.json',
+        expect.anything()
+      );
+      expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
+        '/home/testuser/.config/eai-security-check/strict-config.json',
+        expect.anything()
+      );
+
+      // Should still create non-existing files
+      expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
+        '/home/testuser/.config/eai-security-check/relaxed-config.json',
+        expect.stringContaining('"diskEncryption"')
+      );
+    });
+
+    it('should overwrite existing configs when force is true', () => {
+      mockedFs.existsSync.mockImplementation(path => {
+        if (path === '/home/testuser/.config/eai-security-check') return true;
+        if (path === '/home/testuser/.config/eai-security-check/security-config.json') return true;
+        return false;
+      });
+
+      ConfigManager.createAllSecurityConfigs(true);
+
+      // Should overwrite existing file
+      expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
+        '/home/testuser/.config/eai-security-check/security-config.json',
+        expect.stringContaining('"diskEncryption"')
+      );
+      
+      // Should create all files
+      expect(mockedFs.writeFileSync).toHaveBeenCalledTimes(5);
+    });
+  });
+
   describe('hasSecurityConfig', () => {
     beforeEach(() => {
       mockedOs.platform.mockReturnValue('linux');
