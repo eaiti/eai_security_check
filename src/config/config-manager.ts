@@ -16,43 +16,10 @@ export class ConfigManager {
   private static readonly APP_NAME = 'eai-security-check';
 
   /**
-   * Get the centralized configuration directory (alongside executable)
-   * This centralizes all app data in one location for easier management
+   * Get the centralized configuration directory (platform-appropriate location)
+   * This follows OS conventions for application data storage
    */
   static getCentralizedConfigDirectory(): string {
-    // Get the directory where the actual executable is located (resolve symlinks)
-    let executablePath = process.execPath;
-
-    try {
-      // Resolve symlinks to get the actual executable path
-      const stats = fs.lstatSync(executablePath);
-      if (stats.isSymbolicLink()) {
-        executablePath = fs.readlinkSync(executablePath);
-        // If it's a relative symlink, resolve it relative to the symlink directory
-        if (!path.isAbsolute(executablePath)) {
-          executablePath = path.resolve(path.dirname(process.execPath), executablePath);
-        }
-      }
-    } catch (error) {
-      // If we can't resolve the symlink, use the original path
-      console.warn('Warning: Could not resolve symlink for executable path:', error);
-    }
-
-    const executableDir = path.dirname(executablePath);
-
-    // For development/node execution, use current working directory + bin
-    if (process.execPath.includes('node')) {
-      return path.join(process.cwd(), 'bin', 'config');
-    }
-
-    // For compiled executable, use actual executable directory + config
-    return path.join(executableDir, 'config');
-  }
-
-  /**
-   * Get the OS-appropriate configuration directory (legacy support)
-   */
-  static getConfigDirectory(): string {
     const platform = os.platform();
     const homeDir = os.homedir();
 
@@ -82,51 +49,82 @@ export class ConfigManager {
   }
 
   /**
-   * Get the centralized reports directory (alongside executable)
+   * Get the centralized reports directory (platform-appropriate location)
+   * This follows OS conventions for application data storage
    */
   static getCentralizedReportsDirectory(): string {
-    // Get the directory where the actual executable is located (resolve symlinks)
-    let executablePath = process.execPath;
+    const platform = os.platform();
+    const homeDir = os.homedir();
 
-    try {
-      // Resolve symlinks to get the actual executable path
-      const stats = fs.lstatSync(executablePath);
-      if (stats.isSymbolicLink()) {
-        executablePath = fs.readlinkSync(executablePath);
-        // If it's a relative symlink, resolve it relative to the symlink directory
-        if (!path.isAbsolute(executablePath)) {
-          executablePath = path.resolve(path.dirname(process.execPath), executablePath);
+    switch (platform) {
+      case 'darwin': // macOS
+        return path.join(homeDir, 'Library', 'Application Support', this.APP_NAME, 'reports');
+      case 'linux': {
+        // Use XDG_CONFIG_HOME if set, otherwise ~/.config
+        const xdgConfigHome = process.env.XDG_CONFIG_HOME;
+        if (xdgConfigHome) {
+          return path.join(xdgConfigHome, this.APP_NAME, 'reports');
         }
+        return path.join(homeDir, '.config', this.APP_NAME, 'reports');
       }
-    } catch (error) {
-      // If we can't resolve the symlink, use the original path
-      console.warn('Warning: Could not resolve symlink for executable path:', error);
+      case 'win32': {
+        // Windows
+        const appData = process.env.APPDATA;
+        if (appData) {
+          return path.join(appData, this.APP_NAME, 'reports');
+        }
+        return path.join(homeDir, 'AppData', 'Roaming', this.APP_NAME, 'reports');
+      }
+      default:
+        // Fallback to a hidden directory in home
+        return path.join(homeDir, `.${this.APP_NAME}`, 'reports');
     }
-
-    const executableDir = path.dirname(executablePath);
-
-    // For development/node execution, use current working directory + bin
-    if (process.execPath.includes('node')) {
-      return path.join(process.cwd(), 'bin', 'reports');
-    }
-
-    // For compiled executable, use actual executable directory + reports
-    return path.join(executableDir, 'reports');
   }
 
   /**
-   * Get the OS-appropriate reports directory (within config directory) - legacy support
+   * Get the centralized logs directory (platform-appropriate location)
+   * This follows OS conventions for application data storage
    */
-  static getReportsDirectory(): string {
-    return path.join(this.getConfigDirectory(), 'reports');
+  static getCentralizedLogsDirectory(): string {
+    const platform = os.platform();
+    const homeDir = os.homedir();
+
+    switch (platform) {
+      case 'darwin': // macOS
+        return path.join(homeDir, 'Library', 'Application Support', this.APP_NAME, 'logs');
+      case 'linux': {
+        // Use XDG_CONFIG_HOME if set, otherwise ~/.config
+        const xdgConfigHome = process.env.XDG_CONFIG_HOME;
+        if (xdgConfigHome) {
+          return path.join(xdgConfigHome, this.APP_NAME, 'logs');
+        }
+        return path.join(homeDir, '.config', this.APP_NAME, 'logs');
+      }
+      case 'win32': {
+        // Windows
+        const appData = process.env.APPDATA;
+        if (appData) {
+          return path.join(appData, this.APP_NAME, 'logs');
+        }
+        return path.join(homeDir, 'AppData', 'Roaming', this.APP_NAME, 'logs');
+      }
+      default:
+        // Fallback to a hidden directory in home
+        return path.join(homeDir, `.${this.APP_NAME}`, 'logs');
+    }
   }
 
   /**
    * Create the centralized configuration and reports directories if they don't exist
    */
-  static ensureCentralizedDirectories(): { configDir: string; reportsDir: string } {
+  static ensureCentralizedDirectories(): {
+    configDir: string;
+    reportsDir: string;
+    logsDir: string;
+  } {
     const configDir = this.getCentralizedConfigDirectory();
     const reportsDir = this.getCentralizedReportsDirectory();
+    const logsDir = this.getCentralizedLogsDirectory();
 
     if (!fs.existsSync(configDir)) {
       fs.mkdirSync(configDir, { recursive: true });
@@ -136,7 +134,11 @@ export class ConfigManager {
       fs.mkdirSync(reportsDir, { recursive: true });
     }
 
-    return { configDir, reportsDir };
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+
+    return { configDir, reportsDir, logsDir };
   }
 
   /**
@@ -169,29 +171,14 @@ export class ConfigManager {
       console.warn('Warning: Could not check symlink status:', error);
     }
 
-    const actualExecutableDir = path.dirname(resolvedPath);
-
     return {
       executablePath,
       resolvedPath,
       configDir: this.getCentralizedConfigDirectory(),
       reportsDir: this.getCentralizedReportsDirectory(),
-      logsDir: path.join(actualExecutableDir, 'logs'),
+      logsDir: this.getCentralizedLogsDirectory(),
       isSymlink
     };
-  }
-
-  /**
-   * Create the configuration directory if it doesn't exist
-   */
-  static ensureConfigDirectory(): string {
-    const configDir = this.getConfigDirectory();
-
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true });
-    }
-
-    return configDir;
   }
 
   /**
@@ -209,31 +196,35 @@ export class ConfigManager {
   }
 
   /**
-   * Get the path to the default security configuration file (legacy support)
+   * Get the path to the default security configuration file (centralized)
    */
   static getSecurityConfigPath(): string {
-    return path.join(this.getConfigDirectory(), 'security-config.json');
+    const { configDir } = this.ensureCentralizedDirectories();
+    return path.join(configDir, 'security-config.json');
   }
 
   /**
-   * Get the path to the scheduling configuration file (legacy support)
+   * Get the path to the scheduling configuration file (centralized)
    */
   static getSchedulingConfigPath(): string {
-    return path.join(this.getConfigDirectory(), 'scheduling-config.json');
+    const { configDir } = this.ensureCentralizedDirectories();
+    return path.join(configDir, 'scheduling-config.json');
   }
 
   /**
-   * Get the path to the daemon state file
+   * Get the path to the daemon state file (centralized)
    */
   static getDaemonStatePath(): string {
-    return path.join(this.getConfigDirectory(), 'daemon-state.json');
+    const { configDir } = this.ensureCentralizedDirectories();
+    return path.join(configDir, 'daemon-state.json');
   }
 
   /**
-   * Get the path to the version tracking file
+   * Get the path to the version tracking file (centralized)
    */
   static getVersionFilePath(): string {
-    return path.join(this.getConfigDirectory(), 'version.json');
+    const { configDir } = this.ensureCentralizedDirectories();
+    return path.join(configDir, 'version.json');
   }
 
   /**
@@ -284,7 +275,7 @@ export class ConfigManager {
    * Update the tracked version
    */
   static updateTrackedVersion(): void {
-    this.ensureConfigDirectory();
+    this.ensureCentralizedDirectories();
     const currentVersion = this.getCurrentVersion();
     const versionFile = this.getVersionFilePath();
 
@@ -435,7 +426,7 @@ export class ConfigManager {
    * Remove all configuration files
    */
   static resetAllConfigurations(): void {
-    const configDir = this.getConfigDirectory();
+    const { configDir } = this.ensureCentralizedDirectories();
 
     if (fs.existsSync(configDir)) {
       // Remove all files in config directory
@@ -461,7 +452,7 @@ export class ConfigManager {
    * Create a default security configuration file
    */
   static createSecurityConfig(profile: string = 'default'): void {
-    this.ensureConfigDirectory();
+    this.ensureCentralizedDirectories();
     const configPath = this.getSecurityConfigPath();
 
     if (fs.existsSync(configPath)) {
@@ -479,7 +470,7 @@ export class ConfigManager {
     force: boolean = false,
     defaultProfile: string = 'default'
   ): void {
-    const configDir = this.ensureConfigDirectory();
+    const { configDir } = this.ensureCentralizedDirectories();
     const profiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
     const createdProfiles: string[] = [];
     const skippedProfiles: string[] = [];
@@ -525,10 +516,10 @@ export class ConfigManager {
     console.log('🔧 Setting up daemon configuration...\n');
 
     // Show configuration and reports directories
-    const configDir = this.getConfigDirectory();
-    const reportsDir = this.getReportsDirectory();
+    const { configDir, reportsDir, logsDir } = this.ensureCentralizedDirectories();
     console.log(`📁 Configuration will be saved to: ${configDir}`);
-    console.log(`📄 Reports will be saved to: ${reportsDir}\n`);
+    console.log(`📄 Reports will be saved to: ${reportsDir}`);
+    console.log(`📋 Logs will be saved to: ${logsDir}\n`);
 
     // Get user identification
     const userId = await input({
@@ -742,7 +733,7 @@ export class ConfigManager {
       securityProfile: securityProfile
     };
 
-    this.ensureConfigDirectory();
+    this.ensureCentralizedDirectories();
     const configPath = this.getSchedulingConfigPath();
 
     if (fs.existsSync(configPath)) {
@@ -884,7 +875,7 @@ export class ConfigManager {
     platform: string;
   } {
     const platform = PlatformDetector.getSimplePlatform();
-    const configDir = this.getConfigDirectory();
+    const { configDir } = this.ensureCentralizedDirectories();
     const templatesCopied: string[] = [];
     const instructions: string[] = [];
 
@@ -1241,9 +1232,10 @@ export class ConfigManager {
     securityConfigPath: string;
     schedulingConfigPath: string;
   } {
+    const { configDir, reportsDir } = this.ensureCentralizedDirectories();
     return {
-      configDirectory: this.getConfigDirectory(),
-      reportsDirectory: this.getReportsDirectory(),
+      configDirectory: configDir,
+      reportsDirectory: reportsDir,
       securityConfigExists: this.hasSecurityConfig(),
       schedulingConfigExists: this.hasSchedulingConfig(),
       securityConfigPath: this.getSecurityConfigPath(),
@@ -1329,22 +1321,99 @@ export class ConfigManager {
     const platform = os.platform();
     const execAsync = promisify(exec);
 
+    console.log('🗑️  Removing global installation...');
+
+    // First, stop any running daemon
+    try {
+      await this.manageDaemon('stop');
+    } catch {
+      // Daemon might not be running, continue with removal
+    }
+
     switch (platform) {
       case 'darwin':
       case 'linux': {
         const targetPath = '/usr/local/bin/eai-security-check';
-        if (fs.existsSync(targetPath)) {
-          console.log('🗑️  Removing global installation...');
+        const { promptForPassword } = await import('../utils/password-utils');
 
-          const { promptForPassword } = await import('../utils/password-utils');
+        // Remove the symlink
+        if (fs.existsSync(targetPath)) {
           const password = await promptForPassword(
             'Enter your password to remove the global installation: '
           );
 
           await execAsync(`echo "${password}" | sudo -S rm "${targetPath}"`);
-          console.log('✅ Global installation removed');
+          console.log('✅ Removed global symlink');
         } else {
-          console.log('ℹ️  No global installation found');
+          console.log('ℹ️  No global symlink found');
+        }
+
+        // Ask if user wants to remove the actual executable and data
+        const removeData = await confirm({
+          message:
+            'Would you also like to remove the executable and all configuration data? (This cannot be undone)',
+          default: false
+        });
+
+        if (removeData) {
+          // Get the current executable path
+          let executablePath = process.execPath;
+          try {
+            // Resolve symlinks to get the actual executable path
+            const stats = fs.lstatSync(executablePath);
+            if (stats.isSymbolicLink()) {
+              executablePath = fs.readlinkSync(executablePath);
+              if (!path.isAbsolute(executablePath)) {
+                executablePath = path.resolve(path.dirname(process.execPath), executablePath);
+              }
+            }
+          } catch (error) {
+            console.warn('Warning: Could not resolve executable path:', error);
+          }
+
+          const executableDir = path.dirname(executablePath);
+          const executableName = path.basename(executablePath);
+
+          // Only remove if it looks like our executable
+          if (executableName.includes('eai-security-check')) {
+            console.log(`📁 Removing executable directory: ${executableDir}`);
+
+            // Remove the entire executable directory (includes config, reports, logs)
+            try {
+              fs.rmSync(executableDir, { recursive: true, force: true });
+              console.log('✅ Removed executable and all associated data');
+            } catch (error) {
+              console.error(`❌ Failed to remove executable directory: ${error}`);
+              console.log('💡 You may need to manually remove:');
+              console.log(`   ${executableDir}`);
+            }
+          } else {
+            console.log("⚠️  Executable doesn't appear to be ours, skipping removal for safety");
+
+            // Remove the OS-appropriate configuration and data directories
+            try {
+              const configDir = this.getCentralizedConfigDirectory();
+              const reportsDir = this.getCentralizedReportsDirectory();
+              const logsDir = this.getCentralizedLogsDirectory();
+
+              if (fs.existsSync(configDir)) {
+                fs.rmSync(configDir, { recursive: true, force: true });
+                console.log(`✅ Removed config directory: ${configDir}`);
+              }
+
+              if (fs.existsSync(reportsDir)) {
+                fs.rmSync(reportsDir, { recursive: true, force: true });
+                console.log(`✅ Removed reports directory: ${reportsDir}`);
+              }
+
+              if (fs.existsSync(logsDir)) {
+                fs.rmSync(logsDir, { recursive: true, force: true });
+                console.log(`✅ Removed logs directory: ${logsDir}`);
+              }
+            } catch (error) {
+              console.error(`❌ Failed to remove data directories: ${error}`);
+            }
+          }
         }
         break;
       }
@@ -1352,6 +1421,29 @@ export class ConfigManager {
         console.log('💡 Windows global installation removal requires manual action:');
         console.log('   - Remove from PATH environment variable');
         console.log('   - Or delete executable from installed location');
+
+        const removeData = await confirm({
+          message: 'Would you like to remove configuration data?',
+          default: false
+        });
+
+        if (removeData) {
+          try {
+            const { configDir, reportsDir } = this.ensureCentralizedDirectories();
+
+            if (fs.existsSync(configDir)) {
+              fs.rmSync(configDir, { recursive: true, force: true });
+              console.log(`✅ Removed config directory: ${configDir}`);
+            }
+
+            if (fs.existsSync(reportsDir)) {
+              fs.rmSync(reportsDir, { recursive: true, force: true });
+              console.log(`✅ Removed reports directory: ${reportsDir}`);
+            }
+          } catch (error) {
+            console.error(`❌ Failed to remove data directories: ${error}`);
+          }
+        }
         break;
       }
       default:
@@ -1458,14 +1550,12 @@ export class ConfigManager {
       const directories = this.ensureCentralizedDirectories();
       console.log(`✅ Created config directory: ${directories.configDir}`);
       console.log(`✅ Created reports directory: ${directories.reportsDir}`);
+      console.log(`✅ Created logs directory: ${directories.logsDir}`);
 
-      // Also create logs directory
-      const executableDir = path.dirname(executablePath);
-      const logsDir = path.join(executableDir, 'logs');
-      if (!fs.existsSync(logsDir)) {
-        fs.mkdirSync(logsDir, { recursive: true });
-        console.log(`✅ Created logs directory: ${logsDir}`);
-      }
+      // Create all default security configuration profiles
+      console.log('📝 Creating default security configuration profiles...');
+      this.createAllSecurityConfigs(false, 'default');
+      console.log('✅ Created all security configuration profiles');
     } catch (error) {
       console.log(`⚠️  Warning: Could not create centralized directories: ${error}`);
     }

@@ -2,6 +2,7 @@ import * as cron from 'node-cron';
 import * as nodemailer from 'nodemailer';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { SecurityAuditor } from './auditor';
@@ -154,105 +155,52 @@ export class SchedulingService {
       const content = fs.readFileSync(this.config.customConfigPath, 'utf-8');
       return JSON.parse(content);
     } else {
-      // Use profile-based config (reuse logic from index.ts)
+      // Use profile-based config from configuration files
       return this.getConfigByProfile(this.config.securityProfile);
     }
   }
 
   /**
-   * Generate security config by profile (copied from index.ts)
+   * Load security config by profile from configuration files
    */
   private getConfigByProfile(profile: string): SecurityConfig {
-    const baseConfig = {
-      filevault: { enabled: true },
-      packageVerification: { enabled: true },
-      systemIntegrityProtection: { enabled: true }
-    };
+    // Get the centralized config directory
+    const { configDir } = ConfigManager.ensureCentralizedDirectories();
 
-    switch (profile) {
-      case 'strict':
-        return {
-          ...baseConfig,
-          passwordProtection: {
-            enabled: true,
-            requirePasswordImmediately: true
-          },
-          password: {
-            required: false,
-            minLength: 8,
-            requireUppercase: false,
-            requireLowercase: false,
-            requireNumber: false,
-            requireSpecialChar: false,
-            maxAgeDays: 180
-          },
-          autoLock: { maxTimeoutMinutes: 3 },
-          firewall: { enabled: true, stealthMode: true },
-          remoteLogin: { enabled: false },
-          remoteManagement: { enabled: false },
-          automaticUpdates: { enabled: true, securityUpdatesOnly: true },
-          sharingServices: {
-            fileSharing: false,
-            screenSharing: false,
-            remoteLogin: false
-          }
-        };
+    // Try to load the profile-specific config file
+    let configPath: string;
+    if (profile === 'default') {
+      configPath = path.join(configDir, 'security-config.json');
+    } else {
+      configPath = path.join(configDir, `${profile}-config.json`);
+    }
 
-      case 'relaxed':
-        return {
-          ...baseConfig,
-          passwordProtection: {
-            enabled: true,
-            requirePasswordImmediately: false
-          },
-          password: {
-            required: false,
-            minLength: 8,
-            requireUppercase: false,
-            requireLowercase: false,
-            requireNumber: false,
-            requireSpecialChar: false,
-            maxAgeDays: 180
-          },
-          autoLock: { maxTimeoutMinutes: 15 },
-          firewall: { enabled: true, stealthMode: false },
-          remoteLogin: { enabled: false },
-          remoteManagement: { enabled: false },
-          automaticUpdates: { enabled: true },
-          sharingServices: {
-            fileSharing: false,
-            screenSharing: false,
-            remoteLogin: false
-          }
-        };
+    if (fs.existsSync(configPath)) {
+      try {
+        const content = fs.readFileSync(configPath, 'utf-8');
+        return JSON.parse(content);
+      } catch (error) {
+        console.error(`Failed to load config from ${configPath}:`, error);
+        throw new Error(`Failed to load security configuration for profile '${profile}': ${error}`);
+      }
+    } else {
+      // If the profile config doesn't exist, try to create all configs first
+      console.log(`Config file not found for profile '${profile}', creating default configs...`);
+      try {
+        ConfigManager.createAllSecurityConfigs(false, 'default');
 
-      default: // 'default' profile
-        return {
-          ...baseConfig,
-          passwordProtection: {
-            enabled: true,
-            requirePasswordImmediately: true
-          },
-          password: {
-            required: false,
-            minLength: 8,
-            requireUppercase: false,
-            requireLowercase: false,
-            requireNumber: false,
-            requireSpecialChar: false,
-            maxAgeDays: 180
-          },
-          autoLock: { maxTimeoutMinutes: 7 },
-          firewall: { enabled: true, stealthMode: true },
-          remoteLogin: { enabled: false },
-          remoteManagement: { enabled: false },
-          automaticUpdates: { enabled: true, securityUpdatesOnly: true },
-          sharingServices: {
-            fileSharing: false,
-            screenSharing: false,
-            remoteLogin: false
-          }
-        };
+        // Try to load again after creation
+        if (fs.existsSync(configPath)) {
+          const content = fs.readFileSync(configPath, 'utf-8');
+          return JSON.parse(content);
+        } else {
+          throw new Error(`Configuration file still not found after creation: ${configPath}`);
+        }
+      } catch (creationError) {
+        throw new Error(
+          `Failed to create security configuration for profile '${profile}': ${creationError}`
+        );
+      }
     }
   }
 
@@ -349,14 +297,8 @@ export class SchedulingService {
     reportMetadata: Record<string, unknown>
   ): Promise<void> {
     try {
-      // Create reports directory in the same config directory structure
-      const configDir = ConfigManager.getConfigDirectory();
-      const reportsDir = path.join(configDir, 'reports');
-
-      // Ensure directory exists
-      if (!fs.existsSync(reportsDir)) {
-        fs.mkdirSync(reportsDir, { recursive: true });
-      }
+      // Create reports directory in the centralized structure
+      const { reportsDir } = ConfigManager.ensureCentralizedDirectories();
 
       // Generate filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -477,12 +419,8 @@ export class SchedulingService {
     const status = overallPassed ? 'PASSED' : 'FAILED';
     const filename = `${userIdPrefix}security-report-${status}-${timestamp}.txt`;
 
-    // Create temporary file
-    const tempDir = path.join(__dirname, '../../tmp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
+    // Create temporary file in OS temp directory (pkg-compatible)
+    const tempDir = os.tmpdir();
     const tempFilePath = path.join(tempDir, filename);
 
     try {

@@ -13,84 +13,57 @@ import { OutputUtils, OutputFormat } from '../utils/output-utils';
 import { CryptoUtils } from '../utils/crypto-utils';
 import { PlatformDetector, Platform } from '../utils/platform-detector';
 import { SchedulingService } from '../services/scheduling-service';
-import { getConfigByProfile, isValidProfile, VALID_PROFILES } from '../config/config-profiles';
+import { isValidProfile, VALID_PROFILES } from '../config/config-profiles';
 import { ConfigManager } from '../config/config-manager';
 
 /**
- * Gets configuration by profile name, either from file or generated dynamically
+ * Gets configuration by profile name from centralized config files
  */
 function getConfigForProfile(profile: string): SecurityConfig | null {
   if (!isValidProfile(profile)) {
     return null;
   }
 
-  // Try to get from file first (for non-pkg environments)
-  const configPath = resolveProfileConfigPath(profile);
-  if (configPath && fs.existsSync(configPath)) {
-    try {
-      const configContent = fs.readFileSync(configPath, 'utf-8');
-      return JSON.parse(configContent);
-    } catch {
-      // If file read fails, fall back to generated config
-    }
-  }
+  // Get the centralized config directory
+  const { configDir } = ConfigManager.ensureCentralizedDirectories();
 
-  // Generate configuration dynamically based on profile
-  return getConfigByProfile(profile);
-}
-function resolveProfileConfigPath(profile: string): string | null {
-  if (!isValidProfile(profile)) {
-    return null;
-  }
-
-  // For 'default', use the main config file or generate on the fly
+  // Try to load the profile-specific config file
+  let configPath: string;
   if (profile === 'default') {
-    const defaultConfigPath = path.resolve('./security-config.json');
-    if (fs.existsSync(defaultConfigPath)) {
-      return defaultConfigPath;
-    }
-    // If no default config exists, we'll generate it dynamically
-    return null;
+    configPath = path.join(configDir, 'security-config.json');
+  } else {
+    configPath = path.join(configDir, `${profile}-config.json`);
   }
-
-  const configFileName = `${profile}-config.json`;
-
-  // Check if we're running in a pkg environment
-  const isPkg = typeof (process as unknown as { pkg?: unknown }).pkg !== 'undefined';
-
-  if (isPkg) {
-    // In pkg environment, check the snapshot filesystem first
-    const pkgPath = path.join(path.dirname(process.execPath), 'examples', configFileName);
-    if (fs.existsSync(pkgPath)) {
-      return pkgPath;
-    }
-
-    // Try the embedded path (pkg snapshot)
-    const snapshotPath = path.join(__dirname, '..', 'examples', configFileName);
-    if (fs.existsSync(snapshotPath)) {
-      return snapshotPath;
-    }
-  }
-
-  // For other profiles, try to find the examples directory
-  // First, try relative to the current script location
-  const scriptDir = path.dirname(__filename);
-  const examplesDir = path.join(scriptDir, '..', 'examples');
-  let configPath = path.join(examplesDir, configFileName);
 
   if (fs.existsSync(configPath)) {
-    return configPath;
+    try {
+      const content = fs.readFileSync(configPath, 'utf-8');
+      return JSON.parse(content);
+    } catch (error) {
+      console.error(`Failed to load config from ${configPath}:`, error);
+      return null;
+    }
+  } else {
+    // If the profile config doesn't exist, try to create all configs first
+    try {
+      ConfigManager.createAllSecurityConfigs(false, 'default');
+
+      // Try to load again after creation
+      if (fs.existsSync(configPath)) {
+        const content = fs.readFileSync(configPath, 'utf-8');
+        return JSON.parse(content);
+      } else {
+        console.error(`Configuration file not found after creation: ${configPath}`);
+        return null;
+      }
+    } catch (creationError) {
+      console.error(
+        `Failed to create security configuration for profile '${profile}':`,
+        creationError
+      );
+      return null;
+    }
   }
-
-  // If not found, try relative to the package root (for global installs)
-  const packageRoot = path.join(scriptDir, '..');
-  configPath = path.join(packageRoot, 'examples', configFileName);
-
-  if (fs.existsSync(configPath)) {
-    return configPath;
-  }
-
-  return null;
 }
 
 /**
@@ -138,7 +111,7 @@ async function attemptAutoServiceSetup(serviceSetup: {
   instructions: string[];
   platform: string;
 }): Promise<void> {
-  const configDir = ConfigManager.getConfigDirectory();
+  const { configDir } = ConfigManager.ensureCentralizedDirectories();
   const templatesDir = path.join(configDir, 'daemon-templates');
 
   try {
@@ -238,18 +211,14 @@ async function attemptMacOSServiceSetup(templatesDir: string): Promise<void> {
 async function runInteractiveMode(): Promise<void> {
   console.log('🎛️  Welcome to EAI Security Check Interactive Management!\n');
 
-  // Ensure configuration and reports directories exist on first run
-  ConfigManager.ensureConfigDirectory();
-  const reportsDir = ConfigManager.getReportsDirectory();
-  if (!fs.existsSync(reportsDir)) {
-    fs.mkdirSync(reportsDir, { recursive: true });
-  }
+  // Ensure centralized configuration and reports directories exist on first run
+  const directories = ConfigManager.ensureCentralizedDirectories();
 
   // Get current system status once
   const systemStatus = await ConfigManager.getSystemStatus();
 
   while (true) {
-    // Display current status
+    // Display current status with centralized directories
     console.log('📊 Current System Status:');
     console.log(`📦 Version: ${ConfigManager.getCurrentVersion()}`);
     console.log(
@@ -261,8 +230,8 @@ async function runInteractiveMode(): Promise<void> {
     console.log(
       `🔒 Security Config: ${systemStatus.config.securityConfigExists ? '✅ Found' : '❌ Missing'}`
     );
-    console.log(`📁 Config Directory: ${systemStatus.config.configDirectory}`);
-    console.log(`📄 Reports Directory: ${systemStatus.config.reportsDirectory}`);
+    console.log(`📁 Config Directory: ${directories.configDir}`);
+    console.log(`📄 Reports Directory: ${directories.reportsDir}`);
     console.log('');
 
     try {
@@ -781,10 +750,7 @@ async function runQuickSecurityCheck(): Promise<void> {
 
   // Save report to file
   try {
-    const reportsDir = ConfigManager.getReportsDirectory();
-    if (!fs.existsSync(reportsDir)) {
-      fs.mkdirSync(reportsDir, { recursive: true });
-    }
+    const { reportsDir } = ConfigManager.ensureCentralizedDirectories();
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `security-check-${timestamp}.txt`;
@@ -1846,7 +1812,7 @@ async function checkForUpdates(): Promise<void> {
 async function verifyLocalReports(): Promise<void> {
   console.log('🔍 Verify Local Reports\n');
 
-  const reportsDir = ConfigManager.getReportsDirectory();
+  const { reportsDir } = ConfigManager.ensureCentralizedDirectories();
 
   if (!fs.existsSync(reportsDir)) {
     console.log('❌ Reports directory not found:');
@@ -2209,7 +2175,11 @@ Security Profiles:
           configSource = `config file: ${localConfigPath}`;
         } else {
           // Generate default config if no file exists
-          config = getConfigByProfile('default');
+          const defaultConfig = getConfigForProfile('default');
+          if (!defaultConfig) {
+            throw new Error('Failed to load default configuration');
+          }
+          config = defaultConfig;
           configSource = 'default profile (generated)';
         }
       }
