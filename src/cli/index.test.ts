@@ -315,9 +315,7 @@ describe('CLI Interactive Mode', () => {
     });
 
     it('should handle view configuration status', async () => {
-      mockSelect
-        .mockResolvedValueOnce('2') // View status
-        .mockResolvedValueOnce('back'); // Go back
+      mockSelect.mockResolvedValueOnce('2'); // View status
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockConfigManager.getConfigStatus.mockReturnValue({
         configDirectory: '/test/config',
@@ -629,12 +627,14 @@ describe('CLI Interactive Mode', () => {
 
     it('should handle daemon automation setup', async () => {
       mockConfigManager.hasSchedulingConfig.mockReturnValue(false);
+      mockConfigManager.hasSecurityConfig.mockReturnValue(false); // Override to force security config setup
       mockConfigManager.promptForDaemonSetup.mockResolvedValue(true);
       mockConfigManager.copyDaemonServiceTemplates.mockReturnValue({
         templatesCopied: ['service.template'],
         instructions: ['Install instruction'],
         platform: 'Linux'
       });
+      mockConfirm.mockResolvedValue(false); // Don't auto setup
 
       await setupDaemonAutomation();
 
