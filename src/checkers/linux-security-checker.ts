@@ -46,7 +46,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
           'dmsetup ls --target crypt 2>/dev/null || echo ""'
         );
         return dmStdout.trim().length > 0;
-      } catch (error) {
+      } catch {
         return false;
       }
     } catch (error) {
@@ -73,7 +73,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
       try {
         const { stdout } = await execAsync('passwd -S $(whoami) 2>/dev/null || echo "unknown"');
         passwordEnabled = !stdout.includes('NP') && !stdout.includes('unknown'); // NP means no password
-      } catch (error) {
+      } catch {
         // Assume password is enabled if we can't determine
         passwordEnabled = true;
       }
@@ -89,7 +89,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
           requirePasswordImmediately = delay === 0;
           passwordRequiredAfterLock = true;
         }
-      } catch (gnomeError) {
+      } catch {
         // Try KDE settings
         try {
           const kdeConfigPath = `${process.env.HOME}/.config/kscreenlockerrc`;
@@ -97,7 +97,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
             const kdeConfig = fs.readFileSync(kdeConfigPath, 'utf-8');
             passwordRequiredAfterLock = !kdeConfig.includes('Autolock=false');
           }
-        } catch (kdeError) {
+        } catch {
           // Default to requiring password for screen lock
           passwordRequiredAfterLock = true;
         }
@@ -123,38 +123,33 @@ export class LinuxSecurityChecker implements ISecurityChecker {
    * Linux equivalent of macOS auto-lock
    */
   async checkAutoLockTimeout(): Promise<number> {
+    // GNOME screen timeout
     try {
-      // GNOME screen timeout
-      try {
-        const { stdout } = await execAsync(
-          'gsettings get org.gnome.desktop.session idle-delay 2>/dev/null'
-        );
-        const seconds = parseInt(stdout.replace(/[^0-9]/g, ''));
-        if (!isNaN(seconds)) {
-          return Math.round(seconds / 60); // Convert to minutes
-        }
-      } catch (gnomeError) {
-        // Try KDE settings
-        try {
-          const kdeConfigPath = `${process.env.HOME}/.config/kscreenlockerrc`;
-          if (fs.existsSync(kdeConfigPath)) {
-            const kdeConfig = fs.readFileSync(kdeConfigPath, 'utf-8');
-            const match = kdeConfig.match(/Timeout=(\d+)/);
-            if (match) {
-              return Math.round(parseInt(match[1]) / 60); // Convert to minutes
-            }
-          }
-        } catch (kdeError) {
-          // Default timeout
-        }
+      const { stdout } = await execAsync(
+        'gsettings get org.gnome.desktop.session idle-delay 2>/dev/null'
+      );
+      const seconds = parseInt(stdout.replace(/[^0-9]/g, ''));
+      if (!isNaN(seconds)) {
+        return Math.round(seconds / 60); // Convert to minutes
       }
-
-      // Default to 15 minutes if we can't determine
-      return 15;
-    } catch (error) {
-      console.error('Error checking auto-lock timeout:', error);
-      return 15;
+    } catch {
+      // Try KDE settings
+      try {
+        const kdeConfigPath = `${process.env.HOME}/.config/kscreenlockerrc`;
+        if (fs.existsSync(kdeConfigPath)) {
+          const kdeConfig = fs.readFileSync(kdeConfigPath, 'utf-8');
+          const match = kdeConfig.match(/Timeout=(\d+)/);
+          if (match) {
+            return Math.round(parseInt(match[1]) / 60); // Convert to minutes
+          }
+        }
+      } catch {
+        // Default timeout will be returned below
+      }
     }
+
+    // Default to 15 minutes if we can't determine
+    return 15;
   }
 
   /**
@@ -172,7 +167,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
         enabled = stdout.includes('Status: active');
         // Check for stealth mode (reject vs deny)
         stealthMode = stdout.includes('REJECT');
-      } catch (ufwError) {
+      } catch {
         // Check firewalld (Fedora/RHEL)
         try {
           const { stdout } = await execAsync('firewall-cmd --state 2>/dev/null');
@@ -189,7 +184,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
             );
             stealthMode = target.includes('DROP');
           }
-        } catch (firewalldError) {
+        } catch {
           // Check iptables directly
           try {
             const { stdout } = await this.execWithSudo(
@@ -197,7 +192,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
             );
             enabled = !stdout.includes('not-available') && stdout.includes('Chain');
             stealthMode = stdout.includes('DROP');
-          } catch (iptablesError) {
+          } catch {
             enabled = false;
           }
         }
@@ -215,48 +210,42 @@ export class LinuxSecurityChecker implements ISecurityChecker {
    * Linux equivalent of Gatekeeper
    */
   async checkPackageVerification(): Promise<boolean> {
-    try {
-      // Check based on package manager
+    // Check based on package manager
 
-      // DNF (Fedora)
+    // DNF (Fedora)
+    try {
+      const { stdout } = await execAsync(
+        'dnf config-manager --dump 2>/dev/null | grep gpgcheck || echo "not-found"'
+      );
+      if (!stdout.includes('not-found')) {
+        return stdout.includes('gpgcheck = 1') || stdout.includes('gpgcheck=1');
+      }
+    } catch {
+      // APT (Ubuntu/Debian)
       try {
         const { stdout } = await execAsync(
-          'dnf config-manager --dump 2>/dev/null | grep gpgcheck || echo "not-found"'
+          'apt-config dump | grep -i gpg 2>/dev/null || echo "not-found"'
         );
         if (!stdout.includes('not-found')) {
-          return stdout.includes('gpgcheck = 1') || stdout.includes('gpgcheck=1');
+          // APT generally has GPG verification enabled by default
+          return true;
         }
-      } catch (dnfError) {
-        // APT (Ubuntu/Debian)
+      } catch {
+        // YUM (older RHEL/CentOS)
         try {
-          const { stdout } = await execAsync(
-            'apt-config dump | grep -i gpg 2>/dev/null || echo "not-found"'
-          );
-          if (!stdout.includes('not-found')) {
-            // APT generally has GPG verification enabled by default
-            return true;
+          const yumConfPath = '/etc/yum.conf';
+          if (fs.existsSync(yumConfPath)) {
+            const yumConfig = fs.readFileSync(yumConfPath, 'utf-8');
+            return yumConfig.includes('gpgcheck=1');
           }
-        } catch (aptError) {
-          // YUM (older RHEL/CentOS)
-          try {
-            const yumConfPath = '/etc/yum.conf';
-            if (fs.existsSync(yumConfPath)) {
-              const yumConfig = fs.readFileSync(yumConfPath, 'utf-8');
-              return yumConfig.includes('gpgcheck=1');
-            }
-          } catch (yumError) {
-            // Default to true for security
-            return true;
-          }
+        } catch {
+          // Will return default below
         }
       }
-
-      // Default to true if we can't determine (assume secure default)
-      return true;
-    } catch (error) {
-      console.error('Error checking package verification:', error);
-      return false;
     }
+
+    // Default to true if we can't determine (assume secure default)
+    return true;
   }
 
   /**
@@ -264,34 +253,29 @@ export class LinuxSecurityChecker implements ISecurityChecker {
    * Linux equivalent of System Integrity Protection
    */
   async checkSystemIntegrityProtection(): Promise<boolean> {
+    // Check SELinux (Fedora/RHEL)
     try {
-      // Check SELinux (Fedora/RHEL)
+      const { stdout } = await execAsync('getenforce 2>/dev/null');
+      if (stdout.trim() === 'Enforcing') {
+        return true;
+      }
+    } catch {
+      // Check AppArmor (Ubuntu/Debian)
       try {
-        const { stdout } = await execAsync('getenforce 2>/dev/null');
-        if (stdout.trim() === 'Enforcing') {
-          return true;
-        }
-      } catch (selinuxError) {
-        // Check AppArmor (Ubuntu/Debian)
+        const { stdout } = await execAsync('aa-status 2>/dev/null');
+        return stdout.includes('apparmor module is loaded');
+      } catch {
+        // Check for other security modules
         try {
-          const { stdout } = await execAsync('aa-status 2>/dev/null');
-          return stdout.includes('apparmor module is loaded');
-        } catch (apparmorError) {
-          // Check for other security modules
-          try {
-            const { stdout } = await execAsync('cat /sys/kernel/security/lsm 2>/dev/null');
-            return stdout.includes('selinux') || stdout.includes('apparmor');
-          } catch (lsmError) {
-            return false;
-          }
+          const { stdout } = await execAsync('cat /sys/kernel/security/lsm 2>/dev/null');
+          return stdout.includes('selinux') || stdout.includes('apparmor');
+        } catch {
+          return false;
         }
       }
-
-      return false;
-    } catch (error) {
-      console.error('Error checking system integrity protection:', error);
-      return false;
     }
+
+    return false;
   }
 
   /**
@@ -299,25 +283,20 @@ export class LinuxSecurityChecker implements ISecurityChecker {
    * Linux equivalent of remote login
    */
   async checkRemoteLogin(): Promise<boolean> {
+    // Check if SSH service is running
     try {
-      // Check if SSH service is running
+      const { stdout } = await execAsync(
+        'systemctl is-active ssh 2>/dev/null || systemctl is-active sshd 2>/dev/null || echo "inactive"'
+      );
+      return stdout.trim() === 'active';
+    } catch {
+      // Fallback to checking if SSH daemon is running
       try {
-        const { stdout } = await execAsync(
-          'systemctl is-active ssh 2>/dev/null || systemctl is-active sshd 2>/dev/null || echo "inactive"'
-        );
-        return stdout.trim() === 'active';
-      } catch (systemctlError) {
-        // Fallback to checking if SSH daemon is running
-        try {
-          const { stdout } = await execAsync('pgrep sshd 2>/dev/null || echo "not-running"');
-          return !stdout.includes('not-running');
-        } catch (pgrepError) {
-          return false;
-        }
+        const { stdout } = await execAsync('pgrep sshd 2>/dev/null || echo "not-running"');
+        return !stdout.includes('not-running');
+      } catch {
+        return false;
       }
-    } catch (error) {
-      console.error('Error checking SSH status:', error);
-      return false;
     }
   }
 
@@ -336,7 +315,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
           if (!stdout.includes('not-running')) {
             return true;
           }
-        } catch (error) {
+        } catch {
           // Continue checking other services
         }
       }
@@ -347,7 +326,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
         if (!stdout.includes('not-running')) {
           return true;
         }
-      } catch (error) {
+      } catch {
         // Continue
       }
 
@@ -393,7 +372,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
           securityUpdatesOnly = dnfConfig.includes('upgrade_type = security');
           automaticSecurityInstall = securityUpdatesOnly && automaticInstall;
         }
-      } catch (dnfError) {
+      } catch {
         // Check unattended-upgrades (Ubuntu/Debian)
         try {
           const unattendedConfigPath = '/etc/apt/apt.conf.d/50unattended-upgrades';
@@ -406,7 +385,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
             automaticInstall = enabled;
             automaticSecurityInstall = securityUpdatesOnly;
           }
-        } catch (aptError) {
+        } catch {
           // Check yum-cron (older systems)
           try {
             const yumCronConfigPath = '/etc/yum/yum-cron.conf';
@@ -415,7 +394,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
               enabled = yumConfig.includes('apply_updates = yes');
               automaticInstall = enabled;
             }
-          } catch (yumError) {
+          } catch {
             enabled = false;
           }
         }
@@ -467,7 +446,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
           );
           fileSharing = nfsStatus.includes('active');
         }
-      } catch (error) {
+      } catch {
         fileSharing = false;
       }
 
@@ -482,7 +461,7 @@ export class LinuxSecurityChecker implements ISecurityChecker {
             break;
           }
         }
-      } catch (error) {
+      } catch {
         screenSharing = false;
       }
 
@@ -515,11 +494,11 @@ export class LinuxSecurityChecker implements ISecurityChecker {
         "cat /etc/os-release | grep VERSION_ID | cut -d= -f2 | tr -d '\"'"
       );
       return stdout.trim();
-    } catch (error) {
+    } catch {
       try {
         const { stdout } = await execAsync('lsb_release -rs 2>/dev/null');
         return stdout.trim();
-      } catch (lsbError) {
+      } catch {
         return 'unknown';
       }
     }
@@ -534,11 +513,11 @@ export class LinuxSecurityChecker implements ISecurityChecker {
         'cat /etc/os-release | grep "^ID=" | cut -d= -f2 | tr -d \'"\''
       );
       return stdout.trim();
-    } catch (error) {
+    } catch {
       try {
         const { stdout } = await execAsync('lsb_release -is 2>/dev/null');
         return stdout.trim().toLowerCase();
-      } catch (lsbError) {
+      } catch {
         return 'unknown';
       }
     }

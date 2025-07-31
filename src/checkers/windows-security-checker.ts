@@ -48,7 +48,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
       }
 
       return hasEncryptedDrive;
-    } catch (error) {
+    } catch {
       // Fallback: try PowerShell Get-BitLockerVolume
       try {
         const { stdout } = await this.execPowerShell(
@@ -56,7 +56,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         );
         const count = parseInt(stdout.trim());
         return count > 0;
-      } catch (psError) {
+      } catch {
         return false;
       }
     }
@@ -102,7 +102,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         requirePasswordImmediately,
         passwordRequiredAfterLock: screensaverSecure
       };
-    } catch (error) {
+    } catch {
       return {
         enabled: false,
         requirePasswordImmediately: false,
@@ -124,7 +124,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
 
       const timeoutSeconds = parseInt(stdout.trim());
       return Math.floor(timeoutSeconds / 60); // Convert seconds to minutes
-    } catch (error) {
+    } catch {
       return 0; // No timeout configured
     }
   }
@@ -171,12 +171,12 @@ export class WindowsSecurityChecker implements ISecurityChecker {
           Write-Output $publicProfile.NotifyOnListen;
         `);
         stealthMode = stealthStdout.trim() === 'False'; // NotifyOnListen False means stealth mode
-      } catch (stealthError) {
+      } catch {
         stealthMode = false;
       }
 
       return { enabled, stealthMode };
-    } catch (error) {
+    } catch {
       return { enabled: false, stealthMode: false };
     }
   }
@@ -195,7 +195,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
 
       const smartScreenStatus = stdout.trim();
       return smartScreenStatus === 'RequireAdmin' || smartScreenStatus === 'Prompt';
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -231,8 +231,8 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         }
       }
 
-      return realTimeProtection; // Primary indicator of system integrity protection
-    } catch (error) {
+      return realTimeProtection && tamperProtection; // Both are important for system integrity protection
+    } catch {
       return false;
     }
   }
@@ -250,7 +250,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
 
       const status = stdout.trim();
       return status === 'Running';
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -282,7 +282,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
       }
 
       return rdpServiceRunning && rdpEnabled;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -355,7 +355,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         downloadOnly: auOptions === 3,
         updateMode
       };
-    } catch (error) {
+    } catch {
       return {
         enabled: false,
         securityUpdatesOnly: false,
@@ -415,7 +415,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         remoteLogin,
         mediaSharing
       };
-    } catch (error) {
+    } catch {
       return {
         fileSharing: false,
         screenSharing: false,
@@ -441,7 +441,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         '[System.Environment]::OSVersion.Version.ToString()'
       );
       return stdout.trim();
-    } catch (error) {
+    } catch {
       return 'unknown';
     }
   }
@@ -457,7 +457,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         Write-Output "$($os.Caption) $($os.Version) on $($computer.Model)";
       `);
       return stdout.trim();
-    } catch (error) {
+    } catch {
       return 'Windows (unknown version)';
     }
   }
