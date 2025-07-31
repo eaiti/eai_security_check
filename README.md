@@ -194,10 +194,23 @@ Initialize EAI Security Check configuration directory and files.
 ### Verify Command
 
 ```bash
-./eai-security-check verify <file>
+./eai-security-check verify [options] <file>
 ```
 
 Verify the integrity of a tamper-evident security report generated with `--hash`.
+
+**Options:**
+- `--verbose` - Show detailed verification information
+
+**Examples:**
+```bash
+./eai-security-check verify security-report.txt     # Verify report integrity
+./eai-security-check verify --verbose report.txt    # Show detailed verification info
+./eai-security-check verify report.json             # Works with all formats (JSON, markdown, etc.)
+```
+
+**Supported Formats:** All output formats support verification (plain, markdown, json, email)
+**Exit Codes:** 0 = verification passed, 1 = verification failed or file error
 
 ### Daemon Command
 
@@ -215,6 +228,7 @@ Before using daemon mode, initialize your configuration:
 
 **Options:**
 - `-c, --config <path>` - Path to scheduling configuration file (default: uses centralized config)
+- `--security-config <path>` - Path to security configuration file (overrides profile in schedule config)
 - `-s, --state <path>` - Path to daemon state file (default: uses centralized state) 
 - `--status` - Show current daemon status and exit
 - `--test-email` - Send a test email and exit
@@ -222,6 +236,8 @@ Before using daemon mode, initialize your configuration:
 - `--stop` - Stop the running daemon
 - `--restart` - Restart the daemon
 - `--uninstall` - Remove daemon files and configurations
+- `--remove-executable` - Also remove the executable when uninstalling (requires --force)
+- `--force` - Force operations that normally require confirmation
 
 **Examples:**
 ```bash
@@ -239,6 +255,14 @@ Before using daemon mode, initialize your configuration:
 
 # Use custom configuration files
 ./eai-security-check daemon -c /path/to/my-schedule.json
+./eai-security-check daemon --security-config /path/to/custom-security.json
+
+# Daemon control operations
+./eai-security-check daemon --stop                    # Stop running daemon
+./eai-security-check daemon --restart                 # Restart daemon service
+./eai-security-check daemon --uninstall               # Remove daemon files
+./eai-security-check daemon --uninstall --force       # Remove daemon files and config
+./eai-security-check daemon --uninstall --remove-executable --force  # Full uninstall
 ```
 
 **Daemon Features:**
@@ -256,17 +280,17 @@ For automatic startup on system reboot, use the provided setup script:
 
 ```bash
 # Linux (systemd)
-sudo ./examples/setup-daemon.sh install
+sudo ./daemon-examples/setup-daemon.sh install
 
 # macOS (launchd)
-./examples/setup-daemon.sh install
+./daemon-examples/setup-daemon.sh install
 
 # Check service status
-./examples/setup-daemon.sh status
+./daemon-examples/setup-daemon.sh status
 
 # Uninstall service
-sudo ./examples/setup-daemon.sh uninstall  # Linux
-./examples/setup-daemon.sh uninstall       # macOS
+sudo ./daemon-examples/setup-daemon.sh uninstall  # Linux
+./daemon-examples/setup-daemon.sh uninstall       # macOS
 ```
 
 **Configuration Files:**
