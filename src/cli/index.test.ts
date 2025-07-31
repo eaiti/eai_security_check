@@ -136,8 +136,6 @@ describe('CLI Interactive Mode', () => {
     });
 
     // Mock ConfigManager methods
-    mockConfigManager.ensureConfigDirectory.mockReturnValue('/test/config');
-    mockConfigManager.getReportsDirectory.mockReturnValue('/test/reports');
     mockConfigManager.ensureCentralizedDirectories.mockReturnValue({
       configDir: '/test/config',
       reportsDir: '/test/reports',

@@ -34,66 +34,6 @@ describe('ConfigManager', () => {
     process.env = originalEnv;
   });
 
-  describe('getConfigDirectory', () => {
-    it('should return macOS config directory', () => {
-      mockedOs.platform.mockReturnValue('darwin');
-      const result = ConfigManager.getConfigDirectory();
-      expect(result).toBe('/home/testuser/Library/Application Support/eai-security-check');
-    });
-
-    it('should return Linux config directory', () => {
-      mockedOs.platform.mockReturnValue('linux');
-      delete process.env.XDG_CONFIG_HOME;
-      const result = ConfigManager.getConfigDirectory();
-      expect(result).toBe('/home/testuser/.config/eai-security-check');
-    });
-
-    it('should return Linux config directory with XDG_CONFIG_HOME', () => {
-      mockedOs.platform.mockReturnValue('linux');
-      process.env.XDG_CONFIG_HOME = '/custom/config';
-      const result = ConfigManager.getConfigDirectory();
-      expect(result).toBe('/custom/config/eai-security-check');
-    });
-
-    it('should return Windows config directory', () => {
-      mockedOs.platform.mockReturnValue('win32');
-      process.env.APPDATA = '/Users/testuser/AppData/Roaming';
-      const result = ConfigManager.getConfigDirectory();
-      expect(result).toBe('/Users/testuser/AppData/Roaming/eai-security-check');
-    });
-
-    it('should return fallback directory for unsupported platforms', () => {
-      mockedOs.platform.mockReturnValue('freebsd');
-      const result = ConfigManager.getConfigDirectory();
-      expect(result).toBe('/home/testuser/.eai-security-check');
-    });
-  });
-
-  describe('ensureConfigDirectory', () => {
-    it('should create directory if it does not exist', () => {
-      mockedOs.platform.mockReturnValue('linux');
-      mockedFs.existsSync.mockReturnValue(false);
-      mockedFs.mkdirSync.mockImplementation(() => undefined);
-
-      const result = ConfigManager.ensureConfigDirectory();
-
-      expect(mockedFs.mkdirSync).toHaveBeenCalledWith('/home/testuser/.config/eai-security-check', {
-        recursive: true
-      });
-      expect(result).toBe('/home/testuser/.config/eai-security-check');
-    });
-
-    it('should not create directory if it already exists', () => {
-      mockedOs.platform.mockReturnValue('linux');
-      mockedFs.existsSync.mockReturnValue(true);
-
-      const result = ConfigManager.ensureConfigDirectory();
-
-      expect(mockedFs.mkdirSync).not.toHaveBeenCalled();
-      expect(result).toBe('/home/testuser/.config/eai-security-check');
-    });
-  });
-
   describe('configuration file paths', () => {
     beforeEach(() => {
       mockedOs.platform.mockReturnValue('linux');

@@ -142,34 +142,6 @@ export class ConfigManager {
   }
 
   /**
-   * Convenience method: Get the configuration directory
-   * (Alias for getCentralizedConfigDirectory for backward compatibility)
-   */
-  static getConfigDirectory(): string {
-    return this.getCentralizedConfigDirectory();
-  }
-
-  /**
-   * Convenience method: Get the reports directory
-   * (Alias for getCentralizedReportsDirectory for backward compatibility)
-   */
-  static getReportsDirectory(): string {
-    return this.getCentralizedReportsDirectory();
-  }
-
-  /**
-   * Convenience method: Ensure configuration directory exists and return its path
-   * (Simplified version of ensureCentralizedDirectories for backward compatibility)
-   */
-  static ensureConfigDirectory(): string {
-    const configDir = this.getCentralizedConfigDirectory();
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true });
-    }
-    return configDir;
-  }
-
-  /**
    * Test and display the centralized file structure setup
    */
   static testCentralizedStructure(): {
