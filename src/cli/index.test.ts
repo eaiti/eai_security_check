@@ -584,7 +584,7 @@ describe('CLI Interactive Mode', () => {
 
     it('should handle version update check', async () => {
       mockSelect
-        .mockResolvedValueOnce('2') // Check updates
+        .mockResolvedValueOnce('4') // Check local version status (was option 2)
         .mockResolvedValueOnce('back'); // Go back
       mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockConfigManager.isVersionUpgrade.mockReturnValue(true);
@@ -594,6 +594,30 @@ describe('CLI Interactive Mode', () => {
       expect(mockConfigManager.getCurrentVersion).toHaveBeenCalled();
       expect(mockConfigManager.isVersionUpgrade).toHaveBeenCalled();
       expect(mockConfigManager.getLastTrackedVersion).toHaveBeenCalled();
+    });
+
+    it('should handle GitHub update check', async () => {
+      mockSelect
+        .mockResolvedValueOnce('2') // Check for GitHub updates
+        .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
+
+      await showSystemMenu();
+
+      // The function should complete without errors and call select at least once
+      expect(mockSelect).toHaveBeenCalled();
+    });
+
+    it('should handle GitHub update install', async () => {
+      mockSelect
+        .mockResolvedValueOnce('3') // Install GitHub update
+        .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
+
+      await showSystemMenu();
+
+      // The function should complete without errors and call select at least once
+      expect(mockSelect).toHaveBeenCalled();
     });
   });
 

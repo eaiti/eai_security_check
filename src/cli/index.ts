@@ -15,6 +15,7 @@ import { PlatformDetector, Platform } from '../utils/platform-detector';
 import { SchedulingService } from '../services/scheduling-service';
 import { isValidProfile, VALID_PROFILES } from '../config/config-profiles';
 import { ConfigManager } from '../config/config-manager';
+import { UpdateUtils } from '../utils/update-utils';
 
 /**
  * Gets configuration by profile name from centralized config files
@@ -611,12 +612,22 @@ async function showSystemMenu(): Promise<void> {
           description: 'Show comprehensive system and application information'
         },
         {
-          name: '2. Check for Version Updates',
+          name: '2. Check for Updates from GitHub',
           value: '2',
-          description: 'Check version status and update tracking'
+          description: 'Check for newer versions available on GitHub releases'
         },
         {
-          name: '3. Back to Main Menu',
+          name: '3. Install Update from GitHub',
+          value: '3',
+          description: 'Download and install the latest version from GitHub'
+        },
+        {
+          name: '4. Check Local Version Status',
+          value: '4',
+          description: 'Check local version tracking and upgrade status'
+        },
+        {
+          name: '5. Back to Main Menu',
           value: 'back',
           description: 'Return to the main menu'
         }
@@ -630,6 +641,12 @@ async function showSystemMenu(): Promise<void> {
         await viewDetailedSystemInfo();
         break;
       case '2':
+        await checkForGitHubUpdates();
+        break;
+      case '3':
+        await installGitHubUpdate();
+        break;
+      case '4':
         await checkForUpdates();
         break;
       case 'back':
@@ -1807,6 +1824,128 @@ async function checkForUpdates(): Promise<void> {
 }
 
 /**
+ * Check for updates from GitHub releases
+ */
+async function checkForGitHubUpdates(): Promise<void> {
+  console.log('🔍 Checking GitHub Releases for Updates\n');
+
+  try {
+    const updateCheck = await UpdateUtils.checkForUpdates();
+
+    console.log(`📦 Current Version: ${updateCheck.currentVersion}`);
+    console.log(`🌐 Latest GitHub Version: ${updateCheck.latestVersion}`);
+    console.log('');
+
+    if (updateCheck.updateAvailable && updateCheck.releaseInfo) {
+      console.log('🎉 New version available on GitHub!');
+      console.log(
+        `📅 Published: ${new Date(updateCheck.releaseInfo.publishedAt).toLocaleDateString()}`
+      );
+      console.log(`🔗 Tag: ${updateCheck.releaseInfo.tagName}`);
+      console.log('');
+      console.log('📋 Release Notes:');
+      console.log(updateCheck.releaseInfo.releaseNotes);
+      console.log('');
+      console.log('💡 Use "Install Update from GitHub" option to download and install.');
+    } else if (updateCheck.latestVersion === 'unknown') {
+      console.log('❌ Could not check GitHub releases (network issue or API limit)');
+      console.log(
+        '💡 Try again later or check manually: https://github.com/eaiti/eai_security_check/releases'
+      );
+    } else {
+      console.log('✅ You are running the latest version available on GitHub.');
+      console.log('💡 Check again later for new releases.');
+    }
+  } catch (error) {
+    console.error('❌ Error checking for updates:', error);
+    console.log('💡 Check manually: https://github.com/eaiti/eai_security_check/releases');
+  }
+
+  console.log('');
+}
+
+/**
+ * Install update from GitHub releases
+ */
+async function installGitHubUpdate(): Promise<void> {
+  console.log('🚀 Install Update from GitHub\n');
+
+  try {
+    // First check if update is available
+    console.log('🔍 Checking for available updates...');
+    const updateCheck = await UpdateUtils.checkForUpdates();
+
+    if (!updateCheck.updateAvailable) {
+      console.log('✅ No updates available. You are running the latest version.');
+      console.log(
+        '💡 Check again later or visit: https://github.com/eaiti/eai_security_check/releases'
+      );
+      return;
+    }
+
+    if (!updateCheck.releaseInfo) {
+      console.log('❌ Could not fetch release information from GitHub.');
+      console.log(
+        '💡 Try again later or check manually: https://github.com/eaiti/eai_security_check/releases'
+      );
+      return;
+    }
+
+    console.log(`📦 Current Version: ${updateCheck.currentVersion}`);
+    console.log(`🌐 Available Version: ${updateCheck.latestVersion}`);
+    console.log(
+      `📅 Published: ${new Date(updateCheck.releaseInfo.publishedAt).toLocaleDateString()}`
+    );
+    console.log('');
+    console.log('📋 Release Notes:');
+    console.log(updateCheck.releaseInfo.releaseNotes);
+    console.log('');
+
+    // Confirm with user
+    const confirmUpdate = await confirm({
+      message: `Do you want to update from ${updateCheck.currentVersion} to ${updateCheck.latestVersion}?`,
+      default: true
+    });
+
+    if (!confirmUpdate) {
+      console.log('❌ Update cancelled by user.');
+      return;
+    }
+
+    // Perform the update
+    console.log('🚀 Starting update process...\n');
+    const result = await UpdateUtils.performUpdate();
+
+    if (result.success && result.updateInfo) {
+      console.log('');
+      console.log('🎉 Update completed successfully!');
+      console.log(
+        `✅ Updated from ${result.updateInfo.oldVersion} to ${result.updateInfo.newVersion}`
+      );
+
+      if (result.updateInfo.backupPath) {
+        console.log(`💾 Backup saved: ${result.updateInfo.backupPath}`);
+        console.log('💡 You can remove the backup file if everything works correctly.');
+      }
+
+      console.log('');
+      console.log('🔄 The update has been completed. Changes will take effect when you restart.');
+      console.log('💡 Global installation and daemon services have been updated automatically.');
+    } else {
+      console.error(`❌ Update failed: ${result.error}`);
+      console.log('💡 The original executable has been preserved. No changes were made.');
+    }
+  } catch (error) {
+    console.error('❌ Error during update:', error);
+    console.log(
+      '💡 The update process was interrupted. Check your network connection and try again.'
+    );
+  }
+
+  console.log('');
+}
+
+/**
  * Verify locally saved security reports
  */
 async function verifyLocalReports(): Promise<void> {
@@ -2877,6 +3016,107 @@ Configuration:
   });
 
 program
+  .command('update')
+  .description('🚀 Update to the latest version from GitHub releases')
+  .option('--check-only', 'Only check for updates without installing')
+  .option('--force', 'Force update even if version check fails')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ eai-security-check update                        # Check and update if newer version available
+  $ eai-security-check update --check-only          # Only check for updates
+  $ eai-security-check update --force               # Force update even if same version
+
+Update Process:
+  1. 🔍 Check GitHub releases for newer version
+  2. 📥 Download appropriate binary for your OS (macOS/Linux/Windows)
+  3. 💾 Create backup of current executable
+  4. 🔄 Replace current executable with new version
+  5. 🌍 Update global installation (if exists)
+  6. 🤖 Update daemon service (if configured)
+  7. 📝 Update version tracking
+
+Safety Features:
+  ✅ Creates backup before updating (restore if update fails)
+  ✅ Verifies new executable works before finalizing
+  ✅ Preserves all user configurations
+  ✅ Updates global installation and daemon automatically
+
+Platform Support:
+  🍎 macOS: Updates macOS binary and LaunchAgent service
+  🐧 Linux: Updates Linux binary and systemd user service  
+  🪟 Windows: Updates Windows binary and Task Scheduler
+
+Recovery:
+  If update fails, the original executable is automatically restored.
+  Manual recovery: Look for .backup files in the executable directory.
+`
+  )
+  .action(async options => {
+    try {
+      if (options.checkOnly) {
+        console.log('🔍 Checking for updates...\n');
+
+        const updateCheck = await UpdateUtils.checkForUpdates();
+
+        console.log(`📦 Current Version: ${updateCheck.currentVersion}`);
+        console.log(`🌐 Latest Version: ${updateCheck.latestVersion}`);
+        console.log('');
+
+        if (updateCheck.updateAvailable && updateCheck.releaseInfo) {
+          console.log('🎉 Update available!');
+          console.log(
+            `📅 Published: ${new Date(updateCheck.releaseInfo.publishedAt).toLocaleDateString()}`
+          );
+          console.log('📋 Release Notes:');
+          console.log(updateCheck.releaseInfo.releaseNotes);
+          console.log('');
+          console.log('💡 Run "eai-security-check update" to install the update.');
+        } else {
+          console.log('✅ You are running the latest version.');
+          console.log(
+            '💡 Check again later or visit: https://github.com/eaiti/eai_security_check/releases'
+          );
+        }
+        return;
+      }
+
+      // Perform update
+      console.log('🚀 Starting update process...\n');
+
+      const result = await UpdateUtils.performUpdate();
+
+      if (result.success && result.updateInfo) {
+        console.log('');
+        console.log('🎉 Update completed successfully!');
+        console.log(
+          `✅ Updated from ${result.updateInfo.oldVersion} to ${result.updateInfo.newVersion}`
+        );
+
+        if (result.updateInfo.backupPath) {
+          console.log(`💾 Backup saved: ${result.updateInfo.backupPath}`);
+          console.log('💡 You can remove the backup file if everything works correctly.');
+        }
+
+        console.log('');
+        console.log('🔄 Next steps:');
+        console.log('  • Test the new version: eai-security-check --version');
+        console.log('  • Run a security check: eai-security-check check');
+        console.log(
+          '  • Check daemon status if using automation: eai-security-check daemon --status'
+        );
+      } else {
+        console.error(`❌ Update failed: ${result.error}`);
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error('❌ Error during update:', error);
+      process.exit(1);
+    }
+  });
+
+program
   .command('help')
   .alias('h')
   .description('📚 Show detailed help information')
@@ -2888,7 +3128,7 @@ program
         cmd.help();
       } else {
         console.error(`❌ Unknown command: ${command}`);
-        console.log('Available commands: check, interactive, verify, daemon, help');
+        console.log('Available commands: check, interactive, verify, daemon, update, help');
       }
     } else {
       console.log(`
@@ -2972,6 +3212,8 @@ export {
   removeGlobalInstallation,
   viewDetailedSystemInfo,
   checkForUpdates,
+  checkForGitHubUpdates,
+  installGitHubUpdate,
   verifyLocalReports,
   verifySpecificFile,
   verifyDirectory,
