@@ -4,6 +4,9 @@ import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as readline from 'readline';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { SecurityAuditor } from '../services/auditor';
 import { SecurityConfig } from '../types';
 import { OutputUtils, OutputFormat } from '../utils/output-utils';
@@ -12,19 +15,6 @@ import { PlatformDetector, Platform } from '../utils/platform-detector';
 import { SchedulingService } from '../services/scheduling-service';
 import { getConfigByProfile, isValidProfile, VALID_PROFILES } from '../config/config-profiles';
 import { ConfigManager } from '../config/config-manager';
-
-/**
- * Determines if password is needed based on configuration
- */
-function requiresPassword(config: SecurityConfig): boolean {
-  // Check if password validation is required
-  if (config.password?.required) {
-    return true;
-  }
-
-  // Also check if any sudo operations are needed (backward compatibility)
-  return !!(config.remoteLogin || config.remoteManagement);
-}
 
 /**
  * Gets configuration by profile name, either from file or generated dynamically
@@ -40,7 +30,7 @@ function getConfigForProfile(profile: string): SecurityConfig | null {
     try {
       const configContent = fs.readFileSync(configPath, 'utf-8');
       return JSON.parse(configContent);
-    } catch (error) {
+    } catch {
       // If file read fails, fall back to generated config
     }
   }
@@ -107,7 +97,6 @@ function resolveProfileConfigPath(profile: string): string | null {
  * Prompt user if they want to attempt automatic service setup
  */
 async function promptForAutoServiceSetup(platform: string): Promise<boolean> {
-  const readline = require('readline');
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -179,9 +168,7 @@ async function attemptAutoServiceSetup(serviceSetup: any): Promise<void> {
  * Attempt Linux systemd service setup
  */
 async function attemptLinuxServiceSetup(templatesDir: string): Promise<void> {
-  const { exec } = require('child_process');
-  const util = require('util');
-  const execAsync = util.promisify(exec);
+  const execAsync = promisify(exec);
 
   const serviceFile = path.join(templatesDir, 'eai-security-check.service');
   const userSystemdDir = path.join(os.homedir(), '.config', 'systemd', 'user');
