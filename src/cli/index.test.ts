@@ -83,7 +83,20 @@ describe('CLI Interactive Mode', () => {
     mockPath.dirname.mockReturnValue('/test/dir');
 
     mockFs.existsSync.mockReturnValue(true);
-    mockFs.readFileSync.mockReturnValue('{"testConfig": true}');
+    mockFs.readFileSync.mockReturnValue(
+      JSON.stringify({
+        diskEncryption: { enabled: true },
+        passwordProtection: { enabled: true, requirePasswordImmediately: true },
+        autoLock: { maxTimeoutMinutes: 7 },
+        firewall: { enabled: true, stealthMode: true },
+        packageVerification: { enabled: true },
+        systemIntegrityProtection: { enabled: true },
+        remoteLogin: { enabled: false },
+        remoteManagement: { enabled: false },
+        automaticUpdates: { enabled: true },
+        sharingServices: { fileSharing: false, screenSharing: false }
+      })
+    );
     mockFs.writeFileSync.mockImplementation(() => {});
     mockFs.mkdirSync.mockImplementation(() => {});
     mockFs.statSync.mockReturnValue({
@@ -118,6 +131,11 @@ describe('CLI Interactive Mode', () => {
     // Mock ConfigManager methods
     mockConfigManager.ensureConfigDirectory.mockReturnValue('/test/config');
     mockConfigManager.getReportsDirectory.mockReturnValue('/test/reports');
+    mockConfigManager.ensureCentralizedDirectories.mockReturnValue({
+      configDir: '/test/config',
+      reportsDir: '/test/reports',
+      logsDir: '/test/logs'
+    });
     mockConfigManager.getSystemStatus.mockResolvedValue({
       globalInstall: {
         exists: false,
@@ -153,6 +171,9 @@ describe('CLI Interactive Mode', () => {
       securityConfigPath: '/test/config/security-config.json',
       schedulingConfigExists: false,
       schedulingConfigPath: '/test/config/scheduling-config.json'
+    });
+    mockConfigManager.createAllSecurityConfigs.mockImplementation(() => {
+      // Mock implementation that doesn't throw
     });
 
     // Mock SecurityAuditor methods - simplified approach to avoid typing issues
@@ -250,8 +271,7 @@ describe('CLI Interactive Mode', () => {
       expect(console.log).toHaveBeenCalledWith(
         '🎛️  Welcome to EAI Security Check Interactive Management!\n'
       );
-      expect(mockConfigManager.ensureConfigDirectory).toHaveBeenCalled();
-      expect(mockConfigManager.getReportsDirectory).toHaveBeenCalled();
+      expect(mockConfigManager.ensureCentralizedDirectories).toHaveBeenCalled();
       expect(mockConfigManager.getSystemStatus).toHaveBeenCalled();
       expect(mockConfigManager.getCurrentVersion).toHaveBeenCalled();
       expect(mockSelect).toHaveBeenCalled();
@@ -311,12 +331,18 @@ describe('CLI Interactive Mode', () => {
     });
 
     it('should handle quick security check selection', async () => {
-      // Mock existsSync to return false for default config file so it falls back to getConfigByProfile
+      // Mock existsSync to return false initially but true after creation
+      let configCreated = false;
       mockFs.existsSync.mockImplementation((path: fs.PathLike) => {
         if (typeof path === 'string' && path.includes('security-config.json')) {
-          return false;
+          return configCreated;
         }
         return true;
+      });
+
+      // Mock createAllSecurityConfigs to set configCreated to true
+      mockConfigManager.createAllSecurityConfigs.mockImplementation(() => {
+        configCreated = true;
       });
 
       mockSelect.mockResolvedValueOnce('2'); // Quick security check
@@ -325,7 +351,6 @@ describe('CLI Interactive Mode', () => {
       await showSecurityCheckMenu();
 
       expect(mockSelect).toHaveBeenCalled();
-      expect(mockGetConfigByProfile).toHaveBeenCalledWith('default');
       expect(mockSecurityAuditor).toHaveBeenCalled();
     });
 
@@ -581,7 +606,7 @@ describe('CLI Interactive Mode', () => {
 
       await showVerifyMenu();
 
-      expect(mockConfigManager.getReportsDirectory).toHaveBeenCalled();
+      expect(mockConfigManager.ensureCentralizedDirectories).toHaveBeenCalled();
       expect(mockFs.existsSync).toHaveBeenCalled();
     });
 
@@ -634,15 +659,21 @@ describe('CLI Interactive Mode', () => {
 
   describe('Individual Interactive Functions', () => {
     it('should handle interactive security check with profile selection', async () => {
-      // Mock existsSync to return false for profile config files so it falls back to getConfigByProfile
+      // Mock existsSync to return false initially but true after creation
+      let configCreated = false;
       mockFs.existsSync.mockImplementation((path: fs.PathLike) => {
         if (
           typeof path === 'string' &&
           (path.includes('strict-config.json') || path.includes('security-config.json'))
         ) {
-          return false;
+          return configCreated;
         }
         return true;
+      });
+
+      // Mock createAllSecurityConfigs to set configCreated to true
+      mockConfigManager.createAllSecurityConfigs.mockImplementation(() => {
+        configCreated = true;
       });
 
       mockConfigManager.promptForSecurityProfile.mockResolvedValue('strict');
@@ -650,24 +681,28 @@ describe('CLI Interactive Mode', () => {
       await runInteractiveSecurityCheck();
 
       expect(mockConfigManager.promptForSecurityProfile).toHaveBeenCalled();
-      expect(mockGetConfigByProfile).toHaveBeenCalledWith('strict');
       expect(mockSecurityAuditor).toHaveBeenCalled();
     });
 
     it('should handle quick security check execution', async () => {
-      // Mock existsSync to return false for default config file so it falls back to getConfigByProfile
+      // Mock existsSync to return false initially but true after creation
+      let configCreated = false;
       mockFs.existsSync.mockImplementation((path: fs.PathLike) => {
         if (typeof path === 'string' && path.includes('security-config.json')) {
-          return false;
+          return configCreated;
         }
         return true;
       });
 
+      // Mock createAllSecurityConfigs to set configCreated to true
+      mockConfigManager.createAllSecurityConfigs.mockImplementation(() => {
+        configCreated = true;
+      });
+
       await runQuickSecurityCheck();
 
-      expect(mockGetConfigByProfile).toHaveBeenCalledWith('default');
       expect(mockSecurityAuditor).toHaveBeenCalled();
-      expect(mockConfigManager.getReportsDirectory).toHaveBeenCalled();
+      expect(mockConfigManager.ensureCentralizedDirectories).toHaveBeenCalled();
     });
 
     it('should handle configuration setup for first time', async () => {
