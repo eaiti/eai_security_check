@@ -115,13 +115,13 @@ program
     `
 🔒 EAI Security Check - Cross-Platform Security Audit Tool
 
-This tool audits your macOS or Linux system against security best practices and generates
+This tool audits your macOS, Linux, or Windows system against security best practices and generates
 detailed reports with actionable recommendations.
 
 SECURITY CHECKS PERFORMED:
-  🔒 Disk Encryption (FileVault/LUKS)    🔥 Firewall (App Firewall/ufw/firewalld)
-  🔑 Password Protection                  🛡️  Package Verification (Gatekeeper/GPG)
-  ⏰ Auto-lock Timeout                    🔐 System Integrity Protection (SIP/SELinux)
+  🔒 Disk Encryption (FileVault/LUKS/BitLocker)    🔥 Firewall (App Firewall/ufw/Windows Defender)
+  🔑 Password Protection                         🛡️  Package Verification (Gatekeeper/GPG/SmartScreen)
+  ⏰ Auto-lock Timeout                           🔐 System Integrity (SIP/SELinux/Windows Defender)
   🌐 Remote Login/SSH                     📱 Remote Management/VNC
   🔄 Automatic Updates                    📡 Sharing Services (File/Screen/Network)
 
@@ -1082,9 +1082,9 @@ COMMON WORKFLOWS:
     $ eai-security-check check --quiet
 
 SECURITY AREAS CHECKED:
-  🔒 Disk Encryption (FileVault/LUKS)   🔥 Network Firewall (App/ufw/firewalld)
-  🔑 Login Security                      🛡️  Package Verification (Gatekeeper/GPG)
-  ⏰ Session Timeouts                    🔐 System Protection (SIP/SELinux)
+  🔒 Disk Encryption (FileVault/LUKS/BitLocker)   🔥 Network Firewall (macOS/Linux/Windows)
+  🔑 Login Security                                🛡️  Package Verification (Gatekeeper/GPG/SmartScreen)
+  ⏰ Session Timeouts                              🔐 System Protection (SIP/SELinux/Defender)
   🌐 Remote Access Controls              📱 Management Services
   🔄 Update Policies                     📡 Network Sharing
 
