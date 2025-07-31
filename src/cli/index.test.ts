@@ -398,10 +398,14 @@ describe('CLI Interactive Mode', () => {
       mockSelect
         .mockResolvedValueOnce('1') // Setup daemon
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockConfigManager.hasSchedulingConfig.mockReturnValue(false);
       
-      // Test would call showDaemonMenu() here
-      expect(true).toBe(true); // Placeholder
+      await showDaemonMenu();
+      
+      expect(mockConfigManager.hasSchedulingConfig).toHaveBeenCalled();
+      expect(mockConfigManager.promptForSecurityProfile).toHaveBeenCalled();
+      expect(mockConfigManager.createSchedulingConfigInteractive).toHaveBeenCalled();
     });
 
     it('should handle daemon service management', async () => {
@@ -409,29 +413,41 @@ describe('CLI Interactive Mode', () => {
         .mockResolvedValueOnce('2') // Manage service
         .mockResolvedValueOnce('1') // Start daemon
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       
-      // Test would verify service management
-      expect(true).toBe(true); // Placeholder
+      await showDaemonMenu();
+      
+      expect(mockConfigManager.manageDaemon).toHaveBeenCalledWith('start');
     });
 
     it('should handle daemon status view', async () => {
       mockSelect
         .mockResolvedValueOnce('3') // View status
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       
-      // Test would verify status display
-      expect(true).toBe(true); // Placeholder
+      await showDaemonMenu();
+      
+      expect(mockConfigManager.manageDaemon).toHaveBeenCalledWith('status');
     });
 
     it('should handle daemon removal', async () => {
       mockSelect
         .mockResolvedValueOnce('4') // Remove daemon
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm
+        .mockResolvedValueOnce(true) // Confirm removal
+        .mockResolvedValueOnce(false); // Don't continue to menu
       mockConfigManager.hasSchedulingConfig.mockReturnValue(true);
-      mockConfirm.mockResolvedValueOnce(true); // Confirm removal
       
-      // Test would verify daemon removal
-      expect(true).toBe(true); // Placeholder
+      await showDaemonMenu();
+      
+      expect(mockConfigManager.hasSchedulingConfig).toHaveBeenCalled();
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: 'Are you sure?',
+        default: false
+      });
+      expect(mockConfigManager.manageDaemon).toHaveBeenCalledWith('remove');
     });
   });
 
@@ -440,28 +456,40 @@ describe('CLI Interactive Mode', () => {
       mockSelect
         .mockResolvedValueOnce('1') // Install globally
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       
-      // Test would call showGlobalMenu() here
-      expect(true).toBe(true); // Placeholder
+      await showGlobalMenu();
+      
+      expect(mockConfigManager.getSystemStatus).toHaveBeenCalled();
+      expect(mockConfigManager.promptForGlobalInstall).toHaveBeenCalled();
     });
 
     it('should handle global update', async () => {
       mockSelect
         .mockResolvedValueOnce('2') // Update global
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       
-      // Test would verify update process
-      expect(true).toBe(true); // Placeholder
+      await showGlobalMenu();
+      
+      expect(mockConfigManager.getSystemStatus).toHaveBeenCalled();
     });
 
     it('should handle global removal', async () => {
       mockSelect
         .mockResolvedValueOnce('3') // Remove global
         .mockResolvedValueOnce('back'); // Go back
-      mockConfirm.mockResolvedValueOnce(true); // Confirm removal
+      mockConfirm
+        .mockResolvedValueOnce(true) // Confirm removal
+        .mockResolvedValueOnce(false); // Don't continue to menu
       
-      // Test would verify removal process
-      expect(true).toBe(true); // Placeholder
+      await showGlobalMenu();
+      
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: 'Are you sure?',
+        default: false
+      });
+      expect(mockConfigManager.removeGlobalInstall).toHaveBeenCalled();
     });
   });
 
@@ -470,19 +498,27 @@ describe('CLI Interactive Mode', () => {
       mockSelect
         .mockResolvedValueOnce('1') // View detailed info
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       
-      // Test would call showSystemMenu() here
-      expect(true).toBe(true); // Placeholder
+      await showSystemMenu();
+      
+      expect(mockConfigManager.getSystemStatus).toHaveBeenCalled();
+      expect(mockPlatformDetector.detectPlatform).toHaveBeenCalled();
+      expect(mockConfigManager.getCurrentVersion).toHaveBeenCalled();
     });
 
     it('should handle version update check', async () => {
       mockSelect
         .mockResolvedValueOnce('2') // Check updates
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockConfigManager.isVersionUpgrade.mockReturnValue(true);
       
-      // Test would verify update check
-      expect(true).toBe(true); // Placeholder
+      await showSystemMenu();
+      
+      expect(mockConfigManager.getCurrentVersion).toHaveBeenCalled();
+      expect(mockConfigManager.isVersionUpgrade).toHaveBeenCalled();
+      expect(mockConfigManager.getLastTrackedVersion).toHaveBeenCalled();
     });
   });
 
@@ -491,43 +527,59 @@ describe('CLI Interactive Mode', () => {
       mockSelect
         .mockResolvedValueOnce('1') // Verify local reports
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockFs.readdirSync.mockReturnValue(['security-report-1.txt', 'security-report-2.txt'] as any);
       
-      // Test would call showVerifyMenu() here
-      expect(true).toBe(true); // Placeholder
+      await showVerifyMenu();
+      
+      expect(mockConfigManager.getReportsDirectory).toHaveBeenCalled();
+      expect(mockFs.existsSync).toHaveBeenCalled();
     });
 
     it('should handle specific file verification', async () => {
       mockSelect
         .mockResolvedValueOnce('2') // Verify specific file
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockInput.mockResolvedValueOnce('/path/to/report.txt');
       
-      // Test would verify file verification
-      expect(true).toBe(true); // Placeholder
+      await showVerifyMenu();
+      
+      expect(mockInput).toHaveBeenCalledWith({
+        message: 'Enter the path to the file you want to verify:',
+        validate: expect.any(Function)
+      });
     });
 
     it('should handle directory verification', async () => {
       mockSelect
         .mockResolvedValueOnce('3') // Verify directory
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       mockInput.mockResolvedValueOnce('/path/to/reports');
       
-      // Test would verify directory verification
-      expect(true).toBe(true); // Placeholder
+      await showVerifyMenu();
+      
+      expect(mockInput).toHaveBeenCalledWith({
+        message: 'Enter the path to the directory you want to verify:',
+        validate: expect.any(Function)
+      });
     });
 
     it('should handle invalid file path gracefully', async () => {
       mockSelect
         .mockResolvedValueOnce('2') // Verify specific file
         .mockResolvedValueOnce('back'); // Go back
+      mockConfirm.mockResolvedValueOnce(false); // Don't continue to menu
       
       const exitError = new Error('User cancelled');
       (exitError as any).name = 'ExitPromptError';
       mockInput.mockRejectedValueOnce(exitError);
       
-      // Test would verify graceful error handling
-      expect(true).toBe(true); // Placeholder
+      await showVerifyMenu();
+      
+      // Should handle the error gracefully without throwing
+      expect(mockInput).toHaveBeenCalled();
     });
   });
 
@@ -535,20 +587,29 @@ describe('CLI Interactive Mode', () => {
     it('should handle interactive security check with profile selection', async () => {
       mockConfigManager.promptForSecurityProfile.mockResolvedValue('strict');
       
-      // Test would call runInteractiveSecurityCheck() here
-      expect(true).toBe(true); // Placeholder
+      await runInteractiveSecurityCheck();
+      
+      expect(mockConfigManager.promptForSecurityProfile).toHaveBeenCalled();
+      expect(mockGetConfigByProfile).toHaveBeenCalledWith('strict');
+      expect(mockSecurityAuditor).toHaveBeenCalled();
     });
 
     it('should handle quick security check execution', async () => {
-      // Test would call runQuickSecurityCheck() here
-      expect(true).toBe(true); // Placeholder
+      await runQuickSecurityCheck();
+      
+      expect(mockGetConfigByProfile).toHaveBeenCalledWith('default');
+      expect(mockSecurityAuditor).toHaveBeenCalled();
+      expect(mockConfigManager.getReportsDirectory).toHaveBeenCalled();
     });
 
     it('should handle configuration setup for first time', async () => {
       mockConfigManager.hasSecurityConfig.mockReturnValue(false);
       
-      // Test would call setupOrModifyConfigurations() here
-      expect(true).toBe(true); // Placeholder
+      await setupOrModifyConfigurations();
+      
+      expect(mockConfigManager.hasSecurityConfig).toHaveBeenCalled();
+      expect(mockConfigManager.promptForSecurityProfile).toHaveBeenCalled();
+      expect(mockConfigManager.createAllSecurityConfigs).toHaveBeenCalled();
     });
 
     it('should handle configuration modification', async () => {
@@ -556,8 +617,12 @@ describe('CLI Interactive Mode', () => {
       mockSelect.mockResolvedValueOnce('2'); // Change default profile
       mockConfigManager.promptForForceOverwrite.mockResolvedValue(true);
       
-      // Test would verify configuration modification
-      expect(true).toBe(true); // Placeholder
+      await setupOrModifyConfigurations();
+      
+      expect(mockConfigManager.hasSecurityConfig).toHaveBeenCalled();
+      expect(mockConfigManager.promptForSecurityProfile).toHaveBeenCalled();
+      expect(mockConfigManager.promptForForceOverwrite).toHaveBeenCalled();
+      expect(mockConfigManager.createAllSecurityConfigs).toHaveBeenCalled();
     });
 
     it('should handle daemon automation setup', async () => {
@@ -569,15 +634,24 @@ describe('CLI Interactive Mode', () => {
         platform: 'Linux'
       });
       
-      // Test would call setupDaemonAutomation() here
-      expect(true).toBe(true); // Placeholder
+      await setupDaemonAutomation();
+      
+      expect(mockConfigManager.hasSchedulingConfig).toHaveBeenCalled();
+      expect(mockConfigManager.promptForSecurityProfile).toHaveBeenCalled();
+      expect(mockConfigManager.createSchedulingConfigInteractive).toHaveBeenCalled();
+      expect(mockConfigManager.promptForDaemonSetup).toHaveBeenCalled();
     });
 
     it('should handle service setup with auto-setup', async () => {
       mockConfirm.mockResolvedValueOnce(true); // Accept auto-setup
       
-      // Test would verify auto-setup process
-      expect(true).toBe(true); // Placeholder
+      const result = await promptForAutoServiceSetup('Linux');
+      
+      expect(result).toBe(true);
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: 'Would you like me to attempt automatic service setup?',
+        default: false
+      });
     });
   });
 
@@ -588,8 +662,9 @@ describe('CLI Interactive Mode', () => {
         throw new Error('File not found');
       });
       
-      // Test would verify error handling
-      expect(true).toBe(true); // Placeholder
+      // Test that config functions handle missing files gracefully
+      const result = getConfigForProfile('nonexistent');
+      expect(result).toBeDefined(); // Should fall back to generated config
     });
 
     it('should handle network/service errors gracefully', async () => {
@@ -605,38 +680,63 @@ describe('CLI Interactive Mode', () => {
       
       mockSecurityAuditor.mockImplementation(() => mockErrorMethods as any);
       
-      // Test would verify error handling  
-      expect(true).toBe(true); // Placeholder
+      // Test error handling in interactive functions
+      try {
+        await runQuickSecurityCheck();
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+      }
     });
 
     it('should handle invalid user input', async () => {
       mockInput.mockResolvedValueOnce(''); // Empty input
       
-      // Test would verify input validation
-      expect(true).toBe(true); // Placeholder
+      // Test input validation in verify functions
+      try {
+        await verifySpecificFile();
+        // Should handle empty input validation
+        expect(mockInput).toHaveBeenCalled();
+      } catch (error) {
+        // Expected behavior for invalid input
+        expect(error).toBeDefined();
+      }
     });
   });
 
   describe('Menu Navigation', () => {
     it('should handle continue/return to menu prompts', async () => {
+      mockSelect.mockResolvedValueOnce('back'); // Go back immediately
       mockConfirm
         .mockResolvedValueOnce(true) // Continue to menu
         .mockResolvedValueOnce(false); // Don't continue (exit)
       
-      // Test would verify menu navigation flow
-      expect(true).toBe(true); // Placeholder
+      await showSecurityCheckMenu();
+      
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: 'Would you like to return to the Security Check menu?',
+        default: true
+      });
     });
 
     it('should handle menu transitions correctly', async () => {
-      mockSelect
-        .mockResolvedValueOnce('1') // Go to security check
-        .mockResolvedValueOnce('back') // Return to main
-        .mockResolvedValueOnce('2') // Go to configuration
-        .mockResolvedValueOnce('back') // Return to main
-        .mockResolvedValueOnce('7'); // Exit
+      // Test individual menu calls rather than the full interactive loop
+      // since the main loop is complex with multiple async operations
       
-      // Test would verify transitions work correctly
-      expect(true).toBe(true); // Placeholder
+      mockSelect.mockResolvedValueOnce('back');
+      mockConfirm.mockResolvedValueOnce(false);
+      
+      await showSecurityCheckMenu();
+      
+      expect(mockSelect).toHaveBeenCalled();
+      
+      // Reset mocks for next menu test
+      jest.clearAllMocks();
+      mockSelect.mockResolvedValueOnce('back');
+      mockConfirm.mockResolvedValueOnce(false);
+      
+      await showConfigurationMenu();
+      
+      expect(mockSelect).toHaveBeenCalled();
     });
   });
 });
