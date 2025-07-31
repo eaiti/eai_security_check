@@ -1632,34 +1632,17 @@ async function removeDaemonConfiguration(): Promise<void> {
 async function installGlobally(): Promise<void> {
   console.log('🌍 Global Installation\n');
 
-  const systemStatus = await ConfigManager.getSystemStatus();
-
-  if (systemStatus.globalInstall.exists) {
-    if (systemStatus.globalInstall.isDifferentVersion) {
-      console.log(`⚠️  Different version already installed globally:`);
-      console.log(`   Current: ${systemStatus.globalInstall.currentVersion}`);
-      console.log(`   Global: ${systemStatus.globalInstall.globalVersion || 'Unknown'}`);
-      console.log('');
-
-      const updateInstall = await confirm({
-        message: 'Do you want to update the global installation?',
-        default: false
-      });
-
-      if (updateInstall) {
-        await ConfigManager.setupGlobalInstallation();
-      } else {
-        console.log('❌ Global installation cancelled.');
-      }
-    } else {
-      console.log('✅ Global installation already up to date.');
+  const result = await ConfigManager.installGlobally();
+  
+  if (result.success) {
+    console.log('✅', result.message);
+    if (result.symlinkPath) {
+      console.log(`🔗 Symlink created: ${result.symlinkPath}`);
     }
+    console.log(`📂 Executable installed: ${result.executablePath}`);
+    console.log('\n💡 You can now run "eai-security-check" from anywhere!');
   } else {
-    if (await ConfigManager.promptForGlobalInstall()) {
-      await ConfigManager.setupGlobalInstallation();
-    } else {
-      console.log('❌ Global installation cancelled.');
-    }
+    console.error('❌', result.message);
   }
 }
 
@@ -1669,21 +1652,16 @@ async function installGlobally(): Promise<void> {
 async function updateGlobalInstallation(): Promise<void> {
   console.log('🔄 Update Global Installation\n');
 
-  const systemStatus = await ConfigManager.getSystemStatus();
-
-  if (!systemStatus.globalInstall.exists) {
-    console.log('❌ No global installation found. Use "Install globally" option first.');
-    return;
-  }
-
-  if (systemStatus.globalInstall.isDifferentVersion) {
-    console.log(`🔄 Updating global installation:`);
-    console.log(`   From: ${systemStatus.globalInstall.globalVersion || 'Unknown'}`);
-    console.log(`   To: ${systemStatus.globalInstall.currentVersion}\n`);
-
-    await ConfigManager.setupGlobalInstallation();
+  const result = await ConfigManager.updateApplication();
+  
+  if (result.success) {
+    console.log('✅', result.message);
+    if (result.oldVersion && result.newVersion) {
+      console.log(`📦 Updated from version ${result.oldVersion} to ${result.newVersion}`);
+    }
+    console.log('\n🔄 Please restart any running daemon services.');
   } else {
-    console.log('✅ Global installation is already up to date.');
+    console.error('❌', result.message);
   }
 }
 
@@ -1693,21 +1671,31 @@ async function updateGlobalInstallation(): Promise<void> {
 async function removeGlobalInstallation(): Promise<void> {
   console.log('🗑️  Remove Global Installation\n');
 
-  const systemStatus = await ConfigManager.getSystemStatus();
-
-  if (!systemStatus.globalInstall.exists) {
-    console.log('ℹ️  No global installation found.');
-    return;
-  }
-
   console.log('⚠️  This will remove system-wide access to eai-security-check.');
+  
+  const cleanupData = await confirm({
+    message: 'Do you also want to remove all configuration files and data?',
+    default: false
+  });
+  
   const confirmRemoval = await confirm({
-    message: 'Are you sure?',
+    message: cleanupData 
+      ? 'Are you sure you want to uninstall and remove ALL data?' 
+      : 'Are you sure you want to uninstall (keeping configuration data)?',
     default: false
   });
 
   if (confirmRemoval) {
-    await ConfigManager.removeGlobalInstall();
+    const result = await ConfigManager.uninstallGlobally(cleanupData);
+    
+    if (result.success) {
+      console.log('✅', result.message);
+      if (!cleanupData) {
+        console.log('\n💡 Configuration files and data were preserved.');
+      }
+    } else {
+      console.error('❌', result.message);
+    }
   } else {
     console.log('❌ Removal cancelled.');
   }
@@ -2877,6 +2865,95 @@ Configuration:
   });
 
 program
+  .command('install')
+  .description('🚀 Install EAI Security Check globally')
+  .action(async () => {
+    try {
+      console.log('🚀 Installing EAI Security Check globally...\n');
+      
+      const result = await ConfigManager.installGlobally();
+      
+      if (result.success) {
+        console.log('✅', result.message);
+        if (result.symlinkPath) {
+          console.log(`🔗 Symlink created: ${result.symlinkPath}`);
+        }
+        console.log(`📂 Executable installed: ${result.executablePath}`);
+        console.log('\n💡 You can now run "eai-security-check" from anywhere!');
+      } else {
+        console.error('❌', result.message);
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error('❌ Installation failed:', error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('uninstall')
+  .description('🗑️ Uninstall EAI Security Check globally')
+  .option('--cleanup', 'Remove all configuration files and data')
+  .action(async (options) => {
+    try {
+      console.log('🗑️ Uninstalling EAI Security Check...\n');
+      
+      if (options.cleanup) {
+        const confirmInput = await input({
+          message: '⚠️ This will remove ALL configuration files, reports, and logs. Type "yes" to confirm:'
+        });
+        
+        if (confirmInput.toLowerCase() !== 'yes') {
+          console.log('❌ Uninstall cancelled.');
+          return;
+        }
+      }
+      
+      const result = await ConfigManager.uninstallGlobally(options.cleanup);
+      
+      if (result.success) {
+        console.log('✅', result.message);
+        if (!options.cleanup) {
+          console.log('\n💡 Configuration files and data were preserved.');
+          console.log('💡 Run with --cleanup flag to remove all data.');
+        }
+      } else {
+        console.error('❌', result.message);
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error('❌ Uninstall failed:', error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('update')
+  .description('🔄 Update EAI Security Check to the latest version')
+  .action(async () => {
+    try {
+      console.log('🔄 Checking for updates...\n');
+      
+      const result = await ConfigManager.updateApplication();
+      
+      if (result.success) {
+        console.log('✅', result.message);
+        if (result.oldVersion && result.newVersion) {
+          console.log(`📦 Updated from version ${result.oldVersion} to ${result.newVersion}`);
+        }
+        console.log('\n🔄 Please restart any running daemon services.');
+        console.log('💡 Run "eai-security-check daemon --restart" if you have daemon mode enabled.');
+      } else {
+        console.error('❌', result.message);
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error('❌ Update failed:', error);
+      process.exit(1);
+    }
+  });
+
+program
   .command('help')
   .alias('h')
   .description('📚 Show detailed help information')
@@ -2888,7 +2965,7 @@ program
         cmd.help();
       } else {
         console.error(`❌ Unknown command: ${command}`);
-        console.log('Available commands: check, interactive, verify, daemon, help');
+        console.log('Available commands: check, interactive, verify, daemon, install, uninstall, update, help');
       }
     } else {
       console.log(`
