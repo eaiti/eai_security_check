@@ -65,9 +65,17 @@ describe('SchedulingService', () => {
       expect(() => new SchedulingService()).toThrow('Scheduling configuration not found');
     });
 
-    it('should throw error for invalid configuration', () => {
+    it('should show warning for empty configuration', () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       mockFs.readFileSync.mockReturnValue(JSON.stringify({}));
-      expect(() => new SchedulingService()).toThrow('Invalid scheduling configuration');
+
+      new SchedulingService();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Warning: No delivery methods configured (email or SCP). Reports will be generated but not delivered.'
+      );
+
+      consoleSpy.mockRestore();
     });
   });
 

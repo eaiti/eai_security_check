@@ -338,6 +338,7 @@ describe('ConfigManager', () => {
 
       expect(result).toEqual({
         configDirectory: '/home/testuser/.config/eai-security-check',
+        reportsDirectory: '/home/testuser/.config/eai-security-check/reports',
         securityConfigExists: true,
         schedulingConfigExists: false,
         securityConfigPath: '/home/testuser/.config/eai-security-check/security-config.json',

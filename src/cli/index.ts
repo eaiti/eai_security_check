@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { select, confirm } from '@inquirer/prompts';
+import { select, confirm, input } from '@inquirer/prompts';
 import { SecurityAuditor } from '../services/auditor';
 import { SecurityConfig } from '../types';
 import { OutputUtils, OutputFormat } from '../utils/output-utils';
@@ -778,6 +778,25 @@ async function runQuickSecurityCheck(): Promise<void> {
 
   // Display results
   console.log(report);
+
+  // Save report to file
+  try {
+    const reportsDir = ConfigManager.getReportsDirectory();
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir, { recursive: true });
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `security-check-${timestamp}.txt`;
+    const filePath = path.join(reportsDir, filename);
+
+    fs.writeFileSync(filePath, report, 'utf-8');
+    console.log(`\n📄 Report saved to: ${filePath}`);
+  } catch (error) {
+    console.warn(
+      `⚠️  Could not save report: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }
 
 /**
@@ -1191,7 +1210,7 @@ async function verifyLocalReports(): Promise<void> {
   console.log('🔍 Verify Local Reports\n');
 
   const reportsDir = ConfigManager.getReportsDirectory();
-  
+
   if (!fs.existsSync(reportsDir)) {
     console.log('❌ Reports directory not found:');
     console.log(`   ${reportsDir}`);
@@ -1232,22 +1251,22 @@ async function verifyLocalReports(): Promise<void> {
     for (const file of files) {
       const filePath = path.join(reportsDir, file);
       const stats = fs.statSync(filePath);
-      
+
       console.log(`📄 ${file}`);
       console.log(`   📅 Created: ${stats.mtime.toLocaleString()}`);
       console.log(`   📏 Size: ${(stats.size / 1024).toFixed(1)} KB`);
-      
+
       // Basic integrity checks
       try {
         const content = fs.readFileSync(filePath, 'utf8');
-        
+
         // Check if file has expected structure
         const hasHeader =
           content.includes('EAI Security Check Report') ||
           content.includes('Security Audit Report');
         const hasTimestamp = /\d{4}-\d{2}-\d{2}/.test(content);
         const hasResults = content.includes('PASSED') || content.includes('FAILED');
-        
+
         if (hasHeader && hasTimestamp && hasResults) {
           console.log('   ✅ Basic integrity: PASSED');
           verifiedCount++;
@@ -1259,7 +1278,7 @@ async function verifyLocalReports(): Promise<void> {
         console.log(`   ❌ Read error: ${error}`);
         failedCount++;
       }
-      
+
       console.log('');
     }
 
@@ -1268,7 +1287,7 @@ async function verifyLocalReports(): Promise<void> {
     console.log(`   ✅ Verified: ${verifiedCount}`);
     console.log(`   ❌ Failed: ${failedCount}`);
     console.log(`   📁 Total: ${files.length}`);
-    
+
     if (failedCount === 0) {
       console.log('\n🎉 All reports passed basic integrity checks!');
     } else {
@@ -1281,6 +1300,135 @@ async function verifyLocalReports(): Promise<void> {
   console.log('');
 }
 
+/**
+ * Verify a specific file
+ */
+async function verifySpecificFile(): Promise<void> {
+  console.log('🔍 Verify Specific File\n');
+
+  try {
+    const filePath = await input({
+      message: 'Enter the path to the file you want to verify:',
+      validate: (value: string) => {
+        if (!value.trim()) {
+          return 'File path cannot be empty';
+        }
+        if (!fs.existsSync(value.trim())) {
+          return 'File does not exist';
+        }
+        return true;
+      }
+    });
+
+    const trimmedPath = filePath.trim();
+    console.log(`\n📄 Verifying file: ${trimmedPath}`);
+
+    try {
+      const content = fs.readFileSync(trimmedPath, 'utf-8');
+
+      // Check if it's a JSON file
+      if (trimmedPath.endsWith('.json')) {
+        JSON.parse(content); // Verify it's valid JSON
+        console.log('✅ File is valid JSON');
+      } else {
+        console.log('✅ File is readable');
+      }
+
+      // Get file stats
+      const stats = fs.statSync(trimmedPath);
+      console.log(`📊 File size: ${stats.size} bytes`);
+      console.log(`📅 Last modified: ${stats.mtime.toISOString()}`);
+    } catch (error) {
+      console.log(
+        `❌ File verification failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  } catch (error) {
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'ExitPromptError') {
+      return; // User cancelled
+    }
+    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Verify all files in a directory
+ */
+async function verifyDirectory(): Promise<void> {
+  console.log('🔍 Verify Directory\n');
+
+  try {
+    const dirPath = await input({
+      message: 'Enter the path to the directory you want to verify:',
+      validate: (value: string) => {
+        if (!value.trim()) {
+          return 'Directory path cannot be empty';
+        }
+        if (!fs.existsSync(value.trim())) {
+          return 'Directory does not exist';
+        }
+        if (!fs.statSync(value.trim()).isDirectory()) {
+          return 'Path is not a directory';
+        }
+        return true;
+      }
+    });
+
+    const trimmedPath = dirPath.trim();
+    console.log(`\n📁 Verifying directory: ${trimmedPath}`);
+
+    const files = fs.readdirSync(trimmedPath);
+
+    if (files.length === 0) {
+      console.log('📂 Directory is empty');
+      return;
+    }
+
+    console.log(`📊 Found ${files.length} file(s):`);
+    let validFiles = 0;
+    let invalidFiles = 0;
+    let directories = 0;
+
+    for (const file of files) {
+      const filePath = path.join(trimmedPath, file);
+      const stats = fs.statSync(filePath);
+
+      if (stats.isDirectory()) {
+        console.log(`  📁 ${file} - Directory`);
+        directories++;
+        continue;
+      }
+
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+
+        // Check if it's a JSON file
+        if (file.endsWith('.json')) {
+          JSON.parse(content); // Verify it's valid JSON
+          console.log(`  ✅ ${file} - Valid JSON (${stats.size} bytes)`);
+        } else {
+          console.log(`  ✅ ${file} - Readable (${stats.size} bytes)`);
+        }
+        validFiles++;
+      } catch (error) {
+        console.log(
+          `  ❌ ${file} - Error: ${error instanceof Error ? error.message : String(error)}`
+        );
+        invalidFiles++;
+      }
+    }
+
+    console.log(
+      `\n📈 Summary: ${validFiles} valid files, ${invalidFiles} invalid files, ${directories} directories`
+    );
+  } catch (error) {
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'ExitPromptError') {
+      return; // User cancelled
+    }
+    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 const program = new Command();
 
 program
@@ -1288,7 +1436,7 @@ program
   .description(
     "🔒 Cross-Platform Security Audit Tool - Check your system's security settings against configurable requirements"
   )
-  .version('1.0.1')
+  .version('1.1.0')
   .addHelpText(
     'before',
     `
@@ -2159,197 +2307,3 @@ For detailed command help: eai-security-check help <command>
   });
 
 program.parse(process.argv);
-
-/**
- * Quick security check with default profile
- */
-async function runQuickSecurityCheck(): Promise<void> {
-  console.log('⚡ Quick Security Check - Using Default Profile\n');
-
-  // Use the 'eai' profile as default
-  const profile = 'eai';
-  console.log(`🚀 Running security check with '${profile}' profile...\n`);
-
-  // Run the security check
-  const config = getConfigForProfile(profile);
-  if (!config) {
-    throw new Error(`Could not load configuration for profile: ${profile}`);
-  }
-
-  const auditor = new SecurityAuditor();
-  const report = await auditor.performSecurityCheck(config);
-
-  // Always save report locally for quick checks
-  const reportPath = await SchedulingService.saveReportLocally(report);
-  console.log(`\n✅ Security check completed successfully!`);
-  console.log(`📄 Report saved to: ${reportPath}`);
-}
-
-/**
- * Verify local reports in the reports directory
- */
-async function verifyLocalReports(): Promise<void> {
-  console.log('🔍 Verifying Local Reports\n');
-
-  try {
-    const reportsDir = ConfigManager.getReportsDirectory();
-    console.log(`📁 Checking reports directory: ${reportsDir}`);
-
-    if (!fs.existsSync(reportsDir)) {
-      console.log('❌ Reports directory does not exist');
-      return;
-    }
-
-    const files = fs.readdirSync(reportsDir).filter(file => file.endsWith('.json'));
-    
-    if (files.length === 0) {
-      console.log('📂 No report files found in the reports directory');
-      return;
-    }
-
-    console.log(`📊 Found ${files.length} report file(s):`);
-    let validReports = 0;
-    let invalidReports = 0;
-
-    for (const file of files) {
-      const filePath = path.join(reportsDir, file);
-      try {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        JSON.parse(content); // Verify it's valid JSON
-        console.log(`  ✅ ${file} - Valid`);
-        validReports++;
-      } catch (error) {
-        console.log(`  ❌ ${file} - Invalid: ${error instanceof Error ? error.message : String(error)}`);
-        invalidReports++;
-      }
-    }
-
-    console.log(`\n📈 Summary: ${validReports} valid, ${invalidReports} invalid report(s)`);
-  } catch (error) {
-    console.error(`❌ Error verifying local reports: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-/**
- * Verify a specific file
- */
-async function verifySpecificFile(): Promise<void> {
-  console.log('🔍 Verify Specific File\n');
-
-  try {
-    const filePath = await input({
-      message: 'Enter the path to the file you want to verify:',
-      validate: (value) => {
-        if (!value.trim()) {
-          return 'File path cannot be empty';
-        }
-        if (!fs.existsSync(value.trim())) {
-          return 'File does not exist';
-        }
-        return true;
-      }
-    });
-
-    const trimmedPath = filePath.trim();
-    console.log(`\n📄 Verifying file: ${trimmedPath}`);
-
-    try {
-      const content = fs.readFileSync(trimmedPath, 'utf-8');
-      
-      // Check if it's a JSON file
-      if (trimmedPath.endsWith('.json')) {
-        JSON.parse(content); // Verify it's valid JSON
-        console.log('✅ File is valid JSON');
-      } else {
-        console.log('✅ File is readable');
-      }
-
-      // Get file stats
-      const stats = fs.statSync(trimmedPath);
-      console.log(`📊 File size: ${stats.size} bytes`);
-      console.log(`📅 Last modified: ${stats.mtime.toISOString()}`);
-
-    } catch (error) {
-      console.log(`❌ File verification failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  } catch (error) {
-    if (error && typeof error === 'object' && 'name' in error && error.name === 'ExitPromptError') {
-      return; // User cancelled
-    }
-    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-/**
- * Verify all files in a directory
- */
-async function verifyDirectory(): Promise<void> {
-  console.log('🔍 Verify Directory\n');
-
-  try {
-    const dirPath = await input({
-      message: 'Enter the path to the directory you want to verify:',
-      validate: (value) => {
-        if (!value.trim()) {
-          return 'Directory path cannot be empty';
-        }
-        if (!fs.existsSync(value.trim())) {
-          return 'Directory does not exist';
-        }
-        if (!fs.statSync(value.trim()).isDirectory()) {
-          return 'Path is not a directory';
-        }
-        return true;
-      }
-    });
-
-    const trimmedPath = dirPath.trim();
-    console.log(`\n📁 Verifying directory: ${trimmedPath}`);
-
-    const files = fs.readdirSync(trimmedPath);
-    
-    if (files.length === 0) {
-      console.log('📂 Directory is empty');
-      return;
-    }
-
-    console.log(`📊 Found ${files.length} file(s):`);
-    let validFiles = 0;
-    let invalidFiles = 0;
-    let directories = 0;
-
-    for (const file of files) {
-      const filePath = path.join(trimmedPath, file);
-      const stats = fs.statSync(filePath);
-      
-      if (stats.isDirectory()) {
-        console.log(`  📁 ${file} - Directory`);
-        directories++;
-        continue;
-      }
-
-      try {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        
-        // Check if it's a JSON file
-        if (file.endsWith('.json')) {
-          JSON.parse(content); // Verify it's valid JSON
-          console.log(`  ✅ ${file} - Valid JSON (${stats.size} bytes)`);
-        } else {
-          console.log(`  ✅ ${file} - Readable (${stats.size} bytes)`);
-        }
-        validFiles++;
-      } catch (error) {
-        console.log(`  ❌ ${file} - Error: ${error instanceof Error ? error.message : String(error)}`);
-        invalidFiles++;
-      }
-    }
-
-    console.log(`\n📈 Summary: ${validFiles} valid files, ${invalidFiles} invalid files, ${directories} directories`);
-  } catch (error) {
-    if (error && typeof error === 'object' && 'name' in error && error.name === 'ExitPromptError') {
-      return; // User cancelled
-    }
-    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
