@@ -39,7 +39,7 @@ The system requires environment variables to inject secrets during the build pro
 
 ```bash
 # Generate and use a secure random secret
-EAI_BUILD_SECRET="$(openssl rand -hex 32)" npm run build:secure
+EAI_BUILD_SECRET="$(openssl rand -hex 32)" npm run build
 
 # Or set your own secret
 EAI_BUILD_SECRET="your-secure-secret-key-here" npm run build
@@ -79,20 +79,9 @@ Enhanced reports include additional fields:
 
 ### For Developers
 
-1. **Check Security Status**:
+1. **Build with Enhanced Security** (Default):
    ```bash
-   eai-security-check security-status
-   ```
-
-2. **Development Mode** (Basic Security):
-   ```bash
-   npm run build
-   npm start check --hash
-   ```
-
-3. **Production Mode** (Enhanced Security):
-   ```bash
-   EAI_BUILD_SECRET="$(openssl rand -hex 32)" npm run build:secure
+   EAI_BUILD_SECRET="$(openssl rand -hex 32)" npm run build
    npm start check --hash
    ```
 
@@ -105,7 +94,7 @@ Enhanced reports include additional fields:
 
 2. **Build with Enhanced Security**:
    ```bash
-   npm run build:secure
+   npm run build
    npm run pkg:build
    ```
 
@@ -118,15 +107,10 @@ Enhanced reports include additional fields:
 
 1. **Use Secure Build Scripts**:
    ```bash
-   # All pkg: scripts now use build:secure by default
+   # All pkg: scripts use secure build by default
    npm run pkg:build    # Enhanced security (auto-generates secret if not set)
    npm run pkg:macos    # macOS binary with enhanced security
    npm run pkg:linux    # Linux binary with enhanced security
-   ```
-
-2. **Insecure Fallback** (not recommended):
-   ```bash
-   npm run pkg:build:insecure  # Only for testing/development
    ```
 
 ## Verification Process
