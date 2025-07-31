@@ -218,9 +218,9 @@ describe('CryptoUtils', () => {
 
       expect(signature).toBeDefined();
       expect(signature).not.toBeNull();
-      expect(signature!.hash).toBe(hashedReport.hash);
-      expect(signature!.algorithm).toBe(hashedReport.algorithm);
-      expect(signature!.timestamp).toBe(hashedReport.timestamp);
+      expect(signature?.hash).toBe(hashedReport.hash);
+      expect(signature?.algorithm).toBe(hashedReport.algorithm);
+      expect(signature?.timestamp).toBe(hashedReport.timestamp);
     });
 
     it('should return null for unsigned content', () => {

@@ -542,11 +542,14 @@ export class SecurityAuditor {
         let actualModeText = '';
 
         if (versionInfo.platform === Platform.MACOS) {
-          const macUpdateInfo = updateInfo as any; // Type assertion for macOS-specific fields
+          const macUpdateInfo = updateInfo as { updateMode: string }; // Type assertion for macOS-specific fields
           downloadOnlyActual = macUpdateInfo.updateMode === 'download-only';
           actualModeText = macUpdateInfo.updateMode;
         } else {
-          const linuxUpdateInfo = updateInfo as any; // Type assertion for Linux-specific fields
+          const linuxUpdateInfo = updateInfo as {
+            downloadOnly?: boolean;
+            automaticInstall?: boolean;
+          }; // Type assertion for Linux-specific fields
           downloadOnlyActual = linuxUpdateInfo.downloadOnly || false;
           actualModeText = linuxUpdateInfo.downloadOnly
             ? 'download-only'
@@ -580,18 +583,21 @@ export class SecurityAuditor {
         let modePassed = false;
 
         if (versionInfo.platform === Platform.MACOS) {
-          const macUpdateInfo = updateInfo as any; // Type assertion for macOS-specific fields
+          const macUpdateInfo = updateInfo as { updateMode: string }; // Type assertion for macOS-specific fields
           actualModeText = macUpdateInfo.updateMode;
           modePassed =
             macUpdateInfo.updateMode !== 'disabled' && macUpdateInfo.updateMode !== 'check-only';
         } else {
-          const linuxUpdateInfo = updateInfo as any; // Type assertion for Linux-specific fields
+          const linuxUpdateInfo = updateInfo as {
+            downloadOnly?: boolean;
+            automaticInstall?: boolean;
+          }; // Type assertion for Linux-specific fields
           actualModeText = linuxUpdateInfo.downloadOnly
             ? 'download-only'
             : linuxUpdateInfo.automaticInstall
               ? 'fully-automatic'
               : 'disabled';
-          modePassed = linuxUpdateInfo.downloadOnly || linuxUpdateInfo.automaticInstall;
+          modePassed = Boolean(linuxUpdateInfo.downloadOnly || linuxUpdateInfo.automaticInstall);
         }
 
         results.push({
@@ -727,7 +733,7 @@ export class SecurityAuditor {
       const bannedApps = config.installedApps.bannedApplications || [];
 
       // Find any banned apps that are currently installed
-      const bannedAppsFound = appInfo.installedApps.filter((app: any) =>
+      const bannedAppsFound = appInfo.installedApps.filter((app: string) =>
         bannedApps.some(
           banned =>
             app.toLowerCase().includes(banned.toLowerCase()) ||

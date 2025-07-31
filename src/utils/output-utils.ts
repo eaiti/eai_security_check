@@ -22,7 +22,11 @@ export class OutputUtils {
   /**
    * Format report content for different output types
    */
-  static formatReport(report: string, format: OutputFormat, metadata?: any): FormattedOutput {
+  static formatReport(
+    report: string,
+    format: OutputFormat,
+    metadata?: Record<string, unknown>
+  ): FormattedOutput {
     switch (format) {
       case OutputFormat.PLAIN:
         return {
@@ -155,11 +159,11 @@ export class OutputUtils {
   /**
    * Convert report to JSON format
    */
-  private static convertToJson(report: string, metadata?: any): string {
+  private static convertToJson(report: string, metadata?: Record<string, unknown>): string {
     const cleanReport = this.stripAnsiCodes(report);
     const lines = cleanReport.split('\n');
 
-    const results: any[] = [];
+    const results: Record<string, unknown>[] = [];
     let summary = '';
     let overallPassed = false;
 

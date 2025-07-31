@@ -11,7 +11,7 @@ export class VersionUtils {
   static getCurrentVersion(): string {
     try {
       // In pkg environment, try to read from embedded package.json
-      const isPkg = typeof (process as any).pkg !== 'undefined';
+      const isPkg = typeof (process as unknown as { pkg?: unknown }).pkg !== 'undefined';
 
       if (isPkg) {
         // For pkg binaries, we embed the version at build time
