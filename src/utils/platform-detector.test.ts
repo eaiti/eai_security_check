@@ -67,14 +67,122 @@ describe('PlatformDetector', () => {
       expect(platformInfo.isSupported).toBe(true);
     });
 
-    it('should detect unsupported platform', async () => {
+    it('should detect Windows platform', async () => {
       mockOs.platform.mockReturnValue('win32');
+
+      // Mock wmic command
+      mockExec.mockImplementation((command, callback) => {
+        if (command === 'wmic os get Version /format:list') {
+          (callback as unknown as MockExecCallback)(null, {
+            stdout: 'Version=10.0.19041\n',
+            stderr: ''
+          });
+        }
+        return {} as unknown as ChildProcess;
+      });
+
+      const platformInfo = await PlatformDetector.detectPlatform();
+
+      expect(platformInfo.platform).toBe(Platform.WINDOWS);
+      expect(platformInfo.version).toBe('10.0.19041');
+      expect(platformInfo.isSupported).toBe(true);
+    });
+
+    it('should detect Windows 11 as approved', async () => {
+      mockOs.platform.mockReturnValue('win32');
+
+      mockExec.mockImplementation((command, callback) => {
+        if (command === 'wmic os get Version /format:list') {
+          (callback as unknown as MockExecCallback)(null, {
+            stdout: 'Version=10.0.22000\n',
+            stderr: ''
+          });
+        }
+        return {} as unknown as ChildProcess;
+      });
+
+      const platformInfo = await PlatformDetector.detectPlatform();
+
+      expect(platformInfo.platform).toBe(Platform.WINDOWS);
+      expect(platformInfo.version).toBe('10.0.22000');
+      expect(platformInfo.isSupported).toBe(true);
+      expect(platformInfo.isApproved).toBe(true);
+    });
+
+    it('should handle Windows version detection failure', async () => {
+      mockOs.platform.mockReturnValue('win32');
+
+      mockExec.mockImplementation((command, callback) => {
+        (callback as unknown as MockExecCallback)(new Error('Command failed'));
+        return {} as unknown as ChildProcess;
+      });
+
+      const platformInfo = await PlatformDetector.detectPlatform();
+
+      expect(platformInfo.platform).toBe(Platform.WINDOWS);
+      expect(platformInfo.version).toBe('unknown');
+      expect(platformInfo.isSupported).toBe(false);
+      expect(platformInfo.warningMessage).toContain('Unable to detect Windows version');
+    });
+
+    it('should fallback to PowerShell when wmic fails', async () => {
+      mockOs.platform.mockReturnValue('win32');
+
+      mockExec.mockImplementation((command, callback) => {
+        if (command === 'wmic os get Version /format:list') {
+          (callback as unknown as MockExecCallback)(null, {
+            stdout: '',
+            stderr: ''
+          });
+        } else if (
+          command === 'powershell -Command "[System.Environment]::OSVersion.Version.ToString()"'
+        ) {
+          (callback as unknown as MockExecCallback)(null, {
+            stdout: '10.0.19042.0',
+            stderr: ''
+          });
+        }
+        return {} as unknown as ChildProcess;
+      });
+
+      const platformInfo = await PlatformDetector.detectPlatform();
+
+      expect(platformInfo.platform).toBe(Platform.WINDOWS);
+      expect(platformInfo.version).toBe('10.0.19042.0');
+      expect(platformInfo.isSupported).toBe(true);
+    });
+
+    it('should detect unsupported Windows version', async () => {
+      mockOs.platform.mockReturnValue('win32');
+
+      mockExec.mockImplementation((command, callback) => {
+        if (command === 'wmic os get Version /format:list') {
+          (callback as unknown as MockExecCallback)(null, {
+            stdout: 'Version=10.0.17763\n', // Windows 10 1809, below minimum
+            stderr: ''
+          });
+        }
+        return {} as unknown as ChildProcess;
+      });
+
+      const platformInfo = await PlatformDetector.detectPlatform();
+
+      expect(platformInfo.platform).toBe(Platform.WINDOWS);
+      expect(platformInfo.version).toBe('10.0.17763');
+      expect(platformInfo.isSupported).toBe(false);
+      expect(platformInfo.warningMessage).toContain('may not be fully supported');
+    });
+
+    it('should detect unsupported platform', async () => {
+      mockOs.platform.mockReturnValue('freebsd');
 
       const platformInfo = await PlatformDetector.detectPlatform();
 
       expect(platformInfo.platform).toBe(Platform.UNSUPPORTED);
+      expect(platformInfo.version).toBe('unknown');
       expect(platformInfo.isSupported).toBe(false);
-      expect(platformInfo.warningMessage).toContain('not supported');
+      expect(platformInfo.warningMessage).toContain('freebsd is not supported');
+      expect(platformInfo.warningMessage).toContain('macOS, Linux, and Windows only');
     });
 
     it('should handle macOS version warnings', async () => {
@@ -195,6 +303,42 @@ describe('PlatformDetector', () => {
 
       const isSupported = await PlatformDetector.isSupported();
       expect(isSupported).toBe(true);
+    });
+  });
+
+  describe('isWindows', () => {
+    it('should return true for Windows platform', async () => {
+      mockOs.platform.mockReturnValue('win32');
+
+      mockExec.mockImplementation((command, callback) => {
+        if (command === 'wmic os get Version /format:list') {
+          (callback as unknown as MockExecCallback)(null, {
+            stdout: 'Version=10.0.19041\n',
+            stderr: ''
+          });
+        }
+        return {} as unknown as ChildProcess;
+      });
+
+      const isWindows = await PlatformDetector.isWindows();
+      expect(isWindows).toBe(true);
+    });
+
+    it('should return false for non-Windows platform', async () => {
+      mockOs.platform.mockReturnValue('darwin');
+
+      mockExec.mockImplementation((command, callback) => {
+        if (command === 'sw_vers -productVersion') {
+          (callback as unknown as MockExecCallback)(null, {
+            stdout: '15.5',
+            stderr: ''
+          });
+        }
+        return {} as unknown as ChildProcess;
+      });
+
+      const isWindows = await PlatformDetector.isWindows();
+      expect(isWindows).toBe(false);
     });
   });
 });

@@ -1,6 +1,7 @@
 import { MacOSSecurityChecker } from '../checkers/security-checker';
 import { LegacyMacOSSecurityChecker } from '../checkers/legacy-security-checker';
 import { LinuxSecurityChecker } from '../checkers/linux-security-checker';
+import { WindowsSecurityChecker } from '../checkers/windows-security-checker';
 import { SecurityConfig, SecurityCheckResult, SecurityReport } from '../types';
 import { validatePasswordConfiguration } from '../utils/password-utils';
 import { PlatformDetector, Platform, PlatformInfo } from '../utils/platform-detector';
@@ -16,7 +17,7 @@ export interface VersionCompatibilityInfo {
 }
 
 export class SecurityAuditor {
-  private checker: MacOSSecurityChecker | LinuxSecurityChecker;
+  private checker: MacOSSecurityChecker | LinuxSecurityChecker | WindowsSecurityChecker;
   private versionInfo: VersionCompatibilityInfo | null = null;
   private initialPassword?: string;
   private platformInfo: PlatformInfo | null = null;
@@ -42,6 +43,8 @@ export class SecurityAuditor {
       return await this.checkMacOSCompatibility();
     } else if (this.platformInfo.platform === Platform.LINUX) {
       return await this.checkLinuxCompatibility();
+    } else if (this.platformInfo.platform === Platform.WINDOWS) {
+      return await this.checkWindowsCompatibility();
     } else {
       // Unsupported platform
       this.versionInfo = {
@@ -134,6 +137,62 @@ export class SecurityAuditor {
     };
 
     return this.versionInfo;
+  }
+
+  /**
+   * Check Windows version compatibility
+   */
+  private async checkWindowsCompatibility(): Promise<VersionCompatibilityInfo> {
+    // Switch to Windows checker
+    this.checker = new WindowsSecurityChecker(this.initialPassword);
+
+    const currentVersion = await (
+      this.checker as WindowsSecurityChecker
+    ).getCurrentWindowsVersion();
+
+    // Check if version is supported (Windows 10 build 1903+ or Windows 11)
+    const isSupported = this.isWindowsVersionSupported(currentVersion);
+    const approvedVersions = ['10.0.19041', '10.0.19042', '10.0.19043', '10.0.19044', '10.0.22000'];
+    const isApproved = approvedVersions.some(av => currentVersion.startsWith(av));
+
+    let warningMessage: string | undefined;
+
+    if (!isSupported) {
+      warningMessage = `⚠️  Windows version ${currentVersion} may not be fully supported. Windows 10 (build 1903+) or Windows 11 recommended. Security checks may not work correctly.`;
+    } else if (!isApproved) {
+      warningMessage = `⚠️  Windows version ${currentVersion} has not been fully tested. Tested versions include Windows 10 builds 19041+ and Windows 11. Results may include false positives or false negatives.`;
+    }
+
+    this.versionInfo = {
+      currentVersion,
+      isSupported,
+      isApproved,
+      warningMessage,
+      isLegacy: false, // Windows doesn't have legacy versions in our context
+      platform: Platform.WINDOWS
+    };
+
+    return this.versionInfo;
+  }
+
+  /**
+   * Check if Windows version is supported
+   */
+  private isWindowsVersionSupported(version: string): boolean {
+    if (version === 'unknown') return false;
+
+    // Support Windows 10 build 1903 (10.0.18362) and later, and Windows 11
+    if (version.startsWith('10.0.')) {
+      const build = parseInt(version.split('.')[2] || '0');
+      return build >= 18362; // Windows 10 build 1903
+    }
+
+    // Windows 11 starts with build 22000
+    if (version.startsWith('11.') || version.includes('22000')) {
+      return true;
+    }
+
+    return false;
   }
 
   private parseVersion(version: string): number[] {

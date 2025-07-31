@@ -16,13 +16,16 @@
     "format": "prettier --write src/**/*.ts",
     "format:check": "prettier --check src/**/*.ts",
     "test": "jest",
-    "pkg:build": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64,node18-linux-x64 --out-path ./bin",
+    "pkg:build": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64,node18-linux-x64,node18-win-x64 --out-path ./bin",
     "pkg:macos": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64 --out-path ./bin",
     "pkg:linux": "npm run build && pkg dist/cli/index.js --targets node18-linux-x64 --out-path ./bin",
+    "pkg:windows": "npm run build && pkg dist/cli/index.js --targets node18-win-x64 --out-path ./bin",
     "pkg:local": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64 --out-path ./bin"
   },
   "keywords": [
     "macos",
+    "linux", 
+    "windows",
     "security",
     "audit",
     "diskEncryption",
