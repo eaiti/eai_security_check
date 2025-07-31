@@ -908,6 +908,7 @@ Service Setup:
   - macOS: Create LaunchAgent plist in ~/Library/LaunchAgents/
   - Linux: Create systemd user service in ~/.config/systemd/user/
 
+  📁 See daemon-examples/ directory for sample configuration files.
   Current implementation runs as user process, not system service.
   Use "eai-security-check daemon --status" to check daemon capabilities on your platform.
 `

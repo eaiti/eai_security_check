@@ -840,7 +840,7 @@ export class SchedulingService {
             'Daemon runs as a Node.js process with cron-based scheduling',
             'Manual restart supported via "eai-security-check daemon --restart"',
             'For auto-start on boot, consider using Windows Task Scheduler',
-            'Example: Create a startup task to run "eai-security-check daemon"'
+            'See daemon-examples/windows-task-scheduler.ps1 for setup script'
           ],
           limitations: [
             'Does not automatically start on system boot (requires manual setup)',
@@ -859,7 +859,7 @@ export class SchedulingService {
             'Daemon runs as a Node.js process with cron-based scheduling',
             'Manual restart supported via "eai-security-check daemon --restart"',
             'For auto-start on boot, create a launchd plist file',
-            'Example location: ~/Library/LaunchAgents/com.eai.security-check.plist'
+            'See daemon-examples/com.eai.security-check.plist for template'
           ],
           limitations: [
             'Does not automatically start on system boot (requires launchd setup)',
@@ -878,7 +878,7 @@ export class SchedulingService {
             'Daemon runs as a Node.js process with cron-based scheduling',
             'Manual restart supported via "eai-security-check daemon --restart"',
             'For auto-start on boot, create a systemd service unit',
-            'Example location: ~/.config/systemd/user/eai-security-check.service'
+            'See daemon-examples/eai-security-check.service for template'
           ],
           limitations: [
             'Does not automatically start on system boot (requires systemd setup)',
