@@ -70,7 +70,7 @@ export class PlatformDetector {
         isApproved,
         warningMessage
       };
-    } catch (error) {
+    } catch {
       return {
         platform: Platform.MACOS,
         version: 'unknown',
@@ -100,14 +100,14 @@ export class PlatformDetector {
             version = line.split('=')[1].replace(/"/g, '');
           }
         }
-      } catch (error) {
+      } catch {
         // Fallback to lsb_release if available
         try {
           const { stdout: distStdout } = await execAsync('lsb_release -is');
           distribution = distStdout.trim().toLowerCase();
           const { stdout: versionStdout } = await execAsync('lsb_release -rs');
           version = versionStdout.trim();
-        } catch (lsbError) {
+        } catch {
           // Use uname as final fallback
           const { stdout: unameStdout } = await execAsync('uname -r');
           version = unameStdout.trim();
@@ -136,7 +136,7 @@ export class PlatformDetector {
         isApproved,
         warningMessage
       };
-    } catch (error) {
+    } catch {
       return {
         platform: Platform.LINUX,
         version: 'unknown',
@@ -168,7 +168,7 @@ export class PlatformDetector {
             'powershell -Command "[System.Environment]::OSVersion.Version.ToString()"'
           );
           version = psStdout.trim();
-        } catch (psError) {
+        } catch {
           // Final fallback to registry query
           try {
             const { stdout: regStdout } = await execAsync(
@@ -178,7 +178,7 @@ export class PlatformDetector {
             if (releaseMatch) {
               version = releaseMatch[1].trim();
             }
-          } catch (regError) {
+          } catch {
             // Keep version as 'unknown'
           }
         }
@@ -209,7 +209,7 @@ export class PlatformDetector {
         isApproved,
         warningMessage
       };
-    } catch (error) {
+    } catch {
       return {
         platform: Platform.WINDOWS,
         version: 'unknown',

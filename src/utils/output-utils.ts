@@ -74,10 +74,10 @@ export class OutputUtils {
         // Linux - try different clipboard utilities
         try {
           await execAsync(`echo "${content.replace(/"/g, '\\"')}" | xclip -selection clipboard`);
-        } catch (xclipError) {
+        } catch {
           try {
             await execAsync(`echo "${content.replace(/"/g, '\\"')}" | xsel --clipboard --input`);
-          } catch (xselError) {
+          } catch {
             // Try wl-clipboard for Wayland
             await execAsync(`echo "${content.replace(/"/g, '\\"')}" | wl-copy`);
           }
@@ -101,7 +101,7 @@ export class OutputUtils {
    */
   static stripAnsiCodes(text: string): string {
     // Remove ANSI escape sequences
-    return text.replace(/\x1b\[[0-9;]*m/g, '');
+    return text.replace(/\u001b\[[0-9;]*m/g, '');
   }
 
   /**
@@ -240,7 +240,7 @@ export class OutputUtils {
         try {
           await execAsync(`which ${util}`);
           utilities.push(util);
-        } catch (error) {
+        } catch {
           // Utility not available
         }
       }

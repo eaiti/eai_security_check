@@ -42,7 +42,7 @@ export class VersionUtils {
 
       // Fallback if package.json can't be found
       return '1.0.0';
-    } catch (error) {
+    } catch {
       console.warn('Warning: Could not determine current version:', error);
       return '1.0.0';
     }
@@ -91,7 +91,6 @@ export class VersionUtils {
 
       // Get the current executable path to find similar executables
       const currentExecutable = process.argv[0];
-      const executableName = path.basename(currentExecutable);
 
       // On Linux/macOS, use ps to find similar processes
       const { exec } = await import('child_process');
@@ -133,7 +132,7 @@ export class VersionUtils {
       }
 
       return { hasNewer, newerVersion, processInfo };
-    } catch (error) {
+    } catch {
       console.warn('Warning: Could not check for newer versions:', error);
       return { hasNewer: false };
     }
@@ -154,7 +153,7 @@ export class VersionUtils {
           process.kill(lockInfo.pid, 0);
           // Process exists, lock is valid
           return false;
-        } catch (error) {
+        } catch {
           // Process doesn't exist, remove stale lock
           fs.unlinkSync(lockFilePath);
         }
@@ -170,7 +169,7 @@ export class VersionUtils {
 
       fs.writeFileSync(lockFilePath, JSON.stringify(lockInfo, null, 2));
       return true;
-    } catch (error) {
+    } catch {
       console.warn('Warning: Could not create daemon lock:', error);
       return false;
     }
@@ -184,7 +183,7 @@ export class VersionUtils {
       if (fs.existsSync(lockFilePath)) {
         fs.unlinkSync(lockFilePath);
       }
-    } catch (error) {
+    } catch {
       console.warn('Warning: Could not remove daemon lock:', error);
     }
   }
