@@ -238,6 +238,13 @@ async function attemptMacOSServiceSetup(templatesDir: string): Promise<void> {
 async function runInteractiveMode(): Promise<void> {
   console.log('🎛️  Welcome to EAI Security Check Interactive Management!\n');
 
+  // Ensure configuration and reports directories exist on first run
+  ConfigManager.ensureConfigDirectory();
+  const reportsDir = ConfigManager.getReportsDirectory();
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir, { recursive: true });
+  }
+
   // Get current system status once
   const systemStatus = await ConfigManager.getSystemStatus();
 
@@ -254,6 +261,8 @@ async function runInteractiveMode(): Promise<void> {
     console.log(
       `🔒 Security Config: ${systemStatus.config.securityConfigExists ? '✅ Found' : '❌ Missing'}`
     );
+    console.log(`📁 Config Directory: ${systemStatus.config.configDirectory}`);
+    console.log(`📄 Reports Directory: ${systemStatus.config.reportsDirectory}`);
     console.log('');
 
     try {
@@ -261,130 +270,66 @@ async function runInteractiveMode(): Promise<void> {
         message: '🎯 What would you like to do?',
         choices: [
           {
-            name: '1. Security Check - Run security check (interactive profile selection)',
+            name: '1. Security Check - Run security audits',
             value: '1',
-            description: 'Run a security audit with profile selection'
+            description: 'Run security checks with different profiles and options'
           },
           {
-            name: '2. Security Check - Quick security check (default profile)',
+            name: '2. Configuration - Manage security configurations',
             value: '2',
-            description: 'Run a quick security audit with default settings'
+            description: 'Setup, view, and modify security profiles and settings'
           },
           {
-            name: '3. Configuration - Setup/modify security configurations',
+            name: '3. Daemon - Automated security monitoring',
             value: '3',
-            description: 'Create or modify security profiles and settings'
+            description: 'Setup and manage automated security checks and reports'
           },
           {
-            name: '4. Configuration - View configuration status',
+            name: '4. Global - System-wide installation',
             value: '4',
-            description: 'View current configuration status and available profiles'
+            description: 'Install, update, or remove global system access'
           },
           {
-            name: '5. Configuration - Reset all configurations',
+            name: '5. System - System information and diagnostics',
             value: '5',
-            description: 'Reset all configurations to default'
+            description: 'View system status, check for updates, and diagnostics'
           },
           {
-            name: '6. Daemon - Setup daemon automation',
+            name: '6. Verify - Report integrity verification',
             value: '6',
-            description: 'Setup automated security checks and email reports'
+            description: 'Verify the integrity of security reports and files'
           },
           {
-            name: '7. Daemon - Start/stop/restart daemon',
+            name: '7. Exit - Exit interactive mode',
             value: '7',
-            description: 'Manage daemon service status'
-          },
-          {
-            name: '8. Daemon - View daemon status',
-            value: '8',
-            description: 'Check current daemon status and configuration'
-          },
-          {
-            name: '9. Daemon - Remove daemon configuration',
-            value: '9',
-            description: 'Remove daemon automation and configuration'
-          },
-          {
-            name: '10. Global - Install globally (system-wide access)',
-            value: '10',
-            description: 'Install for system-wide access via command line'
-          },
-          {
-            name: '11. Global - Update global installation',
-            value: '11',
-            description: 'Update existing global installation to current version'
-          },
-          {
-            name: '12. Global - Remove global installation',
-            value: '12',
-            description: 'Remove system-wide access'
-          },
-          {
-            name: '13. System - View detailed system information',
-            value: '13',
-            description: 'Show comprehensive system and application information'
-          },
-          {
-            name: '14. System - Check for version updates',
-            value: '14',
-            description: 'Check version status and update tracking'
-          },
-          {
-            name: '15. Exit - Exit interactive mode',
-            value: '15',
             description: 'Exit interactive mode'
           }
         ],
-        pageSize: 15
+        pageSize: 10
       });
 
       console.log('');
 
       switch (choice) {
         case '1':
-          await runInteractiveSecurityCheck();
+          await showSecurityCheckMenu();
           break;
         case '2':
-          await runQuickSecurityCheck();
+          await showConfigurationMenu();
           break;
         case '3':
-          await setupOrModifyConfigurations();
+          await showDaemonMenu();
           break;
         case '4':
-          await viewConfigurationStatus();
+          await showGlobalMenu();
           break;
         case '5':
-          await resetAllConfigurations();
+          await showSystemMenu();
           break;
         case '6':
-          await setupDaemonAutomation();
+          await showVerifyMenu();
           break;
         case '7':
-          await manageDaemonService();
-          break;
-        case '8':
-          await viewDaemonStatus();
-          break;
-        case '9':
-          await removeDaemonConfiguration();
-          break;
-        case '10':
-          await installGlobally();
-          break;
-        case '11':
-          await updateGlobalInstallation();
-          break;
-        case '12':
-          await removeGlobalInstallation();
-          break;
-        case '13':
-          await viewDetailedSystemInfo();
-          break;
-        case '14':
-          await checkForUpdates();
-          break;
-        case '15':
           console.log('👋 Thank you for using EAI Security Check!');
           console.log('💡 You can always return to this menu with: eai-security-check interactive');
           console.log('');
@@ -434,6 +379,364 @@ async function runInteractiveMode(): Promise<void> {
       console.log('\n👋 Thank you for using EAI Security Check!');
       return;
     }
+  }
+}
+
+/**
+ * Security Check submenu
+ */
+async function showSecurityCheckMenu(): Promise<void> {
+  while (true) {
+    console.log('🔍 Security Check Menu\n');
+
+    const choice = await select({
+      message: 'Choose a security check option:',
+      choices: [
+        {
+          name: '1. Interactive Security Check - Select profile and options',
+          value: '1',
+          description: 'Run a security audit with interactive profile selection'
+        },
+        {
+          name: '2. Quick Security Check - Use default profile',
+          value: '2',
+          description: 'Run a quick security audit with default settings'
+        },
+        {
+          name: '3. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await runInteractiveSecurityCheck();
+        break;
+      case '2':
+        await runQuickSecurityCheck();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the Security Check menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
+  }
+}
+
+/**
+ * Configuration submenu
+ */
+async function showConfigurationMenu(): Promise<void> {
+  while (true) {
+    console.log('🔧 Configuration Menu\n');
+
+    const choice = await select({
+      message: 'Choose a configuration option:',
+      choices: [
+        {
+          name: '1. Setup/Modify Security Configurations',
+          value: '1',
+          description: 'Create or modify security profiles and settings'
+        },
+        {
+          name: '2. View Configuration Status',
+          value: '2',
+          description: 'View current configuration status and available profiles'
+        },
+        {
+          name: '3. Reset All Configurations',
+          value: '3',
+          description: 'Reset all configurations to default'
+        },
+        {
+          name: '4. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await setupOrModifyConfigurations();
+        break;
+      case '2':
+        await viewConfigurationStatus();
+        break;
+      case '3':
+        await resetAllConfigurations();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the Configuration menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
+  }
+}
+
+/**
+ * Daemon submenu
+ */
+async function showDaemonMenu(): Promise<void> {
+  while (true) {
+    console.log('🤖 Daemon Menu\n');
+
+    const choice = await select({
+      message: 'Choose a daemon option:',
+      choices: [
+        {
+          name: '1. Setup Daemon Automation',
+          value: '1',
+          description: 'Setup automated security checks and email reports'
+        },
+        {
+          name: '2. Start/Stop/Restart Daemon',
+          value: '2',
+          description: 'Manage daemon service status'
+        },
+        {
+          name: '3. View Daemon Status',
+          value: '3',
+          description: 'Check current daemon status and configuration'
+        },
+        {
+          name: '4. Remove Daemon Configuration',
+          value: '4',
+          description: 'Remove daemon automation and configuration'
+        },
+        {
+          name: '5. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await setupDaemonAutomation();
+        break;
+      case '2':
+        await manageDaemonService();
+        break;
+      case '3':
+        await viewDaemonStatus();
+        break;
+      case '4':
+        await removeDaemonConfiguration();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the Daemon menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
+  }
+}
+
+/**
+ * Global submenu
+ */
+async function showGlobalMenu(): Promise<void> {
+  while (true) {
+    console.log('🌍 Global Installation Menu\n');
+
+    const choice = await select({
+      message: 'Choose a global installation option:',
+      choices: [
+        {
+          name: '1. Install Globally (system-wide access)',
+          value: '1',
+          description: 'Install for system-wide access via command line'
+        },
+        {
+          name: '2. Update Global Installation',
+          value: '2',
+          description: 'Update existing global installation to current version'
+        },
+        {
+          name: '3. Remove Global Installation',
+          value: '3',
+          description: 'Remove system-wide access'
+        },
+        {
+          name: '4. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await installGlobally();
+        break;
+      case '2':
+        await updateGlobalInstallation();
+        break;
+      case '3':
+        await removeGlobalInstallation();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the Global Installation menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
+  }
+}
+
+/**
+ * System submenu
+ */
+async function showSystemMenu(): Promise<void> {
+  while (true) {
+    console.log('📊 System Menu\n');
+
+    const choice = await select({
+      message: 'Choose a system option:',
+      choices: [
+        {
+          name: '1. View Detailed System Information',
+          value: '1',
+          description: 'Show comprehensive system and application information'
+        },
+        {
+          name: '2. Check for Version Updates',
+          value: '2',
+          description: 'Check version status and update tracking'
+        },
+        {
+          name: '3. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await viewDetailedSystemInfo();
+        break;
+      case '2':
+        await checkForUpdates();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the System menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
+  }
+}
+
+/**
+ * Verify submenu
+ */
+async function showVerifyMenu(): Promise<void> {
+  while (true) {
+    console.log('🔍 Verify Menu\n');
+
+    const choice = await select({
+      message: 'Choose a verification option:',
+      choices: [
+        {
+          name: '1. Verify Local Reports',
+          value: '1',
+          description: 'Verify the integrity of locally saved security reports'
+        },
+        {
+          name: '2. Verify Specific File',
+          value: '2',
+          description: 'Verify the integrity of a specific report file'
+        },
+        {
+          name: '3. Verify Directory',
+          value: '3',
+          description: 'Verify all reports in a specific directory'
+        },
+        {
+          name: '4. Back to Main Menu',
+          value: 'back',
+          description: 'Return to the main menu'
+        }
+      ]
+    });
+
+    console.log('');
+
+    switch (choice) {
+      case '1':
+        await verifyLocalReports();
+        break;
+      case '2':
+        await verifySpecificFile();
+        break;
+      case '3':
+        await verifyDirectory();
+        break;
+      case 'back':
+        return;
+    }
+
+    const continueChoice = await confirm({
+      message: 'Would you like to return to the Verify menu?',
+      default: true
+    });
+
+    if (!continueChoice) {
+      return;
+    }
+    console.log('');
   }
 }
 
@@ -829,6 +1132,7 @@ async function viewDetailedSystemInfo(): Promise<void> {
 
   console.log('🔧 Configuration:');
   console.log(`   Directory: ${systemStatus.config.configDirectory}`);
+  console.log(`   Reports Directory: ${systemStatus.config.reportsDirectory}`);
   console.log(
     `   Security Config: ${systemStatus.config.securityConfigExists ? 'Found' : 'Missing'}`
   );
@@ -875,6 +1179,103 @@ async function checkForUpdates(): Promise<void> {
   } else {
     console.log('✅ You are running the latest tracked version.');
     console.log('💡 For the latest releases, check: https://github.com/eaiti/eai_security_check');
+  }
+
+  console.log('');
+}
+
+/**
+ * Verify locally saved security reports
+ */
+async function verifyLocalReports(): Promise<void> {
+  console.log('🔍 Verify Local Reports\n');
+
+  const reportsDir = ConfigManager.getReportsDirectory();
+  
+  if (!fs.existsSync(reportsDir)) {
+    console.log('❌ Reports directory not found:');
+    console.log(`   ${reportsDir}`);
+    console.log(
+      '💡 Reports will be created here when the daemon runs or when you save reports manually.'
+    );
+    console.log('');
+    return;
+  }
+
+  console.log(`📂 Scanning reports directory: ${reportsDir}\n`);
+
+  try {
+    const files = fs
+      .readdirSync(reportsDir)
+      .filter(file => file.includes('security-report-') && file.endsWith('.txt'))
+      .sort((a, b) => {
+        // Sort by modification time, newest first
+        const statA = fs.statSync(path.join(reportsDir, a));
+        const statB = fs.statSync(path.join(reportsDir, b));
+        return statB.mtime.getTime() - statA.mtime.getTime();
+      });
+
+    if (files.length === 0) {
+      console.log('ℹ️  No security reports found in the reports directory.');
+      console.log(
+        '💡 Reports are automatically saved when the daemon runs or when you manually save reports.'
+      );
+      console.log('');
+      return;
+    }
+
+    console.log(`📋 Found ${files.length} report file${files.length === 1 ? '' : 's'}:\n`);
+
+    let verifiedCount = 0;
+    let failedCount = 0;
+
+    for (const file of files) {
+      const filePath = path.join(reportsDir, file);
+      const stats = fs.statSync(filePath);
+      
+      console.log(`📄 ${file}`);
+      console.log(`   📅 Created: ${stats.mtime.toLocaleString()}`);
+      console.log(`   📏 Size: ${(stats.size / 1024).toFixed(1)} KB`);
+      
+      // Basic integrity checks
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        
+        // Check if file has expected structure
+        const hasHeader =
+          content.includes('EAI Security Check Report') ||
+          content.includes('Security Audit Report');
+        const hasTimestamp = /\d{4}-\d{2}-\d{2}/.test(content);
+        const hasResults = content.includes('PASSED') || content.includes('FAILED');
+        
+        if (hasHeader && hasTimestamp && hasResults) {
+          console.log('   ✅ Basic integrity: PASSED');
+          verifiedCount++;
+        } else {
+          console.log('   ❌ Basic integrity: FAILED (missing expected content)');
+          failedCount++;
+        }
+      } catch (error) {
+        console.log(`   ❌ Read error: ${error}`);
+        failedCount++;
+      }
+      
+      console.log('');
+    }
+
+    // Summary
+    console.log('📊 Verification Summary:');
+    console.log(`   ✅ Verified: ${verifiedCount}`);
+    console.log(`   ❌ Failed: ${failedCount}`);
+    console.log(`   📁 Total: ${files.length}`);
+    
+    if (failedCount === 0) {
+      console.log('\n🎉 All reports passed basic integrity checks!');
+    } else {
+      console.log('\n⚠️  Some reports failed verification. Consider re-running security checks.');
+    }
+  } catch (error) {
+    console.error('❌ Error accessing reports directory:', error);
   }
 
   console.log('');
@@ -1758,3 +2159,197 @@ For detailed command help: eai-security-check help <command>
   });
 
 program.parse(process.argv);
+
+/**
+ * Quick security check with default profile
+ */
+async function runQuickSecurityCheck(): Promise<void> {
+  console.log('⚡ Quick Security Check - Using Default Profile\n');
+
+  // Use the 'eai' profile as default
+  const profile = 'eai';
+  console.log(`🚀 Running security check with '${profile}' profile...\n`);
+
+  // Run the security check
+  const config = getConfigForProfile(profile);
+  if (!config) {
+    throw new Error(`Could not load configuration for profile: ${profile}`);
+  }
+
+  const auditor = new SecurityAuditor();
+  const report = await auditor.performSecurityCheck(config);
+
+  // Always save report locally for quick checks
+  const reportPath = await SchedulingService.saveReportLocally(report);
+  console.log(`\n✅ Security check completed successfully!`);
+  console.log(`📄 Report saved to: ${reportPath}`);
+}
+
+/**
+ * Verify local reports in the reports directory
+ */
+async function verifyLocalReports(): Promise<void> {
+  console.log('🔍 Verifying Local Reports\n');
+
+  try {
+    const reportsDir = ConfigManager.getReportsDirectory();
+    console.log(`📁 Checking reports directory: ${reportsDir}`);
+
+    if (!fs.existsSync(reportsDir)) {
+      console.log('❌ Reports directory does not exist');
+      return;
+    }
+
+    const files = fs.readdirSync(reportsDir).filter(file => file.endsWith('.json'));
+    
+    if (files.length === 0) {
+      console.log('📂 No report files found in the reports directory');
+      return;
+    }
+
+    console.log(`📊 Found ${files.length} report file(s):`);
+    let validReports = 0;
+    let invalidReports = 0;
+
+    for (const file of files) {
+      const filePath = path.join(reportsDir, file);
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        JSON.parse(content); // Verify it's valid JSON
+        console.log(`  ✅ ${file} - Valid`);
+        validReports++;
+      } catch (error) {
+        console.log(`  ❌ ${file} - Invalid: ${error instanceof Error ? error.message : String(error)}`);
+        invalidReports++;
+      }
+    }
+
+    console.log(`\n📈 Summary: ${validReports} valid, ${invalidReports} invalid report(s)`);
+  } catch (error) {
+    console.error(`❌ Error verifying local reports: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Verify a specific file
+ */
+async function verifySpecificFile(): Promise<void> {
+  console.log('🔍 Verify Specific File\n');
+
+  try {
+    const filePath = await input({
+      message: 'Enter the path to the file you want to verify:',
+      validate: (value) => {
+        if (!value.trim()) {
+          return 'File path cannot be empty';
+        }
+        if (!fs.existsSync(value.trim())) {
+          return 'File does not exist';
+        }
+        return true;
+      }
+    });
+
+    const trimmedPath = filePath.trim();
+    console.log(`\n📄 Verifying file: ${trimmedPath}`);
+
+    try {
+      const content = fs.readFileSync(trimmedPath, 'utf-8');
+      
+      // Check if it's a JSON file
+      if (trimmedPath.endsWith('.json')) {
+        JSON.parse(content); // Verify it's valid JSON
+        console.log('✅ File is valid JSON');
+      } else {
+        console.log('✅ File is readable');
+      }
+
+      // Get file stats
+      const stats = fs.statSync(trimmedPath);
+      console.log(`📊 File size: ${stats.size} bytes`);
+      console.log(`📅 Last modified: ${stats.mtime.toISOString()}`);
+
+    } catch (error) {
+      console.log(`❌ File verification failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } catch (error) {
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'ExitPromptError') {
+      return; // User cancelled
+    }
+    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Verify all files in a directory
+ */
+async function verifyDirectory(): Promise<void> {
+  console.log('🔍 Verify Directory\n');
+
+  try {
+    const dirPath = await input({
+      message: 'Enter the path to the directory you want to verify:',
+      validate: (value) => {
+        if (!value.trim()) {
+          return 'Directory path cannot be empty';
+        }
+        if (!fs.existsSync(value.trim())) {
+          return 'Directory does not exist';
+        }
+        if (!fs.statSync(value.trim()).isDirectory()) {
+          return 'Path is not a directory';
+        }
+        return true;
+      }
+    });
+
+    const trimmedPath = dirPath.trim();
+    console.log(`\n📁 Verifying directory: ${trimmedPath}`);
+
+    const files = fs.readdirSync(trimmedPath);
+    
+    if (files.length === 0) {
+      console.log('📂 Directory is empty');
+      return;
+    }
+
+    console.log(`📊 Found ${files.length} file(s):`);
+    let validFiles = 0;
+    let invalidFiles = 0;
+    let directories = 0;
+
+    for (const file of files) {
+      const filePath = path.join(trimmedPath, file);
+      const stats = fs.statSync(filePath);
+      
+      if (stats.isDirectory()) {
+        console.log(`  📁 ${file} - Directory`);
+        directories++;
+        continue;
+      }
+
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        
+        // Check if it's a JSON file
+        if (file.endsWith('.json')) {
+          JSON.parse(content); // Verify it's valid JSON
+          console.log(`  ✅ ${file} - Valid JSON (${stats.size} bytes)`);
+        } else {
+          console.log(`  ✅ ${file} - Readable (${stats.size} bytes)`);
+        }
+        validFiles++;
+      } catch (error) {
+        console.log(`  ❌ ${file} - Error: ${error instanceof Error ? error.message : String(error)}`);
+        invalidFiles++;
+      }
+    }
+
+    console.log(`\n📈 Summary: ${validFiles} valid files, ${invalidFiles} invalid files, ${directories} directories`);
+  } catch (error) {
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'ExitPromptError') {
+      return; // User cancelled
+    }
+    console.error(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}

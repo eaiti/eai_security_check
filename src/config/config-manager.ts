@@ -1161,6 +1161,7 @@ export class ConfigManager {
     };
     config: {
       configDirectory: string;
+      reportsDirectory: string;
       securityConfigExists: boolean;
       schedulingConfigExists: boolean;
       securityConfigPath: string;
