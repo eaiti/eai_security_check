@@ -81,15 +81,15 @@ npm run build
 ### 1. Initialize Configuration
 
 ```bash
-# Initialize configuration directory and create default security config
+# Interactive setup - guides you through profile selection and daemon configuration
 ./eai-security-check init
-
-# Initialize with daemon setup (interactive email configuration)
-./eai-security-check init --daemon
-
-# Initialize with specific security profile
-./eai-security-check init -p strict --daemon
 ```
+
+The interactive setup wizard will:
+1. **Profile Selection**: Choose from 5 security profiles with detailed explanations
+2. **Directory Setup**: Create OS-appropriate configuration directory
+3. **Daemon Configuration**: Optionally set up automated scheduling with SMTP email
+4. **Next Steps**: Clear guidance on running your first security audit
 
 **Configuration Directory Locations:**
 - **macOS**: `~/Library/Application Support/eai-security-check/`
@@ -151,21 +151,27 @@ npm run build
 ### Init Command
 
 ```bash
-./eai-security-check init [options]
+./eai-security-check init
 ```
 
-Initialize EAI Security Check configuration directory and files.
+Interactive setup wizard that guides you through configuration. **No options needed!**
 
-**Options:**
-- `-p, --profile <type>` - Security profile: default, strict, relaxed, developer, eai
-- `--daemon` - Also setup daemon configuration interactively
-- `--force` - Overwrite existing configuration files
+**What it does:**
+1. **Profile Selection**: Interactive menu to choose your default security profile with detailed explanations
+2. **Directory Setup**: Creates OS-appropriate configuration directory and all profile files
+3. **Daemon Setup**: Optional automated scheduling configuration with SMTP email settings
+4. **Next Steps**: Clear guidance on running your first security audit
+
+**Security Profiles Available:**
+- `default` - Recommended security settings (7-min auto-lock timeout)
+- `strict` - Maximum security, minimal convenience (3-min auto-lock timeout)
+- `relaxed` - Balanced security with convenience (15-min auto-lock timeout)  
+- `developer` - Developer-friendly with remote access enabled
+- `eai` - EAI focused security (10+ char passwords, 180-day expiration)
 
 **Examples:**
 ```bash
-./eai-security-check init                      # Basic setup
-./eai-security-check init --daemon            # Setup with daemon configuration
-./eai-security-check init -p strict --daemon  # Strict profile with daemon
+./eai-security-check init                      # Interactive setup wizard
 ```
 
 ### Check Command
@@ -223,7 +229,7 @@ Run security checks on a schedule and automatically send email reports. This com
 **Setup:**
 Before using daemon mode, initialize your configuration:
 ```bash
-./eai-security-check init --daemon  # Interactive setup
+./eai-security-check init  # Interactive setup - choose daemon when prompted
 ```
 
 **Options:**
@@ -242,7 +248,7 @@ Before using daemon mode, initialize your configuration:
 **Examples:**
 ```bash
 # Initialize daemon configuration (interactive setup)
-./eai-security-check init --daemon
+./eai-security-check init
 
 # Start daemon with centralized configuration
 ./eai-security-check daemon
@@ -300,7 +306,7 @@ The daemon uses configuration files stored in the centralized config directory:
 1. **Security Configuration** (`security-config.json`): Defines security requirements
 2. **Scheduling Configuration** (`scheduling-config.json`): Email and scheduling settings
 
-Interactive setup (`init --daemon`) will create a scheduling configuration like:
+Interactive setup (`init`) will create a scheduling configuration like:
 
 ```json
 {
@@ -331,20 +337,19 @@ Interactive setup (`init --daemon`) will create a scheduling configuration like:
 ### macOS Example
 
 ```bash
-# Initialize and run complete macOS security audit
-./eai-security-check init -p eai
+# Initialize and run complete macOS security audit  
+./eai-security-check init  # Choose eai profile in interactive setup
 ./eai-security-check check --password "myMacPassword" --output ~/Documents/macos-security.txt
 
-# Check against strict security requirements
-./eai-security-check init -p strict
-./eai-security-check check --format email --clipboard
+# Run strict security check after setup
+./eai-security-check check strict --format email --clipboard
 ```
 
 ### Linux (Fedora) Example
 
 ```bash
 # Initialize and run Fedora security audit (primary supported distribution)
-./eai-security-check init -p default
+./eai-security-check init  # Choose default profile in interactive setup  
 ./eai-security-check check --password "mySudoPassword" --output ~/Documents/fedora-security.txt
 
 # Quick summary for email sharing

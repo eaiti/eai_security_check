@@ -235,6 +235,59 @@ export class ConfigManager {
   }
 
   /**
+   * Ask user to select a security profile with explanations
+   */
+  static async promptForSecurityProfile(): Promise<string> {
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    try {
+      console.log('\n🔒 Security Profile Selection');
+      console.log('Choose a default security profile for your system:\n');
+      
+      console.log('📋 Available Profiles:');
+      console.log('  1. default   - Recommended security settings (7-min auto-lock timeout)');
+      console.log('                 Good balance of security and usability for most users');
+      console.log('  2. strict    - Maximum security, minimal convenience (3-min auto-lock)');
+      console.log('                 Highest security requirements, may impact workflow');
+      console.log('  3. relaxed   - Balanced security with convenience (15-min auto-lock)');
+      console.log('                 More lenient settings for easier daily use');
+      console.log('  4. developer - Developer-friendly with remote access enabled');
+      console.log('                 Allows SSH and remote management for development work');
+      console.log('  5. eai       - EAI focused security (10+ char passwords, 180-day expiration)');
+      console.log('                 Specialized profile for EAI organizational requirements\n');
+
+      const answer = await new Promise<string>((resolve) => {
+        rl.question('Select profile (1-5) or enter profile name [default]: ', resolve);
+      });
+
+      // Handle numeric choices
+      const choice = answer.trim();
+      switch (choice) {
+        case '1': case '': return 'default';
+        case '2': return 'strict';
+        case '3': return 'relaxed';
+        case '4': return 'developer';
+        case '5': return 'eai';
+        default:
+          // Handle direct profile names
+          const validProfiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
+          if (validProfiles.includes(choice.toLowerCase())) {
+            return choice.toLowerCase();
+          }
+          // Invalid choice, default to 'default'
+          console.log(`⚠️  Invalid choice "${choice}", using default profile`);
+          return 'default';
+      }
+    } finally {
+      rl.close();
+    }
+  }
+
+  /**
    * Ask user if they want to setup daemon configuration
    */
   static async promptForDaemonSetup(): Promise<boolean> {
@@ -245,8 +298,56 @@ export class ConfigManager {
     });
 
     try {
+      console.log('\n🤖 Automated Scheduling Setup');
+      console.log('The daemon can automatically run security checks on a schedule and email results.');
+      console.log('This is optional - you can always run checks manually with "eai-security-check check".\n');
+
       const answer = await new Promise<string>((resolve) => {
-        rl.question('\n🤖 Would you like to set up automated scheduling (daemon)? (y/N): ', resolve);
+        rl.question('Would you like to set up automated scheduling (daemon)? (y/N): ', resolve);
+      });
+
+      return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+    } finally {
+      rl.close();
+    }
+  }
+
+  /**
+   * Ask user if they want to force overwrite existing configurations
+   */
+  static async promptForForceOverwrite(): Promise<boolean> {
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    try {
+      const answer = await new Promise<string>((resolve) => {
+        rl.question('\n🔄 Would you like to overwrite existing configurations? (y/N): ', resolve);
+      });
+
+      return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+    } finally {
+      rl.close();
+    }
+  }
+
+  /**
+   * Ask user if they want to start the daemon now
+   */
+  static async promptToStartDaemon(): Promise<boolean> {
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    try {
+      console.log('\n🚀 Daemon Ready to Start');
+      console.log('The daemon is now configured and ready to run automated security checks.');
+      const answer = await new Promise<string>((resolve) => {
+        rl.question('Would you like to start the daemon now? (y/N): ', resolve);
       });
 
       return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
