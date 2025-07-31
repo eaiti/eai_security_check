@@ -1,10 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import * as readline from 'readline';
+import { select, confirm, input } from '@inquirer/prompts';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { SecurityConfig, SchedulingConfig, ScpConfig } from '../types';
+import { SecurityConfig, SchedulingConfig, ScpConfig, EmailConfig } from '../types';
 import { getConfigByProfile } from './config-profiles';
 import { Platform, PlatformDetector } from '../utils/platform-detector';
 import { SchedulingService } from '../services/scheduling-service';
@@ -45,6 +45,13 @@ export class ConfigManager {
         // Fallback to a hidden directory in home
         return path.join(homeDir, `.${this.APP_NAME}`);
     }
+  }
+
+  /**
+   * Get the OS-appropriate reports directory (within config directory)
+   */
+  static getReportsDirectory(): string {
+    return path.join(this.getConfigDirectory(), 'reports');
   }
 
   /**
@@ -110,7 +117,7 @@ export class ConfigManager {
 
       // Fallback to command line version if available
       return '1.0.1'; // Hard-coded fallback
-    } catch (error) {
+    } catch {
       return '1.0.1'; // Hard-coded fallback
     }
   }
@@ -127,7 +134,7 @@ export class ConfigManager {
     try {
       const versionData = JSON.parse(fs.readFileSync(versionFile, 'utf-8'));
       return versionData.version || null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -197,7 +204,7 @@ export class ConfigManager {
         globalVersion,
         currentVersion
       };
-    } catch (error) {
+    } catch {
       return {
         exists: true, // File exists but can't get version
         isDifferentVersion: true, // Assume different to be safe
@@ -242,7 +249,7 @@ export class ConfigManager {
         daemonVersion,
         currentVersion
       };
-    } catch (error) {
+    } catch {
       return {
         isRunning: false,
         needsUpdate: false,
@@ -256,39 +263,31 @@ export class ConfigManager {
    * Reset all configurations (with confirmation)
    */
   static async promptForConfigReset(): Promise<boolean> {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
+    console.log('\n🔄 Configuration Reset');
+    console.log('This will remove all existing configurations and start fresh.');
+    console.log('⚠️  This action cannot be undone!\n');
+
+    const configStatus = this.getConfigStatus();
+    console.log('📋 Current configurations that will be removed:');
+    if (configStatus.securityConfigExists) {
+      console.log(`  • Security configs: ${configStatus.configDirectory}`);
+    }
+    if (configStatus.schedulingConfigExists) {
+      console.log(`  • Daemon config: ${configStatus.schedulingConfigPath}`);
+    }
+
+    const versionFile = this.getVersionFilePath();
+    if (fs.existsSync(versionFile)) {
+      console.log(`  • Version tracking: ${versionFile}`);
+    }
+
+    console.log('');
+    const answer = await input({
+      message: 'Are you sure you want to reset all configurations? (yes/N):',
+      default: 'N'
     });
 
-    try {
-      console.log('\n🔄 Configuration Reset');
-      console.log('This will remove all existing configurations and start fresh.');
-      console.log('⚠️  This action cannot be undone!\n');
-
-      const configStatus = this.getConfigStatus();
-      console.log('📋 Current configurations that will be removed:');
-      if (configStatus.securityConfigExists) {
-        console.log(`  • Security configs: ${configStatus.configDirectory}`);
-      }
-      if (configStatus.schedulingConfigExists) {
-        console.log(`  • Daemon config: ${configStatus.schedulingConfigPath}`);
-      }
-
-      const versionFile = this.getVersionFilePath();
-      if (fs.existsSync(versionFile)) {
-        console.log(`  • Version tracking: ${versionFile}`);
-      }
-
-      console.log('');
-      const answer = await new Promise<string>(resolve => {
-        rl.question('Are you sure you want to reset all configurations? (yes/N): ', resolve);
-      });
-
-      return answer.toLowerCase() === 'yes';
-    } finally {
-      rl.close();
-    }
+    return answer.toLowerCase() === 'yes';
   }
 
   /**
@@ -380,46 +379,49 @@ export class ConfigManager {
    * Create a scheduling configuration file with interactive prompts
    */
   static async createSchedulingConfigInteractive(
-    defaultProfile: string = 'default',
-    existingRl?: readline.Interface
+    defaultProfile: string = 'default'
   ): Promise<void> {
-    const rl =
-      existingRl ||
-      readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
+    console.log('🔧 Setting up daemon configuration...\n');
+
+    // Show configuration and reports directories
+    const configDir = this.getConfigDirectory();
+    const reportsDir = this.getReportsDirectory();
+    console.log(`📁 Configuration will be saved to: ${configDir}`);
+    console.log(`📄 Reports will be saved to: ${reportsDir}\n`);
+
+    // Get user identification
+    const userId = await input({
+      message: 'Enter user/system identifier (e.g., user@company.com):',
+      validate: (value: string) => (value.trim() ? true : 'User identifier is required')
+    });
+
+    // Ask if user wants email configuration
+    console.log('\n📧 Email Configuration (Optional):');
+    console.log('Email allows the daemon to send security reports automatically.');
+    const wantsEmail = await confirm({
+      message: 'Would you like to configure email notifications?',
+      default: true
+    });
+
+    let emailConfig: EmailConfig | undefined;
+
+    if (wantsEmail) {
+      const smtpHost = await input({
+        message: 'SMTP host (e.g., smtp.gmail.com):',
+        validate: (value: string) => (value.trim() ? true : 'SMTP host is required')
       });
 
-    const question = (prompt: string): Promise<string> => {
-      return new Promise(resolve => {
-        rl.question(prompt, resolve);
+      const smtpPortInput = await input({
+        message: 'SMTP port (587 for TLS, 465 for SSL):',
+        default: '587'
       });
-    };
-
-    try {
-      console.log('🔧 Setting up daemon configuration...\n');
-
-      // Get user identification
-      const userId = await question('Enter user/system identifier (e.g., user@company.com): ');
-      if (!userId.trim()) {
-        throw new Error('User identifier is required');
-      }
-
-      // Get email settings
-      console.log('\n📧 Email Configuration:');
-      const smtpHost = await question('SMTP host (e.g., smtp.gmail.com): ');
-      if (!smtpHost.trim()) {
-        throw new Error('SMTP host is required');
-      }
-
-      const smtpPortInput = await question('SMTP port (587 for TLS, 465 for SSL): ');
       const smtpPort = parseInt(smtpPortInput) || 587;
       const smtpSecure = smtpPort === 465;
 
-      const smtpUser = await question('SMTP username/email: ');
-      if (!smtpUser.trim()) {
-        throw new Error('SMTP username is required');
-      }
+      const smtpUser = await input({
+        message: 'SMTP username/email:',
+        validate: (value: string) => (value.trim() ? true : 'SMTP username is required')
+      });
 
       // Import password utilities for secure input
       const { promptForPassword } = await import('../utils/password-utils');
@@ -430,263 +432,306 @@ export class ConfigManager {
         throw new Error('SMTP password is required');
       }
 
-      const fromEmail = (await question('From email address: ')) || smtpUser;
-      const toEmails = await question('To email addresses (comma-separated): ');
-      if (!toEmails.trim()) {
-        throw new Error('At least one recipient email is required');
-      }
+      const fromEmail = await input({
+        message: 'From email address:',
+        default: smtpUser
+      });
 
-      // Get scheduling settings
-      console.log('\n⏰ Scheduling Configuration:');
-      const intervalInput = await question('Check interval in days (default: 7): ');
-      const intervalDays = parseInt(intervalInput) || 7;
+      const toEmails = await input({
+        message: 'To email addresses (comma-separated):',
+        validate: (value: string) =>
+          value.trim() ? true : 'At least one recipient email is required'
+      });
 
-      // Get security profile
-      const profileInput = await question(
-        `Security profile (default, strict, relaxed, developer, eai) [${defaultProfile}]: `
-      );
-      const securityProfile = profileInput.trim() || defaultProfile;
-
-      // SCP Configuration (optional)
-      console.log('\n📤 SCP File Transfer Configuration (Optional):');
-      console.log('SCP can automatically transfer reports to a remote server via SSH.');
-      const wantsScp = await question('Would you like to configure SCP file transfer? (y/N): ');
-
-      let scpConfig: ScpConfig | undefined;
-
-      if (wantsScp.toLowerCase() === 'y') {
-        console.log('\n🔧 Setting up SCP configuration...');
-
-        const scpHost = await question('Remote server hostname/IP: ');
-        if (!scpHost.trim()) {
-          throw new Error('SCP host is required');
-        }
-
-        const scpUsername = await question('SSH username: ');
-        if (!scpUsername.trim()) {
-          throw new Error('SSH username is required');
-        }
-
-        const scpDestDir = await question('Destination directory on remote server: ');
-        if (!scpDestDir.trim()) {
-          throw new Error('Destination directory is required');
-        }
-
-        const scpPortInput = await question('SSH port (default: 22): ');
-        const scpPort = parseInt(scpPortInput) || 22;
-
-        console.log('\nAuthentication method:');
-        console.log('1. SSH key (recommended)');
-        console.log('2. Password');
-        const authChoice = await question('Choose authentication method (1/2): ');
-
-        if (authChoice === '1') {
-          const keyPath = await question('Path to SSH private key file: ');
-          if (!keyPath.trim()) {
-            throw new Error('SSH private key path is required');
+      emailConfig = {
+        smtp: {
+          host: smtpHost.trim(),
+          port: smtpPort,
+          secure: smtpSecure,
+          auth: {
+            user: smtpUser.trim(),
+            pass: smtpPass.trim()
           }
-
-          scpConfig = {
-            enabled: true,
-            host: scpHost.trim(),
-            username: scpUsername.trim(),
-            destinationDirectory: scpDestDir.trim(),
-            port: scpPort,
-            authMethod: 'key',
-            privateKeyPath: keyPath.trim()
-          };
-        } else if (authChoice === '2') {
-          // Import password utilities for secure SSH password input
-          const { promptForPassword } = await import('../utils/password-utils');
-          const scpPassword = await promptForPassword('SSH password: ');
-          if (!scpPassword.trim()) {
-            throw new Error('SSH password is required');
-          }
-
-          console.log(
-            '⚠️  Note: Password authentication requires "sshpass" to be installed on the system.'
-          );
-
-          scpConfig = {
-            enabled: true,
-            host: scpHost.trim(),
-            username: scpUsername.trim(),
-            destinationDirectory: scpDestDir.trim(),
-            port: scpPort,
-            authMethod: 'password',
-            password: scpPassword.trim()
-          };
-        } else {
-          console.log('❌ Invalid choice. Skipping SCP configuration.');
-        }
-      }
-
-      const config: SchedulingConfig = {
-        enabled: true,
-        intervalDays,
-        userId: userId.trim(),
-        email: {
-          smtp: {
-            host: smtpHost.trim(),
-            port: smtpPort,
-            secure: smtpSecure,
-            auth: {
-              user: smtpUser.trim(),
-              pass: smtpPass.trim()
-            }
-          },
-          from: `EAI Security Check <${fromEmail.trim()}>`,
-          to: toEmails
-            .split(',')
-            .map(email => email.trim())
-            .filter(email => email.length > 0),
-          subject: 'Security Audit Report'
         },
-        ...(scpConfig && { scp: scpConfig }),
-        reportFormat: 'email',
-        securityProfile: securityProfile
+        from: `EAI Security Check <${fromEmail.trim()}>`,
+        to: toEmails
+          .split(',')
+          .map(email => email.trim())
+          .filter(email => email.length > 0),
+        subject: 'Security Audit Report'
       };
+    }
 
-      this.ensureConfigDirectory();
-      const configPath = this.getSchedulingConfigPath();
+    // Get scheduling settings
+    console.log('\n⏰ Scheduling Configuration:');
 
-      if (fs.existsSync(configPath)) {
-        const overwrite = await question(`\nScheduling config already exists. Overwrite? (y/N): `);
-        if (overwrite.toLowerCase() !== 'y') {
-          console.log('❌ Configuration creation cancelled.');
-          return;
+    const intervalType = await select({
+      message: 'Choose interval type:',
+      choices: [
+        { name: 'Days (for production use)', value: 'days' },
+        { name: 'Minutes (for testing)', value: 'minutes' }
+      ],
+      default: 'days'
+    });
+
+    let intervalDays = 7;
+    let intervalMinutes: number | undefined;
+
+    if (intervalType === 'minutes') {
+      const minutesInput = await input({
+        message: 'Check interval in minutes:',
+        default: '5',
+        validate: (value: string) => {
+          const num = parseInt(value);
+          return num > 0 ? true : 'Interval must be greater than 0';
         }
-      }
+      });
+      intervalMinutes = parseInt(minutesInput) || 5;
+      intervalDays = Math.ceil(intervalMinutes / (24 * 60)); // Convert to days for backward compatibility
+    } else {
+      const daysInput = await input({
+        message: 'Check interval in days:',
+        default: '7',
+        validate: (value: string) => {
+          const num = parseInt(value);
+          return num > 0 ? true : 'Interval must be greater than 0';
+        }
+      });
+      intervalDays = parseInt(daysInput) || 7;
+    }
 
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-      console.log(`✅ Scheduling configuration created: ${configPath}`);
+    // Get security profile
+    const profileInput = await input({
+      message: `Security profile (default, strict, relaxed, developer, eai):`,
+      default: defaultProfile
+    });
+    const securityProfile = profileInput.trim() || defaultProfile;
+
+    // SCP Configuration (optional)
+    console.log('\n📤 SCP File Transfer Configuration (Optional):');
+    console.log('SCP can automatically transfer reports to a remote server via SSH.');
+    const wantsScp = await confirm({
+      message: 'Would you like to configure SCP file transfer?',
+      default: false
+    });
+
+    let scpConfig: ScpConfig | undefined;
+
+    if (wantsScp) {
+      console.log('\n🔧 Setting up SCP configuration...');
+
+      const scpHost = await input({
+        message: 'Remote server hostname/IP:',
+        validate: (value: string) => (value.trim() ? true : 'SCP host is required')
+      });
+
+      const scpUsername = await input({
+        message: 'SSH username:',
+        validate: (value: string) => (value.trim() ? true : 'SSH username is required')
+      });
+
+      const scpDestDir = await input({
+        message: 'Destination directory on remote server:',
+        validate: (value: string) => (value.trim() ? true : 'Destination directory is required')
+      });
+
+      const scpPortInput = await input({
+        message: 'SSH port:',
+        default: '22'
+      });
+      const scpPort = parseInt(scpPortInput) || 22;
+
+      const authMethod = await select({
+        message: 'Choose authentication method:',
+        choices: [
+          { name: 'SSH key (recommended)', value: '1' },
+          { name: 'Password', value: '2' }
+        ]
+      });
+
+      if (authMethod === '1') {
+        const keyPath = await input({
+          message: 'Path to SSH private key file:',
+          validate: (value: string) => (value.trim() ? true : 'SSH private key path is required')
+        });
+
+        scpConfig = {
+          enabled: true,
+          host: scpHost.trim(),
+          username: scpUsername.trim(),
+          destinationDirectory: scpDestDir.trim(),
+          port: scpPort,
+          authMethod: 'key',
+          privateKeyPath: keyPath.trim()
+        };
+      } else if (authMethod === '2') {
+        // Import password utilities for secure SSH password input
+        const { promptForPassword } = await import('../utils/password-utils');
+        const scpPassword = await promptForPassword('SSH password: ');
+        if (!scpPassword.trim()) {
+          throw new Error('SSH password is required');
+        }
+
+        console.log(
+          '⚠️  Note: Password authentication requires "sshpass" to be installed on the system.'
+        );
+
+        scpConfig = {
+          enabled: true,
+          host: scpHost.trim(),
+          username: scpUsername.trim(),
+          destinationDirectory: scpDestDir.trim(),
+          port: scpPort,
+          authMethod: 'password',
+          password: scpPassword.trim()
+        };
+      } else {
+        console.log('❌ Invalid choice. Skipping SCP configuration.');
+      }
+    }
+
+    const config: SchedulingConfig = {
+      enabled: true,
+      intervalDays,
+      ...(intervalMinutes && { intervalMinutes }),
+      userId: userId.trim(),
+      ...(emailConfig && { email: emailConfig }),
+      ...(scpConfig && { scp: scpConfig }),
+      reportFormat: emailConfig ? 'email' : 'plain',
+      securityProfile: securityProfile
+    };
+
+    this.ensureConfigDirectory();
+    const configPath = this.getSchedulingConfigPath();
+
+    if (fs.existsSync(configPath)) {
+      const overwrite = await confirm({
+        message: 'Scheduling config already exists. Overwrite?',
+        default: false
+      });
+      if (!overwrite) {
+        console.log('❌ Configuration creation cancelled.');
+        return;
+      }
+    }
+
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    console.log(`✅ Scheduling configuration created: ${configPath}`);
+
+    if (intervalMinutes) {
+      console.log(
+        `🤖 Configured for ${intervalMinutes}-minute intervals using '${securityProfile}' profile`
+      );
+    } else {
       console.log(
         `🤖 Configured for ${intervalDays}-day intervals using '${securityProfile}' profile`
       );
-      console.log(`📧 Will send reports to: ${config.email.to.join(', ')}`);
+    }
 
-      if (scpConfig) {
-        console.log(
-          `📤 Will also transfer reports via SCP to: ${scpConfig.username}@${scpConfig.host}:${scpConfig.destinationDirectory}/`
-        );
-      }
-    } finally {
-      if (!existingRl) {
-        rl.close();
-      }
+    if (emailConfig) {
+      console.log(`📧 Will send reports to: ${emailConfig.to.join(', ')}`);
+    } else {
+      console.log('📧 Email notifications: ❌ Disabled');
+    }
+
+    if (scpConfig) {
+      console.log(
+        `📤 Will also transfer reports via SCP to: ${scpConfig.username}@${scpConfig.host}:${scpConfig.destinationDirectory}/`
+      );
+    } else {
+      console.log('📤 SCP file transfer: ❌ Disabled');
+    }
+
+    if (!emailConfig && !scpConfig) {
+      console.log('');
+      console.log('⚠️  Note: Both email and SCP are disabled.');
+      console.log('   Reports will be generated but not automatically delivered.');
+      console.log('   You can view reports in the daemon logs or run checks manually.');
     }
   }
 
   /**
    * Ask user to select a security profile with explanations
    */
-  static async promptForSecurityProfile(existingRl?: readline.Interface): Promise<string> {
-    const rl =
-      existingRl ||
-      readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-      });
+  static async promptForSecurityProfile(): Promise<string> {
+    console.log('\n🔒 Security Profile Selection');
+    console.log('Choose a default security profile for your system:\n');
 
-    try {
-      console.log('\n🔒 Security Profile Selection');
-      console.log('Choose a default security profile for your system:\n');
+    console.log('📋 Available Profiles:');
+    console.log('  1. default   - Recommended security settings (7-min auto-lock timeout)');
+    console.log('                 Good balance of security and usability for most users');
+    console.log('  2. strict    - Maximum security, minimal convenience (3-min auto-lock)');
+    console.log('                 Highest security requirements, may impact workflow');
+    console.log('  3. relaxed   - Balanced security with convenience (15-min auto-lock)');
+    console.log('                 More lenient settings for easier daily use');
+    console.log('  4. developer - Developer-friendly with remote access enabled');
+    console.log('                 Allows SSH and remote management for development work');
+    console.log('  5. eai       - EAI focused security (10+ char passwords, 180-day expiration)');
+    console.log('                 Specialized profile for EAI organizational requirements\n');
 
-      console.log('📋 Available Profiles:');
-      console.log('  1. default   - Recommended security settings (7-min auto-lock timeout)');
-      console.log('                 Good balance of security and usability for most users');
-      console.log('  2. strict    - Maximum security, minimal convenience (3-min auto-lock)');
-      console.log('                 Highest security requirements, may impact workflow');
-      console.log('  3. relaxed   - Balanced security with convenience (15-min auto-lock)');
-      console.log('                 More lenient settings for easier daily use');
-      console.log('  4. developer - Developer-friendly with remote access enabled');
-      console.log('                 Allows SSH and remote management for development work');
-      console.log('  5. eai       - EAI focused security (10+ char passwords, 180-day expiration)');
-      console.log('                 Specialized profile for EAI organizational requirements\n');
-
-      const answer = await new Promise<string>(resolve => {
-        rl.question('Select profile (1-5) or enter profile name [default]: ', resolve);
-      });
-
-      // Handle numeric choices
-      const choice = answer.trim();
-      switch (choice) {
-        case '1':
-        case '':
-          return 'default';
-        case '2':
-          return 'strict';
-        case '3':
-          return 'relaxed';
-        case '4':
-          return 'developer';
-        case '5':
-          return 'eai';
-        default: {
-          // Handle direct profile names
-          const validProfiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
-          if (validProfiles.includes(choice.toLowerCase())) {
-            return choice.toLowerCase();
-          }
-          // Invalid choice, default to 'default'
-          console.log(`⚠️  Invalid choice "${choice}", using default profile`);
-          return 'default';
+    const answer = await select({
+      message: 'Select profile:',
+      choices: [
+        {
+          name: '1. default - Recommended security settings (7-min auto-lock timeout)',
+          value: 'default'
+        },
+        {
+          name: '2. strict - Maximum security, minimal convenience (3-min auto-lock)',
+          value: 'strict'
+        },
+        {
+          name: '3. relaxed - Balanced security with convenience (15-min auto-lock)',
+          value: 'relaxed'
+        },
+        {
+          name: '4. developer - Developer-friendly with remote access enabled',
+          value: 'developer'
+        },
+        {
+          name: '5. eai - EAI focused security (10+ char passwords, 180-day expiration)',
+          value: 'eai'
         }
-      }
-    } finally {
-      if (!existingRl) {
-        rl.close();
-      }
-    }
+      ],
+      default: 'default'
+    });
+
+    return answer;
   }
 
   /**
    * Ask user if they want to setup daemon configuration
    */
-  static async promptForDaemonSetup(existingRl?: readline.Interface): Promise<boolean> {
-    const rl =
-      existingRl ||
-      readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-      });
+  static async promptForDaemonSetup(): Promise<boolean> {
+    console.log('\n🤖 Automated Scheduling Setup');
+    console.log(
+      'The daemon can automatically run security checks on a schedule and email results.'
+    );
+    console.log(
+      'This is optional - you can always run checks manually with "eai-security-check check".'
+    );
 
-    try {
-      console.log('\n🤖 Automated Scheduling Setup');
-      console.log(
-        'The daemon can automatically run security checks on a schedule and email results.'
-      );
-      console.log(
-        'This is optional - you can always run checks manually with "eai-security-check check".'
-      );
+    // Show platform-specific capabilities
+    const platformInfo = SchedulingService.getDaemonPlatformInfo();
 
-      // Show platform-specific capabilities
-      const platformInfo = SchedulingService.getDaemonPlatformInfo();
+    console.log(`\n📱 Platform: ${platformInfo.platform}`);
+    console.log(
+      `✅ Supports scheduled execution: ${platformInfo.supportsScheduling ? 'Yes' : 'No'}`
+    );
+    console.log(`✅ Supports manual restart: ${platformInfo.supportsRestart ? 'Yes' : 'No'}`);
+    console.log(
+      `⚠️  Auto-starts on boot: ${platformInfo.supportsAutoStart ? 'Yes' : 'Requires manual setup'}`
+    );
 
-      console.log(`\n📱 Platform: ${platformInfo.platform}`);
-      console.log(
-        `✅ Supports scheduled execution: ${platformInfo.supportsScheduling ? 'Yes' : 'No'}`
-      );
-      console.log(`✅ Supports manual restart: ${platformInfo.supportsRestart ? 'Yes' : 'No'}`);
-      console.log(
-        `⚠️  Auto-starts on boot: ${platformInfo.supportsAutoStart ? 'Yes' : 'Requires manual setup'}`
-      );
-
-      if (!platformInfo.supportsAutoStart) {
-        console.log('💡 Note: Daemon runs as user process, not system service');
-        console.log('💡 For auto-start on boot, see platform-specific setup in daemon --help\n');
-      }
-
-      const answer = await new Promise<string>(resolve => {
-        rl.question('Would you like to set up automated scheduling (daemon)? (y/N): ', resolve);
-      });
-
-      return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
-    } finally {
-      if (!existingRl) {
-        rl.close();
-      }
+    if (!platformInfo.supportsAutoStart) {
+      console.log('💡 Note: Daemon runs as user process, not system service');
+      console.log('💡 For auto-start on boot, see platform-specific setup in daemon --help\n');
     }
+
+    return await confirm({
+      message: 'Would you like to set up automated scheduling (daemon)?',
+      default: false
+    });
   }
 
   /**
@@ -975,42 +1020,23 @@ export class ConfigManager {
    * Ask user if they want to force overwrite existing configurations
    */
   static async promptForForceOverwrite(): Promise<boolean> {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
+    return await confirm({
+      message: '🔄 Would you like to overwrite existing configurations?',
+      default: false
     });
-
-    try {
-      const answer = await new Promise<string>(resolve => {
-        rl.question('\n🔄 Would you like to overwrite existing configurations? (y/N): ', resolve);
-      });
-
-      return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
-    } finally {
-      rl.close();
-    }
   }
 
   /**
    * Ask user if they want to start the daemon now
    */
   static async promptToStartDaemon(): Promise<boolean> {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
+    console.log('\n🚀 Daemon Ready to Start');
+    console.log('The daemon is now configured and ready to run automated security checks.');
+
+    return await confirm({
+      message: 'Would you like to start the daemon now?',
+      default: false
     });
-
-    try {
-      console.log('\n🚀 Daemon Ready to Start');
-      console.log('The daemon is now configured and ready to run automated security checks.');
-      const answer = await new Promise<string>(resolve => {
-        rl.question('Would you like to start the daemon now? (y/N): ', resolve);
-      });
-
-      return answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
-    } finally {
-      rl.close();
-    }
   }
 
   /**
@@ -1068,6 +1094,7 @@ export class ConfigManager {
    */
   static getConfigStatus(): {
     configDirectory: string;
+    reportsDirectory: string;
     securityConfigExists: boolean;
     schedulingConfigExists: boolean;
     securityConfigPath: string;
@@ -1075,6 +1102,7 @@ export class ConfigManager {
   } {
     return {
       configDirectory: this.getConfigDirectory(),
+      reportsDirectory: this.getReportsDirectory(),
       securityConfigExists: this.hasSecurityConfig(),
       schedulingConfigExists: this.hasSchedulingConfig(),
       securityConfigPath: this.getSecurityConfigPath(),
@@ -1086,11 +1114,6 @@ export class ConfigManager {
    * Prompt user if they want global installation
    */
   static async promptForGlobalInstall(): Promise<boolean> {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
-
     const platform = os.platform();
     let installationDescription = '';
 
@@ -1107,21 +1130,16 @@ export class ConfigManager {
         installationDescription = 'Enable system-wide access';
     }
 
-    return new Promise(resolve => {
-      console.log('🌍 Global Installation Setup');
-      console.log(
-        `   Platform: ${platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'macOS' : 'Linux'}`
-      );
-      console.log(`   Action: ${installationDescription}`);
-      console.log('');
+    console.log('🌍 Global Installation Setup');
+    console.log(
+      `   Platform: ${platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'macOS' : 'Linux'}`
+    );
+    console.log(`   Action: ${installationDescription}`);
+    console.log('');
 
-      rl.question(
-        'Would you like to install globally for system-wide access? (y/N): ',
-        (answer: string) => {
-          rl.close();
-          resolve(answer.toLowerCase().startsWith('y'));
-        }
-      );
+    return await confirm({
+      message: 'Would you like to install globally for system-wide access?',
+      default: false
     });
   }
 

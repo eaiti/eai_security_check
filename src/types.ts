@@ -107,13 +107,14 @@ export interface ScpConfig {
 
 export interface SchedulingConfig {
   enabled: boolean;
-  intervalDays: number;  // How often to run checks (default: 7 days)
-  email: EmailConfig;
-  scp?: ScpConfig;       // Optional SCP file transfer configuration
+  intervalDays: number; // How often to run checks (default: 7 days)
+  intervalMinutes?: number; // Alternative interval in minutes for testing (overrides intervalDays)
+  email?: EmailConfig; // Optional email configuration
+  scp?: ScpConfig; // Optional SCP file transfer configuration
   reportFormat: 'email' | 'plain' | 'markdown' | 'json';
-  securityProfile: string;  // Which security profile to use for checks
-  customConfigPath?: string;  // Optional path to custom security config
-  userId?: string;  // User identifier included in reports and emails
+  securityProfile: string; // Which security profile to use for checks
+  customConfigPath?: string; // Optional path to custom security config
+  userId?: string; // User identifier included in reports and emails
 }
 
 export interface DaemonState {

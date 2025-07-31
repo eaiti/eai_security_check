@@ -1,4 +1,4 @@
-import * as readline from 'readline';
+import { password } from '@inquirer/prompts';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -287,69 +287,10 @@ export function validatePassword(
 /**
  * Prompts user for password with hidden input
  */
-export function promptForPassword(prompt: string = 'Enter password: '): Promise<string> {
-  return new Promise(resolve => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      terminal: false // Disable echoing
-    });
-
-    let password = '';
-    const stdin = process.stdin;
-
-    process.stdout.write(prompt);
-
-    // Set raw mode to capture individual keystrokes
-    if (stdin.isTTY && stdin.setRawMode) {
-      stdin.setRawMode(true);
-    }
-
-    const onData = (buffer: Buffer) => {
-      const char = buffer.toString();
-
-      switch (char) {
-        case '\n':
-        case '\r':
-        case '\u0004': {
-          // Enter pressed - finish input
-          if (stdin.isTTY && stdin.setRawMode) {
-            stdin.setRawMode(false);
-          }
-          stdin.removeListener('data', onData);
-          rl.close();
-          process.stdout.write('\n');
-          resolve(password);
-          break;
-        }
-        case '\u0003': {
-          // Ctrl+C pressed - exit
-          process.exit(0);
-          break;
-        }
-        case '\u007f': {
-          // Backspace pressed
-          if (password.length > 0) {
-            password = password.slice(0, -1);
-            // Move cursor back one position, write space to clear, then back again
-            process.stdout.write('\b \b');
-          }
-          break;
-        }
-        default: {
-          // Regular character
-          if (char.charCodeAt(0) >= 32) {
-            // Printable characters only
-            password += char;
-            // Just write asterisk - terminal echo is disabled
-            process.stdout.write('*');
-          }
-          break;
-        }
-      }
-    };
-
-    stdin.on('data', onData);
+export async function promptForPassword(prompt: string = 'Enter password: '): Promise<string> {
+  return await password({
+    message: prompt,
+    mask: '*'
   });
 }
 
