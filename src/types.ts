@@ -94,10 +94,22 @@ export interface EmailConfig {
   subject?: string;
 }
 
+export interface ScpConfig {
+  enabled: boolean;
+  host: string;
+  username: string;
+  destinationDirectory: string;
+  authMethod: 'password' | 'key';
+  password?: string;       // For password authentication
+  privateKeyPath?: string; // For key-based authentication
+  port?: number;          // SSH port, defaults to 22
+}
+
 export interface SchedulingConfig {
   enabled: boolean;
   intervalDays: number;  // How often to run checks (default: 7 days)
   email: EmailConfig;
+  scp?: ScpConfig;       // Optional SCP file transfer configuration
   reportFormat: 'email' | 'plain' | 'markdown' | 'json';
   securityProfile: string;  // Which security profile to use for checks
   customConfigPath?: string;  // Optional path to custom security config

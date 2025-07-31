@@ -2,11 +2,15 @@ import * as cron from 'node-cron';
 import * as nodemailer from 'nodemailer';
 import * as fs from 'fs';
 import * as path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { SecurityAuditor } from './auditor';
 import { SecurityConfig, SchedulingConfig, DaemonState } from '../types';
 import { OutputUtils, OutputFormat } from '../utils/output-utils';
 import { PlatformDetector } from '../utils/platform-detector';
 import { VersionUtils } from '../utils/version-utils';
+
+const execAsync = promisify(exec);
 
 /**
  * SchedulingService handles the daemon mode for automated security checks
@@ -289,6 +293,20 @@ export class SchedulingService {
       // Send email
       await this.sendEmailReport(formattedOutput.content, auditResult.overallPassed);
 
+      // Send via SCP if configured
+      if (this.config.scp?.enabled) {
+        try {
+          await this.sendScpReport(
+            formattedOutput.content,
+            auditResult.overallPassed,
+            reportMetadata
+          );
+        } catch (error) {
+          console.error(`[${new Date().toISOString()}] Failed to send report via SCP:`, error);
+          // Don't fail the entire process if SCP fails, just log the error
+        }
+      }
+
       // Update state
       state.lastReportSent = new Date().toISOString();
       state.totalReportsGenerated++;
@@ -343,6 +361,83 @@ export class SchedulingService {
   private convertToHtml(content: string): string {
     // Simple conversion - replace newlines with <br> and wrap in <pre> for formatting
     return `<html><body><pre style="font-family: monospace; font-size: 12px;">${content.replace(/\n/g, '<br>')}</pre></body></html>`;
+  }
+
+  /**
+   * Send report via SCP to remote server
+   */
+  private async sendScpReport(
+    reportContent: string,
+    overallPassed: boolean,
+    _reportMetadata: any
+  ): Promise<void> {
+    if (!this.config.scp?.enabled) {
+      return;
+    }
+
+    const scpConfig = this.config.scp;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const userIdPrefix = this.config.userId
+      ? `${this.config.userId.replace(/[^a-zA-Z0-9]/g, '_')}-`
+      : '';
+    const status = overallPassed ? 'PASSED' : 'FAILED';
+    const filename = `${userIdPrefix}security-report-${status}-${timestamp}.txt`;
+
+    // Create temporary file
+    const tempDir = path.join(__dirname, '../../tmp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const tempFilePath = path.join(tempDir, filename);
+
+    try {
+      // Write report to temporary file
+      fs.writeFileSync(tempFilePath, reportContent);
+
+      // Build SCP command
+      const port = scpConfig.port || 22;
+      const remoteDestination = `${scpConfig.username}@${scpConfig.host}:${scpConfig.destinationDirectory}/${filename}`;
+
+      let scpCommand: string;
+
+      if (scpConfig.authMethod === 'key' && scpConfig.privateKeyPath) {
+        // Key-based authentication
+        scpCommand = `scp -P ${port} -i "${scpConfig.privateKeyPath}" -o StrictHostKeyChecking=no "${tempFilePath}" "${remoteDestination}"`;
+      } else if (scpConfig.authMethod === 'password' && scpConfig.password) {
+        // Password authentication using sshpass
+        scpCommand = `sshpass -p "${scpConfig.password}" scp -P ${port} -o StrictHostKeyChecking=no "${tempFilePath}" "${remoteDestination}"`;
+      } else {
+        throw new Error('Invalid SCP configuration: missing authentication credentials');
+      }
+
+      console.log(
+        `[${new Date().toISOString()}] Transferring report via SCP to ${scpConfig.host}:${scpConfig.destinationDirectory}/`
+      );
+
+      // Execute SCP command
+      const { stderr } = await execAsync(scpCommand);
+
+      if (stderr && !stderr.includes('Warning:')) {
+        console.warn(`SCP stderr: ${stderr}`);
+      }
+
+      console.log(
+        `[${new Date().toISOString()}] Report successfully transferred via SCP: ${filename}`
+      );
+    } catch (error) {
+      console.error(`SCP transfer failed:`, error);
+      throw error;
+    } finally {
+      // Clean up temporary file
+      if (fs.existsSync(tempFilePath)) {
+        try {
+          fs.unlinkSync(tempFilePath);
+        } catch (cleanupError) {
+          console.warn(`Failed to cleanup temporary file: ${tempFilePath}`, cleanupError);
+        }
+      }
+    }
   }
 
   /**

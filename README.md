@@ -159,7 +159,7 @@ Interactive setup wizard that guides you through configuration. **No options nee
 **What it does:**
 1. **Profile Selection**: Interactive menu to choose your default security profile with detailed explanations
 2. **Directory Setup**: Creates OS-appropriate configuration directory and all profile files
-3. **Daemon Setup**: Optional automated scheduling configuration with SMTP email settings
+3. **Daemon Setup**: Optional automated scheduling configuration with SMTP email and SCP file transfer
 4. **Next Steps**: Clear guidance on running your first security audit
 
 **Security Profiles Available:**
@@ -279,6 +279,7 @@ Before using daemon mode, initialize your configuration:
 **Daemon Features:**
 - Runs security checks on a configurable schedule (default: weekly)
 - Sends email reports to configured recipients using SMTP
+- Optionally transfers reports to remote server via SCP (SSH/SFTP)
 - Tracks when last report was sent to avoid duplicates
 - Automatically restarts checks after system reboot (when configured as service)
 - Graceful shutdown on SIGINT/SIGTERM signals
@@ -332,10 +333,29 @@ Interactive setup (`init`) will create a scheduling configuration like:
     "to": ["admin@company.com", "security@company.com"],
     "subject": "Weekly Security Audit Report"
   },
+  "scp": {
+    "enabled": true,
+    "host": "backup.company.com",
+    "username": "backup-user",
+    "destinationDirectory": "/secure/audit-reports",
+    "port": 22,
+    "authMethod": "key",
+    "privateKeyPath": "/home/user/.ssh/id_rsa"
+  },
   "reportFormat": "email",
   "securityProfile": "default"
 }
 ```
+
+**SCP Configuration (Optional):**
+- `enabled` - Enable/disable SCP file transfer
+- `host` - Remote server hostname or IP address
+- `username` - SSH username for authentication
+- `destinationDirectory` - Directory on remote server to store reports
+- `port` - SSH port (default: 22)
+- `authMethod` - Authentication method: `"key"` (recommended) or `"password"`
+- `privateKeyPath` - Path to SSH private key file (for key-based auth)
+- `password` - SSH password (for password-based auth, requires `sshpass` utility)
 
 ## 🖥️ Platform-Specific Examples
 

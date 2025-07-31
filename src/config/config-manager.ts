@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { SecurityConfig, SchedulingConfig } from '../types';
+import { SecurityConfig, SchedulingConfig, ScpConfig } from '../types';
 import { getConfigByProfile } from './config-profiles';
 import { Platform, PlatformDetector } from '../utils/platform-detector';
 
@@ -198,6 +198,78 @@ export class ConfigManager {
       );
       const securityProfile = profileInput.trim() || defaultProfile;
 
+      // SCP Configuration (optional)
+      console.log('\n📤 SCP File Transfer Configuration (Optional):');
+      console.log('SCP can automatically transfer reports to a remote server via SSH.');
+      const wantsScp = await question('Would you like to configure SCP file transfer? (y/N): ');
+
+      let scpConfig: ScpConfig | undefined;
+
+      if (wantsScp.toLowerCase() === 'y') {
+        console.log('\n🔧 Setting up SCP configuration...');
+
+        const scpHost = await question('Remote server hostname/IP: ');
+        if (!scpHost.trim()) {
+          throw new Error('SCP host is required');
+        }
+
+        const scpUsername = await question('SSH username: ');
+        if (!scpUsername.trim()) {
+          throw new Error('SSH username is required');
+        }
+
+        const scpDestDir = await question('Destination directory on remote server: ');
+        if (!scpDestDir.trim()) {
+          throw new Error('Destination directory is required');
+        }
+
+        const scpPortInput = await question('SSH port (default: 22): ');
+        const scpPort = parseInt(scpPortInput) || 22;
+
+        console.log('\nAuthentication method:');
+        console.log('1. SSH key (recommended)');
+        console.log('2. Password');
+        const authChoice = await question('Choose authentication method (1/2): ');
+
+        if (authChoice === '1') {
+          const keyPath = await question('Path to SSH private key file: ');
+          if (!keyPath.trim()) {
+            throw new Error('SSH private key path is required');
+          }
+
+          scpConfig = {
+            enabled: true,
+            host: scpHost.trim(),
+            username: scpUsername.trim(),
+            destinationDirectory: scpDestDir.trim(),
+            port: scpPort,
+            authMethod: 'key',
+            privateKeyPath: keyPath.trim()
+          };
+        } else if (authChoice === '2') {
+          const scpPassword = await question('SSH password: ');
+          if (!scpPassword.trim()) {
+            throw new Error('SSH password is required');
+          }
+
+          console.log(
+            '⚠️  Note: Password authentication requires "sshpass" to be installed on the system.'
+          );
+
+          scpConfig = {
+            enabled: true,
+            host: scpHost.trim(),
+            username: scpUsername.trim(),
+            destinationDirectory: scpDestDir.trim(),
+            port: scpPort,
+            authMethod: 'password',
+            password: scpPassword.trim()
+          };
+        } else {
+          console.log('❌ Invalid choice. Skipping SCP configuration.');
+        }
+      }
+
       const config: SchedulingConfig = {
         enabled: true,
         intervalDays,
@@ -219,6 +291,7 @@ export class ConfigManager {
             .filter(email => email.length > 0),
           subject: 'Security Audit Report'
         },
+        ...(scpConfig && { scp: scpConfig }),
         reportFormat: 'email',
         securityProfile: securityProfile
       };
@@ -240,6 +313,12 @@ export class ConfigManager {
         `🤖 Configured for ${intervalDays}-day intervals using '${securityProfile}' profile`
       );
       console.log(`📧 Will send reports to: ${config.email.to.join(', ')}`);
+
+      if (scpConfig) {
+        console.log(
+          `📤 Will also transfer reports via SCP to: ${scpConfig.username}@${scpConfig.host}:${scpConfig.destinationDirectory}/`
+        );
+      }
     } finally {
       rl.close();
     }

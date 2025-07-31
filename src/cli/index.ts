@@ -450,7 +450,7 @@ Interactive Setup:
   The init command will guide you through:
   1. Choosing a default security profile with explanations
   2. Setting up configuration directory and files
-  3. Optionally configuring automated daemon scheduling
+  3. Optionally configuring automated daemon scheduling with email and SCP
   4. Providing next steps for using the tool
 
 Configuration Directory:
@@ -462,7 +462,7 @@ Configuration Directory:
 This directory will contain:
   - security-config.json: Default security check requirements (using chosen profile)
   - default-config.json, strict-config.json, relaxed-config.json, developer-config.json, eai-config.json: All available profiles
-  - scheduling-config.json: Daemon scheduling and email settings (if daemon setup is chosen)
+  - scheduling-config.json: Daemon scheduling, email, and SCP settings (if daemon setup is chosen)
   - daemon-state.json: Daemon runtime state (created automatically when daemon runs)
 
 Security Profiles Available:
@@ -849,6 +849,7 @@ Daemon Control:
 Daemon Features:
   - Runs security checks on a configurable schedule (default: weekly)
   - Sends email reports to configured recipients
+  - Optionally transfers reports to remote server via SCP
   - Tracks when last report was sent to avoid duplicates
   - Automatically restarts checks after system reboot (when configured as service)
   - Graceful shutdown on SIGINT/SIGTERM
@@ -857,6 +858,7 @@ Configuration:
   The daemon uses two types of configuration files:
   1. Schedule Configuration (scheduling-config.json):
      - Email SMTP settings and recipients
+     - Optional SCP file transfer settings (host, authentication, destination)
      - Check interval (in days)
      - Security profile or custom config path
      - Report format preferences
@@ -864,6 +866,13 @@ Configuration:
      - Specific security requirements and settings
      - Use --security-config to specify a custom security config file
      - If not specified, uses profile from schedule config
+
+SCP File Transfer:
+  - Automatically transfers reports to remote server after email delivery
+  - Supports SSH key-based authentication (recommended) or password authentication
+  - Configurable destination directory and SSH port
+  - Reports are saved with timestamp and status (PASSED/FAILED) in filename
+  - Password authentication requires 'sshpass' utility to be installed
 
 Service Setup:
   To run as a system service that restarts automatically:
