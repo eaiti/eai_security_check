@@ -16,14 +16,21 @@ The daemon feature enables:
 ### 1. Initialize Daemon Configuration
 
 ```bash
-# Interactive setup (includes daemon configuration)
-eai-security-check init
+# Interactive setup with centralized configuration
+eai-security-check interactive
 
-# When prompted, choose:
-# - "Yes" for daemon setup
-# - Configure email settings
-# - Set check interval (daily/weekly)
-# - Choose security profile
+# Navigate to: Daemon → Setup Daemon Automation
+# This creates centralized config alongside your executable:
+# - <executable-dir>/config/scheduling-config.json
+# - <executable-dir>/logs/ (created automatically)
+# - <executable-dir>/reports/ (created automatically)
+
+# What the setup includes:
+# - Email configuration (SMTP settings)
+# - Check interval (daily/weekly/custom)
+# - Security profile selection
+# - Optional SCP file transfer
+# - User identification
 ```
 
 ### 2. Start the Daemon
@@ -32,29 +39,52 @@ eai-security-check init
 # Start daemon with centralized configuration
 eai-security-check daemon
 
-# Check daemon status
-eai-security-check daemon --status
+# Check comprehensive daemon status
+eai-security-check interactive
+# → Navigate to: Daemon → View Status
 
-# Test email configuration
-eai-security-check daemon --test-email
+# Manage daemon (start/stop/restart)
+eai-security-check interactive  
+# → Navigate to: Daemon → Start/Stop/Restart
 ```
 
 ### 3. Optional: Set Up as System Service
 
-Follow the platform-specific instructions created by `eai-security-check init`:
+The interactive mode can automatically set up system services:
 
 ```bash
-# View service setup instructions
-cat ~/.config/eai-security-check/daemon-templates/setup-instructions.txt
-
-# Or follow the platform-specific guides below
+eai-security-check interactive
+# → Navigate to: Daemon → Setup Daemon Automation
+# → Choose "Yes" when asked about system service setup
+# → This automatically creates and loads the appropriate service files
 ```
 
 ## 📋 Daemon Configuration
 
+### Centralized File Structure
+
+The daemon uses a centralized file structure alongside the executable:
+
+```
+# Executable location (example):
+/path/to/eai-security-check
+
+# Centralized structure:
+/path/to/
+├── eai-security-check           # Main executable
+├── config/                      # Configuration files
+│   ├── scheduling-config.json   # Daemon configuration
+│   └── security-config.json     # Security profile settings
+├── logs/                        # Daemon logs
+│   ├── eai-security-check.log   # Output logs
+│   └── eai-security-check.error.log # Error logs  
+└── reports/                     # Generated reports
+    └── security-report-*.{txt,md,json}
+```
+
 ### Scheduling Configuration File
 
-Location: `~/.config/eai-security-check/scheduling-config.json` (Linux)
+Location: `<executable-dir>/config/scheduling-config.json`
 
 ```json
 {
@@ -286,29 +316,34 @@ WantedBy=default.target
 
 ### macOS (launchd)
 
+The interactive mode can automatically set up macOS LaunchAgent services:
+
 ```bash
-# Copy plist file
-cp ~/.config/eai-security-check/daemon-templates/com.eai.security-check.plist ~/Library/LaunchAgents/
+# Automatic setup via interactive mode (recommended)
+eai-security-check interactive
+# → Navigate to: Daemon → Setup Daemon Automation
+# → This automatically creates and loads the LaunchAgent
 
-# Edit plist to update paths
-nano ~/Library/LaunchAgents/com.eai.security-check.plist
+# Manual setup (if needed)
+# The plist file uses centralized logging alongside the executable
+cp ~/path/to/com.eai.security-check.daemon.plist ~/Library/LaunchAgents/
 
-# Load and start service
-launchctl load ~/Library/LaunchAgents/com.eai.security-check.plist
-launchctl start com.eai.security-check
+# Load and start service  
+launchctl load ~/Library/LaunchAgents/com.eai.security-check.daemon.plist
+launchctl start com.eai.security-check.daemon
 
 # Check status
 launchctl list | grep com.eai.security-check
 ```
 
-**Plist File Example:**
+**Plist File Example (with centralized logging):**
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.eai.security-check</string>
+    <string>com.eai.security-check.daemon</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/eai-security-check</string>
@@ -318,6 +353,11 @@ launchctl list | grep com.eai.security-check
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <!-- Centralized logging alongside executable -->
+    <key>StandardOutPath</key>
+    <string>/path/to/executable/logs/eai-security-check.log</string>
+    <key>StandardErrorPath</key>
+    <string>/path/to/executable/logs/eai-security-check.error.log</string>
     <key>StandardOutPath</key>
     <string>/tmp/eai-security-check.log</string>
     <key>StandardErrorPath</key>

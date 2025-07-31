@@ -149,7 +149,55 @@ Profile: default
 | **developer** | Developer-friendly | 10 min | 8+ chars | Development workstations |
 | **eai** | EAI-specific requirements | 7 min | 10+ chars | EAI organization |
 
-## 🐧 Platform Support
+## � File Structure & Storage
+
+EAI Security Check uses a **centralized file structure** that keeps all application data organized alongside the executable for easy management and portability.
+
+### Directory Structure
+
+```
+# Development (npm start):
+./bin/
+├── config/              # Configuration files
+│   ├── security-config.json
+│   └── scheduling-config.json
+├── reports/             # Security audit reports
+│   └── *.{txt,md,json}
+└── logs/               # Daemon and error logs
+    ├── eai-security-check.log
+    └── eai-security-check.error.log
+
+# Production (compiled executable):
+/path/to/executable/
+├── eai-security-check   # Main executable
+├── config/              # Configuration files
+├── reports/             # Security reports
+└── logs/               # Application logs
+
+# Global Installation:
+/usr/local/bin/eai-security-check → /path/to/actual/executable
+# (All files still stored alongside actual executable, not in /usr/local/bin)
+```
+
+### Key Benefits
+
+✅ **Self-contained**: All app data lives with the executable  
+✅ **Portable**: Move the executable directory, everything moves with it  
+✅ **Permission-safe**: No `/var/log/` or system directory issues  
+✅ **Cross-platform**: Same structure on macOS, Linux, and Windows  
+✅ **Global access**: Works with system-wide installation via symlinks  
+✅ **Daemon-compatible**: Services can reliably locate logs and config files  
+
+### Migration from Legacy Locations
+
+For backward compatibility, the tool also checks legacy OS-specific locations:
+- **macOS**: `~/Library/Application Support/eai-security-check/`
+- **Linux**: `~/.config/eai-security-check/` or `$XDG_CONFIG_HOME/eai-security-check/`
+- **Windows**: `%APPDATA%/eai-security-check/`
+
+However, new installations automatically use the centralized structure for better organization.
+
+## �🐧 Platform Support
 
 ### Primary Support (Fully Tested)
 - **macOS**: All versions, complete feature support

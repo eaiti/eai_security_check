@@ -16,7 +16,41 @@ export class ConfigManager {
   private static readonly APP_NAME = 'eai-security-check';
 
   /**
-   * Get the OS-appropriate configuration directory
+   * Get the centralized configuration directory (alongside executable)
+   * This centralizes all app data in one location for easier management
+   */
+  static getCentralizedConfigDirectory(): string {
+    // Get the directory where the actual executable is located (resolve symlinks)
+    let executablePath = process.execPath;
+
+    try {
+      // Resolve symlinks to get the actual executable path
+      const stats = fs.lstatSync(executablePath);
+      if (stats.isSymbolicLink()) {
+        executablePath = fs.readlinkSync(executablePath);
+        // If it's a relative symlink, resolve it relative to the symlink directory
+        if (!path.isAbsolute(executablePath)) {
+          executablePath = path.resolve(path.dirname(process.execPath), executablePath);
+        }
+      }
+    } catch (error) {
+      // If we can't resolve the symlink, use the original path
+      console.warn('Warning: Could not resolve symlink for executable path:', error);
+    }
+
+    const executableDir = path.dirname(executablePath);
+
+    // For development/node execution, use current working directory + bin
+    if (process.execPath.includes('node')) {
+      return path.join(process.cwd(), 'bin', 'config');
+    }
+
+    // For compiled executable, use actual executable directory + config
+    return path.join(executableDir, 'config');
+  }
+
+  /**
+   * Get the OS-appropriate configuration directory (legacy support)
    */
   static getConfigDirectory(): string {
     const platform = os.platform();
@@ -48,10 +82,103 @@ export class ConfigManager {
   }
 
   /**
-   * Get the OS-appropriate reports directory (within config directory)
+   * Get the centralized reports directory (alongside executable)
+   */
+  static getCentralizedReportsDirectory(): string {
+    // Get the directory where the actual executable is located (resolve symlinks)
+    let executablePath = process.execPath;
+
+    try {
+      // Resolve symlinks to get the actual executable path
+      const stats = fs.lstatSync(executablePath);
+      if (stats.isSymbolicLink()) {
+        executablePath = fs.readlinkSync(executablePath);
+        // If it's a relative symlink, resolve it relative to the symlink directory
+        if (!path.isAbsolute(executablePath)) {
+          executablePath = path.resolve(path.dirname(process.execPath), executablePath);
+        }
+      }
+    } catch (error) {
+      // If we can't resolve the symlink, use the original path
+      console.warn('Warning: Could not resolve symlink for executable path:', error);
+    }
+
+    const executableDir = path.dirname(executablePath);
+
+    // For development/node execution, use current working directory + bin
+    if (process.execPath.includes('node')) {
+      return path.join(process.cwd(), 'bin', 'reports');
+    }
+
+    // For compiled executable, use actual executable directory + reports
+    return path.join(executableDir, 'reports');
+  }
+
+  /**
+   * Get the OS-appropriate reports directory (within config directory) - legacy support
    */
   static getReportsDirectory(): string {
     return path.join(this.getConfigDirectory(), 'reports');
+  }
+
+  /**
+   * Create the centralized configuration and reports directories if they don't exist
+   */
+  static ensureCentralizedDirectories(): { configDir: string; reportsDir: string } {
+    const configDir = this.getCentralizedConfigDirectory();
+    const reportsDir = this.getCentralizedReportsDirectory();
+
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir, { recursive: true });
+    }
+
+    return { configDir, reportsDir };
+  }
+
+  /**
+   * Test and display the centralized file structure setup
+   */
+  static testCentralizedStructure(): {
+    executablePath: string;
+    resolvedPath: string;
+    configDir: string;
+    reportsDir: string;
+    logsDir: string;
+    isSymlink: boolean;
+  } {
+    const executablePath = process.execPath;
+    let resolvedPath = executablePath;
+    let isSymlink = false;
+
+    try {
+      // Check if it's a symlink and resolve it
+      const stats = fs.lstatSync(executablePath);
+      if (stats.isSymbolicLink()) {
+        isSymlink = true;
+        resolvedPath = fs.readlinkSync(executablePath);
+        // If it's a relative symlink, resolve it relative to the symlink directory
+        if (!path.isAbsolute(resolvedPath)) {
+          resolvedPath = path.resolve(path.dirname(process.execPath), resolvedPath);
+        }
+      }
+    } catch (error) {
+      console.warn('Warning: Could not check symlink status:', error);
+    }
+
+    const actualExecutableDir = path.dirname(resolvedPath);
+
+    return {
+      executablePath,
+      resolvedPath,
+      configDir: this.getCentralizedConfigDirectory(),
+      reportsDir: this.getCentralizedReportsDirectory(),
+      logsDir: path.join(actualExecutableDir, 'logs'),
+      isSymlink
+    };
   }
 
   /**
@@ -68,14 +195,28 @@ export class ConfigManager {
   }
 
   /**
-   * Get the path to the default security configuration file
+   * Get the path to the centralized security configuration file
+   */
+  static getCentralizedSecurityConfigPath(): string {
+    return path.join(this.getCentralizedConfigDirectory(), 'security-config.json');
+  }
+
+  /**
+   * Get the path to the centralized scheduling configuration file
+   */
+  static getCentralizedSchedulingConfigPath(): string {
+    return path.join(this.getCentralizedConfigDirectory(), 'scheduling-config.json');
+  }
+
+  /**
+   * Get the path to the default security configuration file (legacy support)
    */
   static getSecurityConfigPath(): string {
     return path.join(this.getConfigDirectory(), 'security-config.json');
   }
 
   /**
-   * Get the path to the scheduling configuration file
+   * Get the path to the scheduling configuration file (legacy support)
    */
   static getSchedulingConfigPath(): string {
     return path.join(this.getConfigDirectory(), 'scheduling-config.json');
@@ -1310,6 +1451,24 @@ export class ConfigManager {
     const executableFile = path.basename(executablePath);
 
     const execAsync = promisify(exec);
+
+    // First, create the centralized directory structure alongside the executable
+    console.log('📁 Setting up centralized directory structure...');
+    try {
+      const directories = this.ensureCentralizedDirectories();
+      console.log(`✅ Created config directory: ${directories.configDir}`);
+      console.log(`✅ Created reports directory: ${directories.reportsDir}`);
+
+      // Also create logs directory
+      const executableDir = path.dirname(executablePath);
+      const logsDir = path.join(executableDir, 'logs');
+      if (!fs.existsSync(logsDir)) {
+        fs.mkdirSync(logsDir, { recursive: true });
+        console.log(`✅ Created logs directory: ${logsDir}`);
+      }
+    } catch (error) {
+      console.log(`⚠️  Warning: Could not create centralized directories: ${error}`);
+    }
 
     switch (platform) {
       case 'win32':

@@ -13,7 +13,30 @@ The EAI Security Check tool uses JSON-based configuration files to define securi
 
 ## 🏠 Configuration Directory
 
-Configuration files are stored in OS-appropriate locations:
+EAI Security Check uses a **centralized file structure** alongside the executable for better organization and portability:
+
+### Centralized Structure (Recommended)
+
+```bash
+# Executable location (example):
+/path/to/eai-security-check
+
+# Centralized configuration:
+/path/to/
+├── eai-security-check           # Main executable
+├── config/                      # Configuration files
+│   ├── security-config.json     # Security requirements
+│   └── scheduling-config.json   # Daemon configuration
+├── reports/                     # Generated reports
+│   └── security-report-*.{txt,md,json}
+└── logs/                        # Application logs
+    ├── eai-security-check.log
+    └── eai-security-check.error.log
+```
+
+### Legacy OS-Specific Locations (Backwards Compatibility)
+
+For existing installations, the tool also checks these locations:
 
 ```bash
 # macOS
@@ -21,14 +44,17 @@ Configuration files are stored in OS-appropriate locations:
 
 # Linux
 ~/.config/eai-security-check/
+# or $XDG_CONFIG_HOME/eai-security-check/
 
 # Windows  
 %APPDATA%\eai-security-check\
 ```
 
-**Main configuration files:**
-- `security-config.json` - Security requirements and settings
-- `scheduling-config.json` - Daemon scheduling and email configuration
+**Benefits of Centralized Structure:**
+✅ **Portable**: Move executable directory, everything moves with it  
+✅ **Self-contained**: All files in one location  
+✅ **Permission-safe**: No system directory issues  
+✅ **Global-compatible**: Works with global installation via symlinks
 
 ## 📊 Built-in Security Profiles
 
