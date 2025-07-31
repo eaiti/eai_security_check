@@ -132,7 +132,7 @@ export async function checkPasswordExpiration(
       isValid: true,
       message: `Password is ${daysSincePasswordSet} days old (within ${maxAgeDays} day limit) - determined via ${method}`
     };
-  } catch {
+  } catch (error) {
     // If there's any error checking password expiration, provide clear message
     return {
       isValid: true,
@@ -395,7 +395,7 @@ export async function promptForValidPassword(
       if (attempt < maxRetries) {
         console.log('Please try again.\n');
       }
-    } catch {
+    } catch (error) {
       console.log(`❌ Error reading password: ${error}`);
     }
   }

@@ -78,7 +78,7 @@ export class ConfigManager {
    * Create a default security configuration file
    */
   static createSecurityConfig(profile: string = 'default'): void {
-    const configDir = this.ensureConfigDirectory();
+    this.ensureConfigDirectory();
     const configPath = this.getSecurityConfigPath();
 
     if (fs.existsSync(configPath)) {
@@ -296,7 +296,7 @@ export class ConfigManager {
         securityProfile: securityProfile
       };
 
-      const configDir = this.ensureConfigDirectory();
+      this.ensureConfigDirectory();
       const configPath = this.getSchedulingConfigPath();
 
       if (fs.existsSync(configPath)) {
@@ -849,7 +849,6 @@ export class ConfigManager {
       }
 
       // Try to add to user PATH (doesn't require admin)
-      const { stdout } = await execAsync(`powershell -Command "$env:PATH"`);
       console.log('💡 Adding to user PATH environment variable...');
 
       await execAsync(

@@ -303,10 +303,11 @@ export class CryptoUtils {
     }
 
     if (signature) {
-      summary += `📅 Generated: ${new Date(signature.timestamp).toLocaleString()}\n`;
-      summary += `💻 Platform: ${signature.metadata.platform}\n`;
-      summary += `🖥️  Hostname: ${signature.metadata.hostname}\n`;
-      summary += `📦 Version: ${signature.metadata.version}\n`;
+      summary += `📅 Generated: ${new Date(signature.timestamp as string).toLocaleString()}\n`;
+      const metadata = signature.metadata as Record<string, unknown>;
+      summary += `💻 Platform: ${metadata.platform}\n`;
+      summary += `🖥️  Hostname: ${metadata.hostname}\n`;
+      summary += `📦 Version: ${metadata.version}\n`;
     }
 
     summary += '='.repeat(50) + '\n';

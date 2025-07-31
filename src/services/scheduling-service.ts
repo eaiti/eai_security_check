@@ -52,7 +52,7 @@ export class SchedulingService {
       }
 
       return config;
-    } catch {
+    } catch (error) {
       throw new Error(`Failed to load scheduling configuration: ${error}`);
     }
   }
@@ -87,7 +87,7 @@ export class SchedulingService {
       }
 
       return state;
-    } catch {
+    } catch (error) {
       console.error('Failed to load daemon state, creating new:', error);
       const newState: DaemonState = {
         lastReportSent: '',
@@ -107,7 +107,7 @@ export class SchedulingService {
   private saveDaemonState(state: DaemonState): void {
     try {
       fs.writeFileSync(this.stateFilePath, JSON.stringify(state, null, 2));
-    } catch {
+    } catch (error) {
       console.error('Failed to save daemon state:', error);
     }
   }
@@ -301,7 +301,7 @@ export class SchedulingService {
             auditResult.overallPassed,
             reportMetadata
           );
-        } catch {
+        } catch (error) {
           console.error(`[${new Date().toISOString()}] Failed to send report via SCP:`, error);
           // Don't fail the entire process if SCP fails, just log the error
         }
@@ -315,7 +315,7 @@ export class SchedulingService {
       console.log(
         `[${new Date().toISOString()}] Security report sent successfully. Overall status: ${auditResult.overallPassed ? 'PASSED' : 'FAILED'}`
       );
-    } catch {
+    } catch (error) {
       console.error(`[${new Date().toISOString()}] Error running scheduled check:`, error);
     }
   }
@@ -350,7 +350,7 @@ export class SchedulingService {
     try {
       await transporter.sendMail(mailOptions);
       console.log(`Email sent to: ${this.config.email.to.join(', ')}`);
-    } catch {
+    } catch (error) {
       throw new Error(`Failed to send email: ${error}`);
     }
   }
@@ -425,7 +425,7 @@ export class SchedulingService {
       console.log(
         `[${new Date().toISOString()}] Report successfully transferred via SCP: ${filename}`
       );
-    } catch {
+    } catch (error) {
       console.error(`SCP transfer failed:`, error);
       throw error;
     } finally {
@@ -533,7 +533,7 @@ export class SchedulingService {
       const state = this.loadDaemonState();
       state.lastVersionCheck = new Date().toISOString();
       this.saveDaemonState(state);
-    } catch {
+    } catch (error) {
       console.warn('Warning: Version check failed:', error);
     }
   }
@@ -669,7 +669,7 @@ export class SchedulingService {
           message: `Failed to stop daemon: ${killError}`
         };
       }
-    } catch {
+    } catch (error) {
       return {
         success: false,
         message: `Error stopping daemon: ${error}`
@@ -711,7 +711,7 @@ export class SchedulingService {
         success: true,
         message: 'Daemon restarted successfully'
       };
-    } catch {
+    } catch (error) {
       return {
         success: false,
         message: `Failed to start new daemon: ${error}`
@@ -795,7 +795,7 @@ export class SchedulingService {
             removedFiles.push(executablePath);
             messages.push('Removed executable file');
           }
-        } catch {
+        } catch (error) {
           messages.push(`Warning: Could not remove executable: ${error}`);
         }
       } else if (options.removeExecutable) {
@@ -807,7 +807,7 @@ export class SchedulingService {
         message: messages.join('\n'),
         removedFiles
       };
-    } catch {
+    } catch (error) {
       return {
         success: false,
         message: `Error during uninstall: ${error}`,

@@ -919,7 +919,9 @@ Exit codes: 0 = all verifications passed, 1 = any verification failed or file er
                   `   🔐 Hash: ${CryptoUtils.createShortHash(verification.originalHash)}`
                 );
                 if (signature) {
-                  console.log(`   📅 Generated: ${new Date(signature.timestamp).toLocaleString()}`);
+                  console.log(
+                    `   📅 Generated: ${new Date(signature.timestamp as string).toLocaleString()}`
+                  );
                 }
                 console.log();
               }
@@ -974,9 +976,12 @@ Exit codes: 0 = all verifications passed, 1 = any verification failed or file er
           console.log(`🔐 Hash: ${CryptoUtils.createShortHash(verification.originalHash)}`);
 
           if (signature) {
-            console.log(`📅 Generated: ${new Date(signature.timestamp).toLocaleString()}`);
-            console.log(`💻 Platform: ${signature.metadata.platform}`);
-            console.log(`🖥️  Hostname: ${signature.metadata.hostname}`);
+            console.log(
+              `📅 Generated: ${new Date(signature.timestamp as string).toLocaleString()}`
+            );
+            const metadata = signature.metadata as Record<string, unknown>;
+            console.log(`💻 Platform: ${metadata.platform}`);
+            console.log(`🖥️  Hostname: ${metadata.hostname}`);
           }
         } else {
           console.error('❌ Report verification FAILED');
@@ -989,7 +994,7 @@ Exit codes: 0 = all verifications passed, 1 = any verification failed or file er
         }
 
         if (options.verbose) {
-          console.log(CryptoUtils.createVerificationSummary(verification, signature));
+          console.log(CryptoUtils.createVerificationSummary(verification, signature || undefined));
         }
 
         process.exit(verification.isValid ? 0 : 1);

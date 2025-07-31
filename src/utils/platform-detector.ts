@@ -70,7 +70,7 @@ export class PlatformDetector {
         isApproved,
         warningMessage
       };
-    } catch {
+    } catch (error) {
       return {
         platform: Platform.MACOS,
         version: 'unknown',
@@ -136,7 +136,7 @@ export class PlatformDetector {
         isApproved,
         warningMessage
       };
-    } catch {
+    } catch (error) {
       return {
         platform: Platform.LINUX,
         version: 'unknown',
@@ -209,7 +209,7 @@ export class PlatformDetector {
         isApproved,
         warningMessage
       };
-    } catch {
+    } catch (error) {
       return {
         platform: Platform.WINDOWS,
         version: 'unknown',

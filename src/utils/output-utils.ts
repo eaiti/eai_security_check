@@ -101,6 +101,7 @@ export class OutputUtils {
    */
   static stripAnsiCodes(text: string): string {
     // Remove ANSI escape sequences
+    // eslint-disable-next-line no-control-regex
     return text.replace(/\u001b\[[0-9;]*m/g, '');
   }
 
