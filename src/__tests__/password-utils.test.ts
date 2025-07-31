@@ -1,10 +1,24 @@
 import {
   validatePassword,
   PasswordValidationResult,
-  getPasswordRequirements
+  getPasswordRequirements,
+  validatePasswordConfiguration,
+  validatePasswordStrength,
+  checkPasswordExpiration
 } from '../password-utils';
 
+// Mock child_process for password expiration tests
+jest.mock('child_process');
+import { exec } from 'child_process';
+const mockExec = exec as jest.MockedFunction<typeof exec>;
+
+// Mock callback type for exec
+type MockExecCallback = (error: Error | null, result?: { stdout: string; stderr: string }) => void;
+
 describe('Password Validation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
   describe('getPasswordRequirements', () => {
     it('should return EAI requirements for EAI profile', () => {
       const requirements = getPasswordRequirements('eai');
@@ -171,8 +185,82 @@ describe('Password Validation', () => {
     });
   });
 
-  // Note: Password expiration tests are not included here as they require
-  // system-level access and would fail in the CI environment.
-  // The checkPasswordExpiration function includes proper error handling
-  // and will gracefully handle cases where system commands are not available.
+  describe('validatePasswordStrength', () => {
+    it('should return valid for password meeting all requirements', () => {
+      const requirements = {
+        minLength: 8,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireNumber: true,
+        requireSpecialChar: true
+      };
+      const result = validatePasswordStrength('MyP@ssw0rd123', requirements);
+      expect(result.isValid).toBe(true);
+      expect(result.message).toBe('Password meets security requirements');
+    });
+
+    it('should return invalid for password too short', () => {
+      const requirements = {
+        minLength: 8,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireNumber: true,
+        requireSpecialChar: true
+      };
+      const result = validatePasswordStrength('Short1!', requirements);
+      expect(result.isValid).toBe(false);
+      expect(result.message).toBe('Password must be at least 8 characters long');
+    });
+
+    it('should return invalid for password missing uppercase', () => {
+      const requirements = {
+        minLength: 8,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireNumber: true,
+        requireSpecialChar: true
+      };
+      const result = validatePasswordStrength('myp@ssw0rd1', requirements);
+      expect(result.isValid).toBe(false);
+      expect(result.message).toBe('Password must contain at least one: uppercase letter');
+    });
+  });
+
+  describe('validatePasswordConfiguration', () => {
+    it('should have correct function signature', () => {
+      expect(typeof validatePasswordConfiguration).toBe('function');
+    });
+  });
+
+  describe('checkPasswordExpiration', () => {
+    it('should handle command execution errors gracefully', async () => {
+      mockExec.mockImplementation((command, callback) => {
+        if (callback) {
+          (callback as unknown as MockExecCallback)(new Error('Command failed'));
+        }
+        return {} as unknown as ReturnType<typeof exec>;
+      });
+
+      const result = await checkPasswordExpiration(180);
+      expect(result.isValid).toBe(true);
+      expect(result.message).toContain('Password age could not be determined');
+    });
+
+    it('should handle missing passwordLastSetTime gracefully', async () => {
+      mockExec.mockImplementation((command, callback) => {
+        if (callback) {
+          (callback as unknown as MockExecCallback)(null, {
+            stdout: 'No passwordLastSetTime found',
+            stderr: ''
+          });
+        }
+        return {} as unknown as ReturnType<typeof exec>;
+      });
+
+      const result = await checkPasswordExpiration(180);
+      expect(result.isValid).toBe(true);
+      // Just check that we get some result - the specific message varies based on fallback methods
+      expect(typeof result.message).toBe('string');
+    });
+  });
 });
