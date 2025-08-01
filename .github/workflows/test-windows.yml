@@ -154,7 +154,7 @@ jobs:
           
           # Create minimal scheduling config for testing
           Write-Host "Creating test daemon configuration..."
-          New-Item -ItemType Directory -Force -Path "$env:APPDATA\eai-security-check"
+          New-Item -ItemType Directory -Force -Path "bin\config"
           
           $config = @{
             enabled = $true
@@ -180,7 +180,7 @@ jobs:
             }
           }
           
-          $config | ConvertTo-Json -Depth 4 | Out-File -FilePath "$env:APPDATA\eai-security-check\scheduling-config.json"
+          $config | ConvertTo-Json -Depth 4 | Out-File -FilePath "bin\config\scheduling-config.json"
           
           # Create security config as well (Windows-specific settings)
           Write-Host "Creating test security configuration..."
@@ -233,7 +233,7 @@ jobs:
             }
           }
           
-          $securityConfig | ConvertTo-Json -Depth 4 | Out-File -FilePath "$env:APPDATA\eai-security-check\security-config.json"
+          $securityConfig | ConvertTo-Json -Depth 4 | Out-File -FilePath "bin\config\security-config.json"
           
           # Test daemon status with config (should show configuration details)
           Write-Host "Testing daemon status with configuration..."
@@ -245,13 +245,13 @@ jobs:
           
           # Test daemon auto-configuration validation
           Write-Host "Validating daemon configuration was created correctly..."
-          if (-not (Test-Path "$env:APPDATA\eai-security-check\scheduling-config.json")) {
+          if (-not (Test-Path "bin\config\scheduling-config.json")) {
             Write-Host "❌ Daemon config file not found"
             exit 1
           }
           
           # Verify config contains required fields
-          $configContent = Get-Content "$env:APPDATA\eai-security-check\scheduling-config.json" -Raw
+          $configContent = Get-Content "bin\config\scheduling-config.json" -Raw
           if (-not ($configContent -match "smtp.example.com")) {
             Write-Host "❌ SMTP configuration not found"
             exit 1
@@ -317,7 +317,7 @@ jobs:
           
           # Validate uninstall cleaned up config files when forced
           Write-Host "Validating daemon uninstall cleanup..."
-          if (Test-Path "$env:APPDATA\eai-security-check\scheduling-config.json") {
+          if (Test-Path "bin\config\scheduling-config.json") {
             Write-Host "⚠️  Config file still exists after force uninstall (this is expected behavior)"
           }
           

@@ -26,8 +26,7 @@ You can run a custom security configuration in several ways:
    ```
 
 4. **Modify default configuration**: Edit the default configuration file located at:
-   - **macOS/Linux**: `~/.config/eai-security-check/security-config.json`
-   - **Windows**: `%APPDATA%\eai-security-check\security-config.json`
+   **Location**: `<executable-dir>/config/security-config.json`
 
 ### How can I manually setup the daemon configuration?
 
@@ -45,7 +44,7 @@ To manually set up daemon configuration for automated security audits:
    ```
 
 3. **Manual configuration file creation**:
-   Create a file at `~/.config/eai-security-check/scheduling-config.json` with:
+   Create a file at `<executable-dir>/config/scheduling-config.json` with:
    ```json
    {
      "enabled": true,
@@ -91,12 +90,9 @@ To manually set up daemon configuration for automated security audits:
 
 ### Where are configuration files stored?
 
-Configuration files are stored in platform-specific locations:
+Configuration files are stored in a centralized structure alongside the executable:
 
-- **macOS/Linux**: `~/.config/eai-security-check/`
-  - `security-config.json` - Security check configuration
-  - `scheduling-config.json` - Daemon scheduling configuration
-- **Windows**: `%APPDATA%\eai-security-check\`
+**Location**: `<executable-dir>/config/`
   - `security-config.json` - Security check configuration
   - `scheduling-config.json` - Daemon scheduling configuration
 
@@ -110,11 +106,8 @@ Configuration files are stored in platform-specific locations:
 
 2. **Remove all configurations** (nuclear option):
    ```bash
-   # macOS/Linux
-   rm -rf ~/.config/eai-security-check/
-   
-   # Windows
-   rmdir /S "%APPDATA%\eai-security-check"
+   # Remove configuration directory alongside executable
+   rm -rf <executable-dir>/config/
    ```
 
 ## Daemon and Automation

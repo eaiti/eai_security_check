@@ -95,9 +95,74 @@ chmod +x verify-download.sh
 - **Windows**: Binaries are signed with Authenticode certificate  
 - **Linux**: GPG-signed releases with SHA-256 checksums
 
+## 📁 Recommended Installation Locations
+
+After downloading the executable, choose an appropriate location based on your operating system and use case:
+
+### macOS Recommendations
+
+**For Personal Use:**
+```bash
+# Option 1: User Applications folder (Recommended)
+mkdir -p ~/Applications/eai-security-check
+mv eai-security-check ~/Applications/eai-security-check/
+cd ~/Applications/eai-security-check
+
+# Option 2: User bin directory  
+mkdir -p ~/bin/eai-security-check
+mv eai-security-check ~/bin/eai-security-check/
+cd ~/bin/eai-security-check
+```
+
+### Linux Recommendations
+
+**For Personal Use:**
+```bash
+# Option 1: User local directory (Recommended)
+mkdir -p ~/.local/bin/eai-security-check
+mv eai-security-check ~/.local/bin/eai-security-check/
+cd ~/.local/bin/eai-security-check
+
+# Option 2: User opt directory
+mkdir -p ~/opt/eai-security-check  
+mv eai-security-check ~/opt/eai-security-check/
+cd ~/opt/eai-security-check
+```
+
+### Windows Recommendations
+
+**For Personal Use:**
+```powershell
+# Option 1: User AppData directory (Recommended)
+New-Item -Path "$env:LOCALAPPDATA\eai-security-check" -ItemType Directory -Force
+Move-Item "eai-security-check.exe" "$env:LOCALAPPDATA\eai-security-check\"
+Set-Location "$env:LOCALAPPDATA\eai-security-check"
+
+# Option 2: User directory
+New-Item -Path "$env:USERPROFILE\eai-security-check" -ItemType Directory -Force  
+Move-Item "eai-security-check.exe" "$env:USERPROFILE\eai-security-check\"
+Set-Location "$env:USERPROFILE\eai-security-check"
+```
+
+### 💡 Location Selection Tips
+
+**Recommended for Personal Use:**
+- Easy updates without admin privileges  
+- Testing or evaluating the tool
+- Single-user environments
+
+**Directory Structure After Setup:**
+```
+/your/chosen/location/
+├── eai-security-check              # Main executable
+├── config/                         # Configuration files (auto-created)
+├── reports/                        # Generated reports (auto-created)  
+└── logs/                          # Application logs (auto-created)
+```
+
 ## 🌍 Global Installation Setup
 
-After downloading, you can optionally set up global access:
+After placing the executable in your preferred location, you can optionally set up global access:
 
 ### Automatic Setup (Recommended)
 
@@ -113,7 +178,7 @@ eai-security-check interactive
 #### macOS & Linux
 
 ```bash
-# Create symbolic link (requires sudo)
+# Create symbolic link for easy access (optional - requires sudo)
 sudo ln -sf "$(pwd)/eai-security-check" /usr/local/bin/eai-security-check
 
 # Or add to your PATH in ~/.bashrc or ~/.zshrc
@@ -124,7 +189,7 @@ export PATH="$PATH:/path/to/your/eai-security-check/directory"
 
 **Option 1: Add to PATH (PowerShell as Administrator)**
 ```powershell
-# Add directory to system PATH
+# Add directory to system PATH (optional)
 $currentPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
 $newPath = $currentPath + ";" + (Get-Location).Path
 [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
@@ -138,36 +203,35 @@ eai-security-check interactive
 
 ## 📂 Directory Structure After Installation
 
-The tool creates platform-appropriate configuration directories:
+The tool uses a **centralized file structure** that keeps all application data organized alongside the executable for better portability and management:
 
 ```
-# macOS
-~/Library/Application Support/eai-security-check/
-├── security-config.json         # Security profile configuration
-├── scheduling-config.json       # Daemon scheduling configuration  
-├── daemon-state.json           # Daemon state tracking
-└── daemon-templates/           # System service templates
-    ├── com.eai.security-check.plist
-    └── setup-instructions.txt
+# Application files are stored alongside the executable
+/path/to/eai-security-check        # Main executable
+/path/to/config/                   # Configuration files  
+├── security-config.json           # Security profile configuration
+├── scheduling-config.json         # Daemon scheduling configuration
+├── daemon-state.json             # Daemon state tracking
+└── daemon-templates/             # System service templates
+    ├── eai-security-check.service (Linux)
+    ├── com.eai.security-check.plist (macOS)  
+    └── windows-task-scheduler.xml (Windows)
 
-# Linux  
-~/.config/eai-security-check/
-├── security-config.json
-├── scheduling-config.json
-├── daemon-state.json
-└── daemon-templates/
-    ├── eai-security-check.service
-    └── setup-instructions.txt
+/path/to/reports/                  # Generated security reports
+├── security-report-*.txt
+├── security-report-*.md
+└── security-report-*.json
 
-# Windows
-%APPDATA%\eai-security-check\
-├── security-config.json
-├── scheduling-config.json
-├── daemon-state.json
-└── daemon-templates\
-    ├── windows-task-scheduler.xml
-    └── setup-instructions.txt
+/path/to/logs/                     # Application logs
+├── eai-security-check.log
+└── eai-security-check.error.log
 ```
+
+**Benefits of Centralized Structure:**
+✅ **Portable**: Move executable directory, everything moves with it  
+✅ **Self-contained**: All files in one location  
+✅ **Permission-safe**: No system directory issues  
+✅ **Global-compatible**: Works with global installation via symlinks
 
 ## 🔧 Platform-Specific Requirements
 

@@ -124,7 +124,7 @@ eai-security-check.exe daemon
 ### Required Configuration
 Before setting up as a service, you need:
 
-1. **Scheduling Configuration** (`~/.config/eai-security-check/scheduling-config.json`):
+1. **Scheduling Configuration** (`<executable-dir>/config/scheduling-config.json`):
    - Email SMTP settings
    - Recipients and schedule
    - Security profile to use
@@ -232,17 +232,15 @@ eai-security-check daemon --check-now
 ## 📁 File Locations
 
 ### Configuration Files
-- **macOS/Linux**: `~/.config/eai-security-check/`
+**Location**: `<executable-dir>/config/`
   - `scheduling-config.json`
   - `daemon-state.json`
   - `security-config.json` (optional)
 
-- **Windows**: `%APPDATA%\eai-security-check\`
-
 ### Log Files
-- **macOS**: `~/Library/Logs/eai-security-check.log`
-- **Linux**: `journalctl --user -u eai-security-check-daemon`
-- **Windows**: Windows Event Log
+**Location**: `<executable-dir>/logs/`
+  - `eai-security-check.log`
+  - `eai-security-check.error.log`
 
 ### Service Files
 - **macOS**: `~/Library/LaunchAgents/com.eai.security-check.daemon.plist`
