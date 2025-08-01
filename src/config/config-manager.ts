@@ -130,7 +130,7 @@ export class ConfigManager {
       if (platform !== 'win32') {
         // Check if we're already running as root
         const isRoot = process.getuid && process.getuid() === 0;
-        
+
         if (!isRoot) {
           try {
             await execAsync('sudo -n true');
@@ -245,7 +245,7 @@ export class ConfigManager {
       if (platform !== 'win32') {
         // Check if we're already running as root
         const isRoot = process.getuid && process.getuid() === 0;
-        
+
         if (!isRoot) {
           try {
             await execAsync('sudo -n true');
