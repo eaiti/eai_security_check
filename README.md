@@ -301,6 +301,29 @@ npm run build
 - ✅ Daemon automation and scheduling
 - ✅ Error handling and edge cases
 
+**Platform Compatibility Testing:**
+```bash
+# Auto-detect platform and run appropriate tests
+./scripts/testing/test-platform.sh
+
+# Run platform-specific tests
+./scripts/testing/test-linux.sh      # Linux systems
+./scripts/testing/test-macos.sh      # macOS systems
+./scripts/testing/test-windows.ps1   # Windows systems (PowerShell)
+
+# Non-interactive testing for CI
+./scripts/testing/test-automated.sh
+```
+
+The testing scripts provide:
+- 🔍 **Individual security check validation** for each platform
+- 🖥️ **OS version and compatibility reporting**
+- 🛠️ **Interactive remediation guidance** when security settings need fixes
+- 📊 **Pass/fail summary** with actionable next steps
+- 🔧 **Developer-friendly** output for quick compatibility assessment
+
+See [scripts/testing/README.md](scripts/testing/README.md) for detailed usage instructions.
+
 ## 🚀 Troubleshooting
 
 ### Common Issues
