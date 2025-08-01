@@ -224,7 +224,7 @@ try {
         } else {
             Test-Result "SmartScreen" "FAIL" "SmartScreen appears to be disabled"
             Write-Host "💡 To enable SmartScreen:" -ForegroundColor Yellow
-            Write-Host "   Windows Security > App & browser control > Reputation-based protection" -ForegroundColor Yellow
+            Write-Host "   Windows Security > App `& browser control > Reputation-based protection" -ForegroundColor Yellow
         }
     }
 } catch {
@@ -272,7 +272,7 @@ try {
     } else {
         Test-Result "Automatic Updates" "FAIL" "Automatic updates are disabled"
         Write-Host "💡 To enable automatic updates:" -ForegroundColor Yellow
-        Write-Host "   Settings > Update & Security > Windows Update > Advanced options" -ForegroundColor Yellow
+        Write-Host "   Settings > Update `& Security > Windows Update > Advanced options" -ForegroundColor Yellow
     }
     
 } catch {
