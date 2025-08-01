@@ -65,9 +65,7 @@ jobs:
 
       - name: Run platform-specific security check tests (Windows)
         if: matrix.platform == 'windows'
-        run: |
-          powershell.exe -ExecutionPolicy Bypass -File `
-            ${{ matrix.test-script }} -Quiet
+        run: powershell.exe -ExecutionPolicy Bypass -File ${{ matrix.test-script }} -Quiet
         env:
           CI: true
           TESTING_MODE: non-interactive

@@ -42,9 +42,7 @@ jobs:
         run: npm test
 
       - name: Run Windows security check tests
-        run: |
-          powershell.exe -ExecutionPolicy Bypass -File `
-            scripts/testing/test-windows.ps1 -Quiet
+        run: powershell.exe -ExecutionPolicy Bypass -File scripts/testing/test-windows.ps1 -Quiet
         env:
           CI: true
           TESTING_MODE: non-interactive
@@ -64,9 +62,7 @@ jobs:
       - name: Test pkg executable - Basic check (non-interactive)
         run: |
           # Run with timeout, allow failure since security checks may fail in CI
-          Start-Process -FilePath "./bin/index-win.exe" `
-            -ArgumentList "check", "relaxed", "--quiet" `
-            -Wait -NoNewWindow -PassThru | Out-Null
+          Start-Process -FilePath "./bin/index-win.exe" -ArgumentList "check", "relaxed", "--quiet" -Wait -NoNewWindow -PassThru | Out-Null
         env:
           CI: true
         continue-on-error: true
@@ -84,9 +80,7 @@ jobs:
           eai-security-check check --help
 
           # Test basic security check (allow failure in CI)
-          Start-Process -FilePath "eai-security-check" `
-            -ArgumentList "check", "relaxed", "--quiet" `
-            -Wait -NoNewWindow -PassThru | Out-Null
+          Start-Process -FilePath "eai-security-check" -ArgumentList "check", "relaxed", "--quiet" -Wait -NoNewWindow -PassThru | Out-Null
 
           # Clean up
           npm uninstall -g eai-security-check
@@ -113,28 +107,20 @@ jobs:
 
           # Test that globally installed command works
           Write-Host "Testing globally installed command..."
-          & "C:\Program Files\eai-security-check\eai-security-check.exe" `
-            --help
-          & "C:\Program Files\eai-security-check\eai-security-check.exe" `
-            --version
-          & "C:\Program Files\eai-security-check\eai-security-check.exe" `
-            check --help
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" --help
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" --version
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" check --help
 
           # Test basic security check with global install (allow failure)
           try {
-            Start-Process `
-              -FilePath `
-              "C:\Program Files\eai-security-check\eai-security-check.exe" `
-              -ArgumentList "check", "relaxed", "--quiet" `
-              -Wait -NoNewWindow -PassThru | Out-Null
+            Start-Process -FilePath "C:\Program Files\eai-security-check\eai-security-check.exe" -ArgumentList "check", "relaxed", "--quiet" -Wait -NoNewWindow -PassThru | Out-Null
           } catch {
             Write-Host "Security check failed (expected in CI)"
           }
 
           # Test the application's own uninstall command
           Write-Host "Testing eai-security-check uninstall command..."
-          & "C:\Program Files\eai-security-check\eai-security-check.exe" `
-            uninstall
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" uninstall
 
           # Verify uninstallation cleaned up correctly
           Write-Host "Verifying uninstallation cleanup..."
@@ -148,8 +134,7 @@ jobs:
           # But main executable should be removed (though directory structure remains)
           Write-Host "✅ Installation directory preserved for config files"
 
-          Write-Host "✅ Application global install/uninstall functionality " `
-            "works correctly"
+          Write-Host "✅ Application global install/uninstall functionality works correctly"
         env:
           CI: true
         continue-on-error: true
