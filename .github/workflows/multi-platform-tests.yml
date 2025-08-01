@@ -286,17 +286,17 @@ jobs:
           
           # Verify minimal config was created correctly
           echo "Validating minimal daemon configuration..."
-          test -f ~/.config/eai-security-check/scheduling-config.json || \
+          test -f bin/config/scheduling-config.json || \
             (echo "❌ Daemon config file not found" && exit 1)
           
           # Verify minimal config contains expected fields
-          grep -q "ci-test@" ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q "ci-test@" bin/config/scheduling-config.json || \
             (echo "❌ User ID not found in config" && exit 1)
-          grep -q '"reportFormat": "console"' ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q '"reportFormat": "console"' bin/config/scheduling-config.json || \
             (echo "❌ Console report format not found" && exit 1)
-          grep -q '"intervalDays": 1' ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q '"intervalDays": 1' bin/config/scheduling-config.json || \
             (echo "❌ Interval days not set correctly" && exit 1)
-          grep -q "relaxed" ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q "relaxed" bin/config/scheduling-config.json || \
             (echo "❌ Security profile not found" && exit 1)
           
           # Test daemon status with minimal config
@@ -305,7 +305,7 @@ jobs:
           
           # Clean up and test CLI daemon setup with email configuration
           echo "Testing CLI daemon setup with --setup-email..."
-          rm -f ~/.config/eai-security-check/scheduling-config.json
+          rm -f bin/config/scheduling-config.json
           
           # Create email config JSON
           EMAIL_CONFIG='{"host":"smtp.example.com","port":587,"user":"test@example.com","pass":"testpass","from":"security@example.com","to":["admin@example.com"],"subject":"[CI Test] Security Report"}'
@@ -317,19 +317,19 @@ jobs:
           
           # Verify email config was created correctly
           echo "Validating email daemon configuration..."
-          test -f ~/.config/eai-security-check/scheduling-config.json || \
+          test -f bin/config/scheduling-config.json || \
             (echo "❌ Email daemon config file not found" && exit 1)
           
           # Verify email config contains expected fields
-          grep -q "smtp.example.com" ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q "smtp.example.com" bin/config/scheduling-config.json || \
             (echo "❌ SMTP configuration not found" && exit 1)
-          grep -q "admin@example.com" ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q "admin@example.com" bin/config/scheduling-config.json || \
             (echo "❌ Email recipient not found" && exit 1)
-          grep -q '"reportFormat": "email"' ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q '"reportFormat": "email"' bin/config/scheduling-config.json || \
             (echo "❌ Email report format not found" && exit 1)
-          grep -q "strict" ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q "strict" bin/config/scheduling-config.json || \
             (echo "❌ Security profile not found" && exit 1)
-          grep -q '"intervalDays": 7' ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q '"intervalDays": 7' bin/config/scheduling-config.json || \
             (echo "❌ Interval days not set correctly" && exit 1)
           
           # Test daemon status with email config
@@ -364,9 +364,9 @@ jobs:
             --force
           
           # Verify force overwrite worked
-          grep -q "force-test@" ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q "force-test@" bin/config/scheduling-config.json || \
             (echo "❌ Force overwrite failed" && exit 1)
-          grep -q "developer" ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q "developer" bin/config/scheduling-config.json || \
             (echo "❌ Force overwrite profile not updated" && exit 1)
           echo "✅ Force overwrite works correctly"
           
@@ -410,13 +410,13 @@ jobs:
           
           # Verify minimal config was created correctly
           Write-Host "Validating minimal daemon configuration..."
-          if (-not (Test-Path "$env:APPDATA\eai-security-check\scheduling-config.json")) {
+          if (-not (Test-Path "bin\config\scheduling-config.json")) {
             Write-Host "❌ Daemon config file not found"
             exit 1
           }
           
           # Verify minimal config contains expected fields
-          $configContent = Get-Content "$env:APPDATA\eai-security-check\scheduling-config.json" -Raw
+          $configContent = Get-Content "bin\config\scheduling-config.json" -Raw
           if (-not ($configContent -match "ci-test@")) {
             Write-Host "❌ User ID not found in config"
             exit 1
@@ -444,7 +444,7 @@ jobs:
           
           # Clean up and test CLI daemon setup with email configuration
           Write-Host "Testing CLI daemon setup with --setup-email..."
-          Remove-Item "$env:APPDATA\eai-security-check\scheduling-config.json" -Force
+          Remove-Item "bin\config\scheduling-config.json" -Force
           
           # Create email config JSON
           $emailConfig = '{"host":"smtp.example.com","port":587,"user":"test@example.com","pass":"testpass","from":"security@example.com","to":["admin@example.com"],"subject":"[CI Test] Security Report"}'
@@ -456,13 +456,13 @@ jobs:
           
           # Verify email config was created correctly
           Write-Host "Validating email daemon configuration..."
-          if (-not (Test-Path "$env:APPDATA\eai-security-check\scheduling-config.json")) {
+          if (-not (Test-Path "bin\config\scheduling-config.json")) {
             Write-Host "❌ Email daemon config file not found"
             exit 1
           }
           
           # Verify email config contains expected fields
-          $configContent = Get-Content "$env:APPDATA\eai-security-check\scheduling-config.json" -Raw
+          $configContent = Get-Content "bin\config\scheduling-config.json" -Raw
           if (-not ($configContent -match "smtp.example.com")) {
             Write-Host "❌ SMTP configuration not found"
             exit 1
@@ -542,7 +542,7 @@ jobs:
             --force
           
           # Verify force overwrite worked
-          $configContent = Get-Content "$env:APPDATA\eai-security-check\scheduling-config.json" -Raw
+          $configContent = Get-Content "bin\config\scheduling-config.json" -Raw
           if (-not ($configContent -match "force-test@")) {
             Write-Host "❌ Force overwrite failed"
             exit 1

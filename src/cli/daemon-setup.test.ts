@@ -395,7 +395,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
       // Mock process.exit to prevent test from terminating
       const originalExit = process.exit;
       const mockExit = jest.fn();
-      process.exit = mockExit as any;
+      process.exit = mockExit as unknown as typeof process.exit;
 
       try {
         await CommandHandlers.handleDaemonCommand({
@@ -415,7 +415,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
       // Mock process.exit to prevent test from terminating
       const originalExit = process.exit;
       const mockExit = jest.fn();
-      process.exit = mockExit as any;
+      process.exit = mockExit as unknown as typeof process.exit;
 
       try {
         await CommandHandlers.handleDaemonCommand({
@@ -435,7 +435,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
       // Mock process.exit to prevent test from terminating
       const originalExit = process.exit;
       const mockExit = jest.fn();
-      process.exit = mockExit as any;
+      process.exit = mockExit as unknown as typeof process.exit;
 
       try {
         const incompleteEmailConfig = JSON.stringify({
@@ -460,7 +460,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
       // Mock process.exit to prevent test from terminating
       const originalExit = process.exit;
       const mockExit = jest.fn();
-      process.exit = mockExit as any;
+      process.exit = mockExit as unknown as typeof process.exit;
 
       try {
         await CommandHandlers.handleDaemonCommand({
@@ -485,7 +485,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
       // Mock process.exit to prevent test from terminating
       const originalExit = process.exit;
       const mockExit = jest.fn();
-      process.exit = mockExit as any;
+      process.exit = mockExit as unknown as typeof process.exit;
 
       try {
         await CommandHandlers.handleDaemonCommand({
