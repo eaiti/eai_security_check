@@ -170,15 +170,15 @@ sudo loginctl enable-linger $USER
 ## 📚 Documentation
 
 ### Quick Reference
+- **[FAQ](FAQ.md)** - Frequently asked questions and troubleshooting
 - **[Installation Guide](docs/INSTALLATION.md)** - Detailed installation instructions for all platforms
-- **[Configuration Guide](docs/CONFIGURATION.md)** - Complete security configuration options and examples
+- **[Configuration Guide](docs/CONFIGURATION.md)** - Complete security configuration options and examples  
 - **[Usage Examples](docs/USAGE_EXAMPLES.md)** - Comprehensive examples for different use cases
 - **[Daemon Setup](docs/DAEMON_SETUP.md)** - Automated scheduling and system service setup
 
 ### Security & Implementation
 - **[Security Documentation](SECURITY.md)** - Complete security analysis, threat model, and implementation details
 - **[Signing Implementation](SIGNING_IMPLEMENTATION.md)** - Cryptographic verification and tamper detection
-- **[Changelog](CHANGELOG.md)** - Version history and updates
 
 ## 🎯 Example Output
 
