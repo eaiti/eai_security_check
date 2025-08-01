@@ -335,7 +335,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
   describe('CLI daemon setup', () => {
     it('should handle --setup-minimal command', async () => {
       const { CommandHandlers } = await import('./command-handlers');
-      
+
       // Mock the setup process
       await CommandHandlers.handleDaemonCommand({
         setupMinimal: true,
@@ -346,7 +346,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
 
       // Verify configuration was created
       expect(fs.existsSync(testSchedulingConfig)).toBe(true);
-      
+
       const config = JSON.parse(fs.readFileSync(testSchedulingConfig, 'utf-8'));
       expect(config.enabled).toBe(true);
       expect(config.userId).toBe('test@example.com');
@@ -358,7 +358,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
 
     it('should handle --setup-email command', async () => {
       const { CommandHandlers } = await import('./command-handlers');
-      
+
       const emailConfig = JSON.stringify({
         host: 'smtp.example.com',
         port: 587,
@@ -377,7 +377,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
 
       // Verify configuration was created
       expect(fs.existsSync(testSchedulingConfig)).toBe(true);
-      
+
       const config = JSON.parse(fs.readFileSync(testSchedulingConfig, 'utf-8'));
       expect(config.enabled).toBe(true);
       expect(config.userId).toBe('test@example.com');
@@ -391,7 +391,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
 
     it('should require --user-id for setup commands', async () => {
       const { CommandHandlers } = await import('./command-handlers');
-      
+
       // Mock process.exit to prevent test from terminating
       const originalExit = process.exit;
       const mockExit = jest.fn();
@@ -402,7 +402,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
           setupMinimal: true
           // Missing userId
         });
-        
+
         expect(mockExit).toHaveBeenCalledWith(1);
       } finally {
         process.exit = originalExit;
@@ -411,7 +411,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
 
     it('should validate email configuration JSON', async () => {
       const { CommandHandlers } = await import('./command-handlers');
-      
+
       // Mock process.exit to prevent test from terminating
       const originalExit = process.exit;
       const mockExit = jest.fn();
@@ -422,7 +422,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
           setupEmail: 'invalid-json',
           userId: 'test@example.com'
         });
-        
+
         expect(mockExit).toHaveBeenCalledWith(1);
       } finally {
         process.exit = originalExit;
@@ -431,7 +431,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
 
     it('should validate required email fields', async () => {
       const { CommandHandlers } = await import('./command-handlers');
-      
+
       // Mock process.exit to prevent test from terminating
       const originalExit = process.exit;
       const mockExit = jest.fn();
@@ -447,7 +447,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
           setupEmail: incompleteEmailConfig,
           userId: 'test@example.com'
         });
-        
+
         expect(mockExit).toHaveBeenCalledWith(1);
       } finally {
         process.exit = originalExit;
@@ -456,7 +456,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
 
     it('should handle interval days validation', async () => {
       const { CommandHandlers } = await import('./command-handlers');
-      
+
       // Mock process.exit to prevent test from terminating
       const originalExit = process.exit;
       const mockExit = jest.fn();
@@ -468,7 +468,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
           userId: 'test@example.com',
           intervalDays: 'invalid'
         });
-        
+
         expect(mockExit).toHaveBeenCalledWith(1);
       } finally {
         process.exit = originalExit;
@@ -477,7 +477,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
 
     it('should prevent overwriting existing config without --force', async () => {
       const { CommandHandlers } = await import('./command-handlers');
-      
+
       // Create existing config
       const existingConfig = { enabled: true, userId: 'existing@example.com' };
       fs.writeFileSync(testSchedulingConfig, JSON.stringify(existingConfig, null, 2));
@@ -492,7 +492,7 @@ describe('Daemon Setup and Auto-Configuration', () => {
           setupMinimal: true,
           userId: 'test@example.com'
         });
-        
+
         expect(mockExit).toHaveBeenCalledWith(1);
       } finally {
         process.exit = originalExit;

@@ -41,14 +41,14 @@ jobs:
       - name: Run Jest tests
         run: npm test
 
+      - name: Build pkg executable for Windows
+        run: npm run pkg:windows
+
       - name: Run Windows security check tests
         run: powershell.exe -ExecutionPolicy Bypass -File scripts/testing/test-windows.ps1 -Quiet
         env:
           CI: true
           TESTING_MODE: non-interactive
-
-      - name: Build pkg executable for Windows
-        run: npm run pkg:windows
 
       - name: Test pkg executable - Help command
         run: ./bin/index-win.exe --help
@@ -91,12 +91,9 @@ jobs:
 
       - name: Test application's global install functionality
         run: |
-          # Build and prepare the application
-          npm run build
-
           # Test the application's own global install command
           Write-Host "Testing eai-security-check install command..."
-          node dist/cli/index.js install
+          ./bin/index-win.exe install
 
           # Verify global installation created correct directories
           Write-Host "Verifying installation directories..."
@@ -141,19 +138,16 @@ jobs:
 
       - name: Test daemon setup and auto-configuration (Windows)
         run: |
-          # Build and prepare the application
-          npm run build
-          
           Write-Host "🤖 Testing daemon CLI commands on Windows..."
           
           # Test daemon help command
           Write-Host "Testing daemon help..."
-          node dist/cli/index.js daemon --help
+          ./bin/index-win.exe daemon --help
           
           # Test daemon status when no daemon is running (should fail gracefully)
           Write-Host "Testing daemon status (no daemon running)..."
           try {
-            node dist/cli/index.js daemon --status
+            ./bin/index-win.exe daemon --status
           } catch {
             Write-Host "✅ Expected failure - no daemon running"
           }
@@ -244,7 +238,7 @@ jobs:
           # Test daemon status with config (should show configuration details)
           Write-Host "Testing daemon status with configuration..."
           try {
-            node dist/cli/index.js daemon --status
+            ./bin/index-win.exe daemon --status
           } catch {
             Write-Host "✅ Daemon status completed"
           }
@@ -274,7 +268,7 @@ jobs:
           # Test daemon test-email (will fail due to fake SMTP but should handle gracefully)
           Write-Host "Testing daemon test-email (expected to fail gracefully)..."
           try {
-            node dist/cli/index.js daemon --test-email
+            ./bin/index-win.exe daemon --test-email
           } catch {
             Write-Host "✅ Test email handled gracefully (expected SMTP failure)"
           }
@@ -282,7 +276,7 @@ jobs:
           # Test daemon check now functionality (run immediate check)
           Write-Host "Testing daemon check-now (immediate security check)..."
           try {
-            node dist/cli/index.js daemon --check-now
+            ./bin/index-win.exe daemon --check-now
           } catch {
             Write-Host "✅ Immediate check completed (expected to fail gracefully)"
           }
@@ -290,7 +284,7 @@ jobs:
           # Test daemon stop (should handle no running daemon gracefully)
           Write-Host "Testing daemon stop (no daemon running)..."
           try {
-            node dist/cli/index.js daemon --stop
+            ./bin/index-win.exe daemon --stop
           } catch {
             Write-Host "✅ Expected - no daemon to stop"
           }
@@ -298,7 +292,7 @@ jobs:
           # Test daemon restart (should handle no running daemon gracefully)
           Write-Host "Testing daemon restart (no daemon running)..."
           try {
-            node dist/cli/index.js daemon --restart
+            ./bin/index-win.exe daemon --restart
           } catch {
             Write-Host "✅ Expected - no daemon to restart"
           }
@@ -316,7 +310,7 @@ jobs:
           # Test daemon uninstall
           Write-Host "Testing daemon uninstall..."
           try {
-            node dist/cli/index.js daemon --uninstall --force
+            ./bin/index-win.exe daemon --uninstall --force
           } catch {
             Write-Host "✅ Daemon uninstall completed"
           }

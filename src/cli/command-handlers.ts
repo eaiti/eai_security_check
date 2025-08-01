@@ -589,7 +589,12 @@ For detailed command help: eai-security-check help <command>
       if (options.setupMinimal) {
         await this.createMinimalDaemonConfig(options.userId, securityProfile, intervalDays);
       } else if (options.setupEmail) {
-        await this.createEmailDaemonConfig(options.userId, options.setupEmail, securityProfile, intervalDays);
+        await this.createEmailDaemonConfig(
+          options.userId,
+          options.setupEmail,
+          securityProfile,
+          intervalDays
+        );
       } else if (options.setup) {
         // Interactive email setup
         await ConfigManager.createSchedulingConfigInteractive(securityProfile);
@@ -609,7 +614,6 @@ For detailed command help: eai-security-check help <command>
         console.log('  • Test email: eai-security-check daemon --test-email');
       }
       console.log('  • Start daemon: eai-security-check daemon');
-      
     } catch (error) {
       console.error('❌ Daemon setup failed:', error);
       process.exit(1);
@@ -661,7 +665,9 @@ For detailed command help: eai-security-check help <command>
       emailConfig = JSON.parse(emailConfigJson);
     } catch (error) {
       console.error('❌ Invalid email configuration JSON:', error);
-      console.log('💡 Example: \'{"host":"smtp.gmail.com","port":587,"user":"user@gmail.com","pass":"apppass","from":"alerts@company.com","to":["admin@company.com"]}\'');
+      console.log(
+        '💡 Example: \'{"host":"smtp.gmail.com","port":587,"user":"user@gmail.com","pass":"apppass","from":"alerts@company.com","to":["admin@company.com"]}\''
+      );
       process.exit(1);
     }
 

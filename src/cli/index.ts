@@ -212,7 +212,10 @@ program
   .option('--setup-minimal', 'Setup minimal daemon configuration (no email, for testing)')
   .option('--setup-email <config>', 'Setup daemon with email configuration (JSON format)')
   .option('--user-id <id>', 'User identifier for daemon setup (required with --setup options)')
-  .option('--security-profile <profile>', 'Security profile for daemon (default, strict, relaxed, developer, eai)')
+  .option(
+    '--security-profile <profile>',
+    'Security profile for daemon (default, strict, relaxed, developer, eai)'
+  )
   .option('--interval-days <days>', 'Check interval in days (default: 7)', '7')
   .option('--auto-service', 'Automatically setup system service when setting up daemon')
   .addHelpText(

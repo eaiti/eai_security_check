@@ -92,12 +92,12 @@ jobs:
 
       - name: Test application's global install functionality
         run: |
-          # Build and prepare the application
-          npm run build
+          # Ensure pkg executable is ready
+          chmod +x bin/index-linux
 
           # Test the application's own global install command
           echo "Testing eai-security-check install command..."
-          sudo node dist/cli/index.js install
+          sudo ./bin/index-linux install
 
           # Verify global installation created correct directories
           echo "Verifying installation directories..."
@@ -145,18 +145,18 @@ jobs:
 
       - name: Test daemon setup and auto-configuration (Linux)
         run: |
-          # Build and prepare the application
-          npm run build
+          # Ensure pkg executable is ready
+          chmod +x bin/index-linux
           
           echo "🤖 Testing daemon CLI commands on Linux..."
           
           # Test daemon help command
           echo "Testing daemon help..."
-          node dist/cli/index.js daemon --help
+          ./bin/index-linux daemon --help
           
           # Test daemon status when no daemon is running (should fail gracefully)
           echo "Testing daemon status (no daemon running)..."
-          node dist/cli/index.js daemon --status || echo "✅ Expected failure - no daemon running"
+          ./bin/index-linux daemon --status || echo "✅ Expected failure - no daemon running"
           
           # Create minimal scheduling config for testing
           echo "Creating test daemon configuration..."
@@ -242,7 +242,7 @@ jobs:
           
           # Test daemon status with config (should show configuration details)
           echo "Testing daemon status with configuration..."
-          timeout 10s node dist/cli/index.js daemon --status || echo "✅ Daemon status completed"
+          timeout 10s ./bin/index-linux daemon --status || echo "✅ Daemon status completed"
           
           # Test daemon auto-configuration validation
           echo "Validating daemon configuration was created correctly..."
@@ -259,23 +259,23 @@ jobs:
           
           # Test daemon test-email (will fail due to fake SMTP but should handle gracefully)
           echo "Testing daemon test-email (expected to fail gracefully)..."
-          timeout 30s node dist/cli/index.js daemon --test-email || echo "✅ Test email handled gracefully (expected SMTP failure)"
+          timeout 30s ./bin/index-linux daemon --test-email || echo "✅ Test email handled gracefully (expected SMTP failure)"
           
           # Test daemon check now functionality (run immediate check)
           echo "Testing daemon check-now (immediate security check)..."
-          timeout 30s node dist/cli/index.js daemon --check-now || echo "✅ Immediate check completed (expected to fail gracefully)"
+          timeout 30s ./bin/index-linux daemon --check-now || echo "✅ Immediate check completed (expected to fail gracefully)"
           
           # Test daemon stop (should handle no running daemon gracefully)
           echo "Testing daemon stop (no daemon running)..."
-          node dist/cli/index.js daemon --stop || echo "✅ Expected - no daemon to stop"
+          ./bin/index-linux daemon --stop || echo "✅ Expected - no daemon to stop"
           
           # Test daemon restart (should handle no running daemon gracefully)
           echo "Testing daemon restart (no daemon running)..."
-          timeout 10s node dist/cli/index.js daemon --restart || echo "✅ Expected - no daemon to restart"
+          timeout 10s ./bin/index-linux daemon --restart || echo "✅ Expected - no daemon to restart"
           
           # Test daemon uninstall
           echo "Testing daemon uninstall..."
-          node dist/cli/index.js daemon --uninstall --force || echo "✅ Daemon uninstall completed"
+          ./bin/index-linux daemon --uninstall --force || echo "✅ Daemon uninstall completed"
           
           # Validate uninstall cleaned up config files when forced
           echo "Validating daemon uninstall cleanup..."

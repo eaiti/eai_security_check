@@ -54,6 +54,9 @@ jobs:
       - name: Run Jest tests
         run: npm test
 
+      - name: Build pkg executable
+        run: npm run ${{ matrix.pkg-target }}
+
       - name: Run platform-specific security check tests (Linux/macOS)
         if: matrix.platform != 'windows'
         run: |
@@ -69,9 +72,6 @@ jobs:
         env:
           CI: true
           TESTING_MODE: non-interactive
-
-      - name: Build pkg executable
-        run: npm run ${{ matrix.pkg-target }}
 
       - name: Test pkg executable - Help command (Linux/macOS)
         if: matrix.platform != 'windows'
@@ -157,12 +157,12 @@ jobs:
       - name: Test application's global install functionality (Linux/macOS)
         if: matrix.platform != 'windows'
         run: |
-          # Build and prepare the application
-          npm run build
+          # Ensure pkg executable is ready
+          chmod +x bin/${{ matrix.binary-name }}
 
           # Test the application's own global install command
           echo "Testing eai-security-check install command..."
-          sudo node dist/cli/index.js install
+          sudo ./bin/${{ matrix.binary-name }} install
 
           # Verify global installation created correct directories
           echo "Verifying installation directories..."
@@ -210,12 +210,9 @@ jobs:
       - name: Test application's global install functionality (Windows)
         if: matrix.platform == 'windows'
         run: |
-          # Build and prepare the application
-          npm run build
-
           # Test the application's own global install command
           Write-Host "Testing eai-security-check install command..."
-          node dist/cli/index.js install
+          ./bin/${{ matrix.binary-name }} install
 
           # Verify global installation created correct directories
           Write-Host "Verifying installation directories..."
@@ -267,22 +264,22 @@ jobs:
       - name: Test daemon setup and auto-configuration (Linux/macOS)
         if: matrix.platform != 'windows'
         run: |
-          # Build and prepare the application
-          npm run build
+          # Ensure pkg executable is ready
+          chmod +x bin/${{ matrix.binary-name }}
           
           echo "🤖 Testing daemon CLI commands..."
           
           # Test daemon help command
           echo "Testing daemon help..."
-          node dist/cli/index.js daemon --help
+          ./bin/${{ matrix.binary-name }} daemon --help
           
           # Test daemon status when no daemon is running (should fail gracefully)
           echo "Testing daemon status (no daemon running)..."
-          node dist/cli/index.js daemon --status || echo "✅ Expected failure - no daemon running"
+          ./bin/${{ matrix.binary-name }} daemon --status || echo "✅ Expected failure - no daemon running"
           
           # Test CLI daemon setup - minimal configuration
           echo "Testing CLI daemon setup with --setup-minimal..."
-          node dist/cli/index.js daemon --setup-minimal \
+          ./bin/${{ matrix.binary-name }} daemon --setup-minimal \
             --user-id "ci-test@$(hostname)" \
             --security-profile relaxed \
             --interval-days 1
@@ -304,7 +301,7 @@ jobs:
           
           # Test daemon status with minimal config
           echo "Testing daemon status with minimal configuration..."
-          timeout 10s node dist/cli/index.js daemon --status || echo "✅ Daemon status completed"
+          timeout 10s ./bin/${{ matrix.binary-name }} daemon --status || echo "✅ Daemon status completed"
           
           # Clean up and test CLI daemon setup with email configuration
           echo "Testing CLI daemon setup with --setup-email..."
@@ -313,7 +310,7 @@ jobs:
           # Create email config JSON
           EMAIL_CONFIG='{"host":"smtp.example.com","port":587,"user":"test@example.com","pass":"testpass","from":"security@example.com","to":["admin@example.com"],"subject":"[CI Test] Security Report"}'
           
-          node dist/cli/index.js daemon --setup-email "$EMAIL_CONFIG" \
+          ./bin/${{ matrix.binary-name }} daemon --setup-email "$EMAIL_CONFIG" \
             --user-id "ci-email-test@$(hostname)" \
             --security-profile strict \
             --interval-days 7
@@ -337,31 +334,31 @@ jobs:
           
           # Test daemon status with email config
           echo "Testing daemon status with email configuration..."
-          timeout 10s node dist/cli/index.js daemon --status || echo "✅ Daemon status completed"
+          timeout 10s ./bin/${{ matrix.binary-name }} daemon --status || echo "✅ Daemon status completed"
           
           # Test validation - missing user ID should fail
           echo "Testing validation - missing user ID..."
-          node dist/cli/index.js daemon --setup-minimal 2>&1 | grep -q "user-id is required" || \
+          ./bin/${{ matrix.binary-name }} daemon --setup-minimal 2>&1 | grep -q "user-id is required" || \
             (echo "❌ Missing user ID validation failed" && exit 1)
           echo "✅ User ID validation works correctly"
           
           # Test validation - invalid JSON should fail  
           echo "Testing validation - invalid email JSON..."
-          node dist/cli/index.js daemon --setup-email "invalid-json" --user-id "test" 2>&1 | \
+          ./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 | \
             grep -q "Invalid email configuration JSON" || \
             (echo "❌ Invalid JSON validation failed" && exit 1)
           echo "✅ Email JSON validation works correctly"
           
           # Test existing config protection
           echo "Testing existing config protection..."
-          node dist/cli/index.js daemon --setup-minimal --user-id "test" 2>&1 | \
+          ./bin/${{ matrix.binary-name }} daemon --setup-minimal --user-id "test" 2>&1 | \
             grep -q "configuration already exists" || \
             (echo "❌ Existing config protection failed" && exit 1)
           echo "✅ Existing config protection works correctly"
           
           # Test force overwrite
           echo "Testing force overwrite..."
-          node dist/cli/index.js daemon --setup-minimal \
+          ./bin/${{ matrix.binary-name }} daemon --setup-minimal \
             --user-id "force-test@$(hostname)" \
             --security-profile developer \
             --force
@@ -375,11 +372,11 @@ jobs:
           
           # Test other daemon commands with config
           echo "Testing daemon commands with configuration..."
-          node dist/cli/index.js daemon --test-email || echo "✅ Test email command completed"
-          node dist/cli/index.js daemon --check-now || echo "✅ Check now command completed"
-          node dist/cli/index.js daemon --stop || echo "✅ Stop command completed"
-          node dist/cli/index.js daemon --restart || echo "✅ Restart command completed"
-          node dist/cli/index.js daemon --uninstall --force || echo "✅ Uninstall command completed"
+          ./bin/${{ matrix.binary-name }} daemon --test-email || echo "✅ Test email command completed"
+          ./bin/${{ matrix.binary-name }} daemon --check-now || echo "✅ Check now command completed"
+          ./bin/${{ matrix.binary-name }} daemon --stop || echo "✅ Stop command completed"
+          ./bin/${{ matrix.binary-name }} daemon --restart || echo "✅ Restart command completed"
+          ./bin/${{ matrix.binary-name }} daemon --uninstall --force || echo "✅ Uninstall command completed"
           
           echo "✅ CLI daemon setup and auto-configuration tests completed"
         env:
@@ -389,19 +386,16 @@ jobs:
       - name: Test daemon setup and auto-configuration (Windows)
         if: matrix.platform == 'windows'
         run: |
-          # Build and prepare the application
-          npm run build
-          
           Write-Host "🤖 Testing daemon CLI commands..."
           
           # Test daemon help command
           Write-Host "Testing daemon help..."
-          node dist/cli/index.js daemon --help
+          ./bin/${{ matrix.binary-name }} daemon --help
           
           # Test daemon status when no daemon is running (should fail gracefully)
           Write-Host "Testing daemon status (no daemon running)..."
           try {
-            node dist/cli/index.js daemon --status
+            ./bin/${{ matrix.binary-name }} daemon --status
           } catch {
             Write-Host "✅ Expected failure - no daemon running"
           }
@@ -409,7 +403,7 @@ jobs:
           # Test CLI daemon setup - minimal configuration
           Write-Host "Testing CLI daemon setup with --setup-minimal..."
           $hostname = $env:COMPUTERNAME
-          node dist/cli/index.js daemon --setup-minimal `
+          ./bin/${{ matrix.binary-name }} daemon --setup-minimal `
             --user-id "ci-test@$hostname" `
             --security-profile relaxed `
             --interval-days 1
@@ -443,7 +437,7 @@ jobs:
           # Test daemon status with minimal config
           Write-Host "Testing daemon status with minimal configuration..."
           try {
-            node dist/cli/index.js daemon --status
+            ./bin/${{ matrix.binary-name }} daemon --status
           } catch {
             Write-Host "✅ Daemon status completed"
           }
@@ -455,7 +449,7 @@ jobs:
           # Create email config JSON
           $emailConfig = '{"host":"smtp.example.com","port":587,"user":"test@example.com","pass":"testpass","from":"security@example.com","to":["admin@example.com"],"subject":"[CI Test] Security Report"}'
           
-          node dist/cli/index.js daemon --setup-email $emailConfig `
+          ./bin/${{ matrix.binary-name }} daemon --setup-email $emailConfig `
             --user-id "ci-email-test@$hostname" `
             --security-profile strict `
             --interval-days 7
@@ -493,7 +487,7 @@ jobs:
           # Test daemon status with email config
           Write-Host "Testing daemon status with email configuration..."
           try {
-            node dist/cli/index.js daemon --status
+            ./bin/${{ matrix.binary-name }} daemon --status
           } catch {
             Write-Host "✅ Daemon status completed"
           }
@@ -501,7 +495,7 @@ jobs:
           # Test validation - missing user ID should fail
           Write-Host "Testing validation - missing user ID..."
           try {
-            node dist/cli/index.js daemon --setup-minimal 2>&1 | Tee-Object -Variable output
+            ./bin/${{ matrix.binary-name }} daemon --setup-minimal 2>&1 | Tee-Object -Variable output
             if ($output -match "user-id is required") {
               Write-Host "✅ User ID validation works correctly"
             } else {
@@ -515,7 +509,7 @@ jobs:
           # Test validation - invalid JSON should fail  
           Write-Host "Testing validation - invalid email JSON..."
           try {
-            node dist/cli/index.js daemon --setup-email "invalid-json" --user-id "test" 2>&1 | Tee-Object -Variable output
+            ./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 | Tee-Object -Variable output
             if ($output -match "Invalid email configuration JSON") {
               Write-Host "✅ Email JSON validation works correctly"
             } else {
@@ -529,7 +523,7 @@ jobs:
           # Test existing config protection
           Write-Host "Testing existing config protection..."
           try {
-            node dist/cli/index.js daemon --setup-minimal --user-id "test" 2>&1 | Tee-Object -Variable output
+            ./bin/${{ matrix.binary-name }} daemon --setup-minimal --user-id "test" 2>&1 | Tee-Object -Variable output
             if ($output -match "configuration already exists") {
               Write-Host "✅ Existing config protection works correctly"
             } else {
@@ -542,7 +536,7 @@ jobs:
           
           # Test force overwrite
           Write-Host "Testing force overwrite..."
-          node dist/cli/index.js daemon --setup-minimal `
+          ./bin/${{ matrix.binary-name }} daemon --setup-minimal `
             --user-id "force-test@$hostname" `
             --security-profile developer `
             --force
@@ -561,11 +555,11 @@ jobs:
           
           # Test other daemon commands with config
           Write-Host "Testing daemon commands with configuration..."
-          try { node dist/cli/index.js daemon --test-email } catch { Write-Host "✅ Test email command completed" }
-          try { node dist/cli/index.js daemon --check-now } catch { Write-Host "✅ Check now command completed" }
-          try { node dist/cli/index.js daemon --stop } catch { Write-Host "✅ Stop command completed" }
-          try { node dist/cli/index.js daemon --restart } catch { Write-Host "✅ Restart command completed" }
-          try { node dist/cli/index.js daemon --uninstall --force } catch { Write-Host "✅ Uninstall command completed" }
+          try { ./bin/${{ matrix.binary-name }} daemon --test-email } catch { Write-Host "✅ Test email command completed" }
+          try { ./bin/${{ matrix.binary-name }} daemon --check-now } catch { Write-Host "✅ Check now command completed" }
+          try { ./bin/${{ matrix.binary-name }} daemon --stop } catch { Write-Host "✅ Stop command completed" }
+          try { ./bin/${{ matrix.binary-name }} daemon --restart } catch { Write-Host "✅ Restart command completed" }
+          try { ./bin/${{ matrix.binary-name }} daemon --uninstall --force } catch { Write-Host "✅ Uninstall command completed" }
           
           Write-Host "✅ CLI daemon setup and auto-configuration tests completed"
         env:
