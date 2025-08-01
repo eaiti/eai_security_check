@@ -48,22 +48,9 @@
     "targetVersion": "latest"
   },
   "wifiSecurity": {
-    "bannedNetworks": [
-      "EAIguest",
-      "xfinitywifi",
-      "Guest",
-      "Public WiFi",
-      "Free WiFi"
-    ]
+    "bannedNetworks": ["EAIguest", "xfinitywifi", "Guest", "Public WiFi", "Free WiFi"]
   },
   "installedApps": {
-    "bannedApplications": [
-      "BitTorrent",
-      "uTorrent",
-      "Limewire",
-      "TeamViewer",
-      "AnyDesk",
-      "Skype"
-    ]
+    "bannedApplications": ["BitTorrent", "uTorrent", "Limewire", "TeamViewer", "AnyDesk", "Skype"]
   }
 }

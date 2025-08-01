@@ -1,7 +1,7 @@
 ---
-name: Linux Tests
+name: macOS Tests
 
-"on":
+on:
   pull_request:
     branches: [main, master]
   push:
@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  test-linux:
-    runs-on: ubuntu-latest
+  test-macos:
+    runs-on: macos-latest
 
     steps:
       - name: Checkout repository
@@ -41,31 +41,33 @@ jobs:
       - name: Run Jest tests
         run: npm test
 
-      - name: Run Linux security check tests
+      - name: Build pkg executable for macOS
+        run: npm run pkg:macos
+
+      - name: Run macOS security check tests
         run: |
-          chmod +x scripts/testing/test-linux.sh
-          scripts/testing/test-linux.sh
+          chmod +x scripts/testing/test-macos.sh
+          scripts/testing/test-macos.sh
         env:
           CI: true
           TESTING_MODE: non-interactive
 
-      - name: Build pkg executable for Linux
-        run: npm run pkg:linux
-
       - name: Test pkg executable - Help command
         run: |
-          chmod +x bin/index-linux
-          ./bin/index-linux --help
+          chmod +x bin/index-macos
+          ./bin/index-macos --help
 
       - name: Test pkg executable - Version command
-        run: ./bin/index-linux --version
+        run: ./bin/index-macos --version
 
       - name: Test pkg executable - Check help command
-        run: ./bin/index-linux check --help
+        run: |
+          chmod +x bin/index-macos
+          ./bin/index-macos check --help
 
       - name: Test pkg executable - Basic check (non-interactive)
         run: |
-          timeout 30s ./bin/index-linux check relaxed --quiet || true
+          timeout 30s ./bin/index-macos check relaxed --quiet || true
         env:
           CI: true
 
@@ -93,11 +95,11 @@ jobs:
       - name: Test application's global install functionality
         run: |
           # Ensure pkg executable is ready
-          chmod +x bin/index-linux
+          chmod +x bin/index-macos
 
           # Test the application's own global install command
           echo "Testing eai-security-check install command..."
-          sudo ./bin/index-linux install
+          sudo ./bin/index-macos install
 
           # Verify global installation created correct directories
           echo "Verifying installation directories..."
@@ -114,12 +116,10 @@ jobs:
 
           # Test that the command works from any directory
           cd /tmp
-          which eai-security-check
           eai-security-check --version
 
           # Test basic security check with global install (allow failure)
-          echo "Testing basic security check..."
-          timeout 30s eai-security-check check relaxed --quiet || echo "Security check completed or timed out (expected in CI)"
+          timeout 30s eai-security-check check relaxed --quiet || true
 
           # Test the application's own uninstall command
           echo "Testing eai-security-check uninstall command..."
@@ -139,24 +139,25 @@ jobs:
           test ! -d "/usr/local/lib/eai-security-check/node_modules" || \
             (echo "❌ Executable directories not properly removed" && exit 1)
 
-          echo "✅ Application global install/uninstall functionality works correctly"
+          echo "✅ Application global install/uninstall functionality " \
+            "works correctly"
         env:
           CI: true
 
-      - name: Test daemon setup and auto-configuration (Linux)
+      - name: Test daemon setup and auto-configuration (macOS)
         run: |
           # Ensure pkg executable is ready
-          chmod +x bin/index-linux
+          chmod +x bin/index-macos
           
-          echo "🤖 Testing daemon CLI commands on Linux..."
+          echo "🤖 Testing daemon CLI commands on macOS..."
           
           # Test daemon help command
           echo "Testing daemon help..."
-          ./bin/index-linux daemon --help
+          ./bin/index-macos daemon --help
           
           # Test daemon status when no daemon is running (should fail gracefully)
           echo "Testing daemon status (no daemon running)..."
-          ./bin/index-linux daemon --status || echo "✅ Expected failure - no daemon running"
+          ./bin/index-macos daemon --status || echo "✅ Expected failure - no daemon running"
           
           # Create minimal scheduling config for testing
           echo "Creating test daemon configuration..."
@@ -187,7 +188,7 @@ jobs:
           }
           EOF
           
-          # Create security config as well
+          # Create security config as well (macOS-specific settings)
           echo "Creating test security configuration..."
           cat > ~/.config/eai-security-check/security-config.json << 'EOF'
           {
@@ -242,7 +243,7 @@ jobs:
           
           # Test daemon status with config (should show configuration details)
           echo "Testing daemon status with configuration..."
-          timeout 10s ./bin/index-linux daemon --status || echo "✅ Daemon status completed"
+          timeout 10s ./bin/index-macos daemon --status || echo "✅ Daemon status completed"
           
           # Test daemon auto-configuration validation
           echo "Validating daemon configuration was created correctly..."
@@ -259,23 +260,32 @@ jobs:
           
           # Test daemon test-email (will fail due to fake SMTP but should handle gracefully)
           echo "Testing daemon test-email (expected to fail gracefully)..."
-          timeout 30s ./bin/index-linux daemon --test-email || echo "✅ Test email handled gracefully (expected SMTP failure)"
+          timeout 30s ./bin/index-macos daemon --test-email || echo "✅ Test email handled gracefully (expected SMTP failure)"
           
           # Test daemon check now functionality (run immediate check)
           echo "Testing daemon check-now (immediate security check)..."
-          timeout 30s ./bin/index-linux daemon --check-now || echo "✅ Immediate check completed (expected to fail gracefully)"
+          timeout 30s ./bin/index-macos daemon --check-now || echo "✅ Immediate check completed (expected to fail gracefully)"
           
           # Test daemon stop (should handle no running daemon gracefully)
           echo "Testing daemon stop (no daemon running)..."
-          ./bin/index-linux daemon --stop || echo "✅ Expected - no daemon to stop"
+          ./bin/index-macos daemon --stop || echo "✅ Expected - no daemon to stop"
           
           # Test daemon restart (should handle no running daemon gracefully)
           echo "Testing daemon restart (no daemon running)..."
-          timeout 10s ./bin/index-linux daemon --restart || echo "✅ Expected - no daemon to restart"
+          timeout 10s ./bin/index-macos daemon --restart || echo "✅ Expected - no daemon to restart"
+          
+          # Test macOS-specific daemon service detection
+          echo "Testing macOS daemon service detection..."
+          # LaunchAgent detection (should not find our test daemon)
+          if [ -f ~/Library/LaunchAgents/com.eaiti.eai-security-check.plist ]; then
+            echo "⚠️  LaunchAgent found (unexpected in test environment)"
+          else
+            echo "✅ No LaunchAgent found (expected in test environment)"
+          fi
           
           # Test daemon uninstall
           echo "Testing daemon uninstall..."
-          ./bin/index-linux daemon --uninstall --force || echo "✅ Daemon uninstall completed"
+          ./bin/index-macos daemon --uninstall --force || echo "✅ Daemon uninstall completed"
           
           # Validate uninstall cleaned up config files when forced
           echo "Validating daemon uninstall cleanup..."
@@ -283,7 +293,7 @@ jobs:
             echo "⚠️  Config file still exists after force uninstall (this is expected behavior)"
           fi
           
-          echo "✅ Linux daemon setup and auto-configuration tests completed"
+          echo "✅ macOS daemon setup and auto-configuration tests completed"
         env:
           CI: true
           TESTING_MODE: non-interactive
@@ -291,6 +301,6 @@ jobs:
       - name: Upload pkg artifact
         uses: actions/upload-artifact@v4
         with:
-          name: eai-security-check-linux
-          path: bin/index-linux
+          name: eai-security-check-macos
+          path: bin/index-macos
           retention-days: 7

@@ -41,8 +41,8 @@ export interface SecurityConfig {
     enabled: boolean;
     securityUpdatesOnly?: boolean;
     // New granular settings for improved detection
-    downloadOnly?: boolean;           // Check and download, but don't install
-    automaticInstall?: boolean;       // Install all updates automatically
+    downloadOnly?: boolean; // Check and download, but don't install
+    automaticInstall?: boolean; // Install all updates automatically
     automaticSecurityInstall?: boolean; // Install security updates automatically
   };
   sharingServices?: {
@@ -100,9 +100,9 @@ export interface ScpConfig {
   username: string;
   destinationDirectory: string;
   authMethod: 'password' | 'key';
-  password?: string;       // For password authentication
+  password?: string; // For password authentication
   privateKeyPath?: string; // For key-based authentication
-  port?: number;          // SSH port, defaults to 22
+  port?: number; // SSH port, defaults to 22
 }
 
 export interface SchedulingConfig {
@@ -118,9 +118,9 @@ export interface SchedulingConfig {
 }
 
 export interface DaemonState {
-  lastReportSent: string;  // ISO timestamp
+  lastReportSent: string; // ISO timestamp
   totalReportsGenerated: number;
-  daemonStarted: string;  // ISO timestamp
-  currentVersion?: string;  // Version of the daemon currently running
-  lastVersionCheck?: string;  // ISO timestamp of last version check
+  daemonStarted: string; // ISO timestamp
+  currentVersion?: string; // Version of the daemon currently running
+  lastVersionCheck?: string; // ISO timestamp of last version check
 }

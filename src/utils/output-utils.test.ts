@@ -14,8 +14,16 @@ const mockExec = exec as jest.MockedFunction<typeof exec>;
 type MockExecCallback = (error: Error | null, result?: { stdout: string; stderr: string }) => void;
 
 describe('OutputUtils', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // Mock console.error to suppress expected error output in tests
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   describe('formatReport', () => {

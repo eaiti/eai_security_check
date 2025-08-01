@@ -1,12 +1,20 @@
 import { SchedulingService } from './scheduling-service';
 import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 describe('Daemon Controls', () => {
-  const testLockFile = '/tmp/test-daemon.lock';
-  const testStateFile = '/tmp/test-daemon-state.json';
-  const testConfigFile = '/tmp/test-scheduling-config.json';
+  const tmpDir = os.tmpdir();
+  const testLockFile = path.join(tmpDir, 'test-daemon.lock');
+  const testStateFile = path.join(tmpDir, 'test-daemon-state.json');
+  const testConfigFile = path.join(tmpDir, 'test-scheduling-config.json');
 
   beforeEach(() => {
+    // Ensure temporary directory exists
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir, { recursive: true });
+    }
+
     // Clean up any existing test files
     [testLockFile, testStateFile, testConfigFile].forEach(file => {
       if (fs.existsSync(file)) {

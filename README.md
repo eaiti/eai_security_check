@@ -105,20 +105,37 @@ eai-security-check interactive
 
 **Option B: CLI Setup (Advanced Users)**
 ```bash
-# 1. Create configurations manually (see docs/DAEMON_SETUP.md)
-# 2. Start daemon for testing
+# Quick automated setup for testing (minimal configuration)
+eai-security-check daemon --setup-minimal --user-id "$(whoami)@$(hostname)" --security-profile relaxed --interval-days 1
+
+# Full automated setup with email notifications
+eai-security-check daemon --setup-email '{"host":"smtp.gmail.com","port":587,"user":"user@gmail.com","pass":"apppass","from":"alerts@company.com","to":["admin@company.com"]}' --user-id "user@company.com" --security-profile strict --interval-days 7
+
+# Complete automated setup with system service
+eai-security-check daemon --setup-minimal --user-id "admin@company.com" --security-profile developer --auto-service --force
+
+# Start daemon for testing
 eai-security-check daemon
 
-# 3. Check daemon status and logs
+# Check daemon status and logs
 eai-security-check daemon --status
 eai-security-check interactive  # → Daemon → View Status (detailed info)
 
-# 4. Control daemon operations
+# Control daemon operations
 eai-security-check daemon --stop
 eai-security-check daemon --restart
 eai-security-check daemon --test-email
 eai-security-check daemon --check-now  # Force immediate security check
 ```
+
+**CLI Setup Options**
+- `--setup-minimal` - Creates minimal configuration (console output, no email) for testing
+- `--setup-email <JSON>` - Creates configuration with email settings from JSON parameter
+- `--user-id <id>` - Required user identifier for all setup commands
+- `--security-profile <profile>` - Security profile (default, strict, relaxed, developer, eai)
+- `--interval-days <days>` - Check interval in days (default: 7)
+- `--auto-service` - Automatically setup system service when configuring daemon
+- `--force` - Overwrite existing configuration without prompts
 
 **Manual System Service Setup (if not using interactive mode)**
 
@@ -300,6 +317,29 @@ npm run build
 - ✅ Cryptographic verification and tamper detection
 - ✅ Daemon automation and scheduling
 - ✅ Error handling and edge cases
+
+**Platform Compatibility Testing:**
+```bash
+# Auto-detect platform and run appropriate tests
+./scripts/testing/test-platform.sh
+
+# Run platform-specific tests
+./scripts/testing/test-linux.sh      # Linux systems
+./scripts/testing/test-macos.sh      # macOS systems
+./scripts/testing/test-windows.ps1   # Windows systems (PowerShell)
+
+# Non-interactive testing for CI
+./scripts/testing/test-automated.sh
+```
+
+The testing scripts provide:
+- 🔍 **Individual security check validation** for each platform
+- 🖥️ **OS version and compatibility reporting**
+- 🛠️ **Interactive remediation guidance** when security settings need fixes
+- 📊 **Pass/fail summary** with actionable next steps
+- 🔧 **Developer-friendly** output for quick compatibility assessment
+
+See [scripts/testing/README.md](scripts/testing/README.md) for detailed usage instructions.
 
 ## 🚀 Troubleshooting
 

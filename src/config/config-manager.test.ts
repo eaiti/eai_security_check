@@ -1,6 +1,7 @@
 import { ConfigManager } from './config-manager';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as path from 'path';
 
 // Mock fs module
 jest.mock('fs');
@@ -9,6 +10,10 @@ const mockedFs = jest.mocked(fs);
 // Mock os module
 jest.mock('os');
 const mockedOs = jest.mocked(os);
+
+// Mock path module to use POSIX paths when platform is mocked as linux
+jest.mock('path');
+const mockedPath = jest.mocked(path);
 
 // Mock readline for interactive input
 jest.mock('readline', () => ({
@@ -24,15 +29,27 @@ describe('ConfigManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
     // Mock process.execPath to use a test executable path
     Object.defineProperty(process, 'execPath', {
       value: '/test/app/eai-security-check',
       writable: true
     });
+
     // Reset environment variables
     process.env = { ...originalEnv };
     delete process.env.XDG_CONFIG_HOME;
     delete process.env.APPDATA;
+
+    // Setup path mocking to use POSIX paths when platform is linux
+    mockedPath.join.mockImplementation((...segments: string[]) => {
+      return segments.join('/');
+    });
+    mockedPath.dirname.mockImplementation((filePath: string) => {
+      const parts = filePath.split('/');
+      parts.pop();
+      return parts.join('/') || '/';
+    });
   });
 
   afterEach(() => {

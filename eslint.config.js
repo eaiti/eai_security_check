@@ -28,7 +28,16 @@ module.exports = [
     rules: {
       ...typescriptPlugin.configs.recommended.rules,
       ...prettierConfig.rules,
-      'prettier/prettier': 'error',
+      'prettier/prettier': [
+        'error',
+        {},
+        {
+          usePrettierrc: true,
+          fileInfoOptions: {
+            withNodeModules: false
+          }
+        }
+      ],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',

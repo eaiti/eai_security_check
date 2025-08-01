@@ -208,6 +208,16 @@ program
   .option('--uninstall', 'Remove daemon files and configurations')
   .option('--remove-executable', 'Also remove the executable when uninstalling (requires --force)')
   .option('--force', 'Force operations that normally require confirmation')
+  .option('--setup', 'Setup daemon automation with auto-configuration')
+  .option('--setup-minimal', 'Setup minimal daemon configuration (no email, for testing)')
+  .option('--setup-email <config>', 'Setup daemon with email configuration (JSON format)')
+  .option('--user-id <id>', 'User identifier for daemon setup (required with --setup options)')
+  .option(
+    '--security-profile <profile>',
+    'Security profile for daemon (default, strict, relaxed, developer, eai)'
+  )
+  .option('--interval-days <days>', 'Check interval in days (default: 7)', '7')
+  .option('--auto-service', 'Automatically setup system service when setting up daemon')
   .addHelpText(
     'after',
     `
@@ -219,9 +229,16 @@ Examples:
   $ eai-security-check daemon --test-email                # Send test email
   $ eai-security-check daemon --check-now                 # Force immediate check
 
+🚀 AUTOMATED SETUP:
+  $ eai-security-check daemon --setup-minimal --user-id "user@company.com"  # Minimal setup for testing
+  $ eai-security-check daemon --setup --user-id "user@company.com"          # Interactive email setup
+  $ eai-security-check daemon --setup-email '{"host":"smtp.gmail.com","port":587,"user":"user@gmail.com","pass":"apppass","from":"alerts@company.com","to":["admin@company.com"]}' --user-id "user@company.com"  # Full automated setup
+  $ eai-security-check daemon --setup-minimal --user-id "test" --security-profile strict --interval-days 1 --auto-service  # Complete automated setup
+
 🚀 QUICK START:
   1. Set up daemon configuration:
-     $ eai-security-check interactive    # Choose "Daemon" menu, then "Setup Daemon Automation"
+     $ eai-security-check daemon --setup-minimal --user-id "$(whoami)@$(hostname)"    # Quick CLI setup
+     $ eai-security-check interactive    # Or use interactive mode
   
   2. Start daemon manually (for testing):
      $ eai-security-check daemon         # Runs until you stop it
