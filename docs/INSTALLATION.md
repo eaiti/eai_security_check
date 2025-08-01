@@ -95,9 +95,118 @@ chmod +x verify-download.sh
 - **Windows**: Binaries are signed with Authenticode certificate  
 - **Linux**: GPG-signed releases with SHA-256 checksums
 
+## 📁 Recommended Installation Locations
+
+After downloading the executable, choose an appropriate location based on your operating system and use case:
+
+### macOS Recommendations
+
+**For Personal Use (Single User):**
+```bash
+# Option 1: User Applications folder (Recommended)
+mkdir -p ~/Applications/eai-security-check
+mv eai-security-check ~/Applications/eai-security-check/
+cd ~/Applications/eai-security-check
+
+# Option 2: User bin directory  
+mkdir -p ~/bin/eai-security-check
+mv eai-security-check ~/bin/eai-security-check/
+cd ~/bin/eai-security-check
+```
+
+**For System-Wide Use (All Users):**
+```bash
+# Option 1: Local applications (Recommended)
+sudo mkdir -p /usr/local/opt/eai-security-check
+sudo mv eai-security-check /usr/local/opt/eai-security-check/
+cd /usr/local/opt/eai-security-check
+
+# Option 2: Applications folder (requires admin)
+sudo mkdir -p /Applications/eai-security-check
+sudo mv eai-security-check /Applications/eai-security-check/
+cd /Applications/eai-security-check
+```
+
+### Linux Recommendations
+
+**For Personal Use (Single User):**
+```bash
+# Option 1: User local directory (Recommended)
+mkdir -p ~/.local/bin/eai-security-check
+mv eai-security-check ~/.local/bin/eai-security-check/
+cd ~/.local/bin/eai-security-check
+
+# Option 2: User opt directory
+mkdir -p ~/opt/eai-security-check  
+mv eai-security-check ~/opt/eai-security-check/
+cd ~/opt/eai-security-check
+```
+
+**For System-Wide Use (All Users):**
+```bash
+# Option 1: Optional software directory (Recommended)
+sudo mkdir -p /opt/eai-security-check
+sudo mv eai-security-check /opt/eai-security-check/
+cd /opt/eai-security-check
+
+# Option 2: Local system binaries
+sudo mkdir -p /usr/local/bin/eai-security-check
+sudo mv eai-security-check /usr/local/bin/eai-security-check/
+cd /usr/local/bin/eai-security-check
+```
+
+### Windows Recommendations
+
+**For Personal Use (Single User):**
+```powershell
+# Option 1: User AppData directory (Recommended)
+New-Item -Path "$env:LOCALAPPDATA\eai-security-check" -ItemType Directory -Force
+Move-Item "eai-security-check.exe" "$env:LOCALAPPDATA\eai-security-check\"
+Set-Location "$env:LOCALAPPDATA\eai-security-check"
+
+# Option 2: User directory
+New-Item -Path "$env:USERPROFILE\eai-security-check" -ItemType Directory -Force  
+Move-Item "eai-security-check.exe" "$env:USERPROFILE\eai-security-check\"
+Set-Location "$env:USERPROFILE\eai-security-check"
+```
+
+**For System-Wide Use (All Users):**
+```powershell
+# Option 1: Program Files (Recommended - requires admin)
+New-Item -Path "${env:ProgramFiles}\eai-security-check" -ItemType Directory -Force
+Move-Item "eai-security-check.exe" "${env:ProgramFiles}\eai-security-check\"
+Set-Location "${env:ProgramFiles}\eai-security-check"
+
+# Option 2: Program Files (x86) for compatibility
+New-Item -Path "${env:ProgramFiles(x86)}\eai-security-check" -ItemType Directory -Force
+Move-Item "eai-security-check.exe" "${env:ProgramFiles(x86)}\eai-security-check\"
+Set-Location "${env:ProgramFiles(x86)}\eai-security-check"
+```
+
+### 💡 Location Selection Tips
+
+**Choose Personal Use if:**
+- Only you need access to the tool
+- You want easy updates without admin privileges  
+- You're testing or evaluating the tool
+
+**Choose System-Wide if:**
+- Multiple users on the system need access
+- You're deploying in an enterprise environment
+- You want the tool available system-wide
+
+**Directory Structure After Setup:**
+```
+/your/chosen/location/
+├── eai-security-check              # Main executable
+├── config/                         # Configuration files (auto-created)
+├── reports/                        # Generated reports (auto-created)  
+└── logs/                          # Application logs (auto-created)
+```
+
 ## 🌍 Global Installation Setup
 
-After downloading, you can optionally set up global access:
+After placing the executable in your preferred location, you can optionally set up global access:
 
 ### Automatic Setup (Recommended)
 
