@@ -345,7 +345,7 @@ jobs:
           
           # Test validation - invalid JSON should fail  
           echo "Testing validation - invalid email JSON..."
-          error_output=$(./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 || true)
+          error_output=$(./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" --force 2>&1 || true)
           echo "DEBUG: Full error output was:"
           echo "DEBUG: '$error_output'"
           echo "DEBUG: Testing multiple patterns..."
@@ -524,7 +524,7 @@ jobs:
           
           # Test validation - invalid JSON should fail  
           Write-Host "Testing validation - invalid email JSON..."
-          $output = ./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 | Out-String
+          $output = ./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" --force 2>&1 | Out-String
           Write-Host "DEBUG: Full error output was:"
           Write-Host "DEBUG: '$output'"
           Write-Host "DEBUG: Testing multiple patterns..."
