@@ -128,14 +128,19 @@ export class ConfigManager {
 
       // Check if we have necessary permissions
       if (platform !== 'win32') {
-        try {
-          await execAsync('sudo -n true');
-        } catch {
-          return {
-            success: false,
-            message:
-              'This operation requires sudo privileges. Please run with elevated permissions or run: sudo eai-security-check install'
-          };
+        // Check if we're already running as root
+        const isRoot = process.getuid && process.getuid() === 0;
+        
+        if (!isRoot) {
+          try {
+            await execAsync('sudo -n true');
+          } catch {
+            return {
+              success: false,
+              message:
+                'This operation requires sudo privileges. Please run with elevated permissions or run: sudo eai-security-check install'
+            };
+          }
         }
       }
 
@@ -238,14 +243,19 @@ export class ConfigManager {
     try {
       // Check permissions
       if (platform !== 'win32') {
-        try {
-          await execAsync('sudo -n true');
-        } catch {
-          return {
-            success: false,
-            message:
-              'This operation requires sudo privileges. Please run with elevated permissions.'
-          };
+        // Check if we're already running as root
+        const isRoot = process.getuid && process.getuid() === 0;
+        
+        if (!isRoot) {
+          try {
+            await execAsync('sudo -n true');
+          } catch {
+            return {
+              success: false,
+              message:
+                'This operation requires sudo privileges. Please run with elevated permissions.'
+            };
+          }
         }
       }
 
