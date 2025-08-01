@@ -88,6 +88,51 @@ jobs:
           CI: true
         continue-on-error: true
 
+      - name: Test application's global install functionality
+        run: |
+          # Build and prepare the application
+          npm run build
+          
+          # Test the application's own global install command
+          Write-Host "Testing eai-security-check install command..."
+          node dist/cli/index.js install
+          
+          # Verify global installation created correct directories
+          Write-Host "Verifying installation directories..."
+          if (-not (Test-Path "C:\Program Files\eai-security-check")) {
+            Write-Host "❌ Target directory not created"
+            exit 1
+          }
+          
+          # Test that globally installed command works
+          Write-Host "Testing globally installed command..."
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" --help
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" --version
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" check --help
+          
+          # Test basic security check with global install (allow failure)
+          try {
+            Start-Process -FilePath "C:\Program Files\eai-security-check\eai-security-check.exe" -ArgumentList "check", "--profile=relaxed", "--quiet" -Wait -NoNewWindow -PassThru | Out-Null
+          } catch {
+            Write-Host "Security check failed (expected in CI)"
+          }
+          
+          # Test the application's own uninstall command
+          Write-Host "Testing eai-security-check uninstall command..."
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" uninstall
+          
+          # Verify uninstallation cleaned up correctly
+          Write-Host "Verifying uninstallation cleanup..."
+          if (Test-Path "C:\Program Files\eai-security-check") {
+            Write-Host "❌ Installation directory not removed"
+            exit 1
+          }
+          
+          Write-Host "✅ Application global install/uninstall functionality works correctly"
+        env:
+          CI: true
+        continue-on-error: true
+
       - name: Upload pkg artifact
         uses: actions/upload-artifact@v4
         with:
