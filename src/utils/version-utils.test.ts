@@ -4,12 +4,19 @@ import * as path from 'path';
 
 describe('VersionUtils', () => {
   const testLockPath = path.join(__dirname, 'test-daemon.lock');
+  
+  beforeEach(() => {
+    // Mock console.warn to prevent output during tests
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
 
   afterEach(() => {
     // Clean up test lock file
     if (fs.existsSync(testLockPath)) {
       fs.unlinkSync(testLockPath);
     }
+    // Restore console.warn
+    jest.restoreAllMocks();
   });
 
   describe('getCurrentVersion', () => {
