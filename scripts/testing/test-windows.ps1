@@ -136,7 +136,7 @@ try {
     } else {
         Test-Result "BitLocker" "FAIL" "BitLocker is not enabled"
         Write-Host "💡 To enable BitLocker:" -ForegroundColor Yellow
-        Write-Host "   Control Panel > System and Security > BitLocker Drive Encryption"
+        Write-Host "   Control Panel -> System and Security -> BitLocker Drive Encryption"
         Write-Host "   Or use: manage-bde -on C: -RecoveryPassword" -ForegroundColor Yellow
         Pause-ForUser "Enable BitLocker and then continue testing"
     }
@@ -164,7 +164,7 @@ try {
     
     if (-not $allEnabled) {
         Write-Host "💡 To enable Windows Defender Firewall:" -ForegroundColor Yellow
-        Write-Host "   Control Panel > System and Security > Windows Defender Firewall" -ForegroundColor Yellow
+        Write-Host "   Control Panel -> System and Security -> Windows Defender Firewall" -ForegroundColor Yellow
         Write-Host "   Or use: Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True" -ForegroundColor Yellow
         Pause-ForUser "Enable Windows Defender Firewall profiles and continue testing"
     }
@@ -224,7 +224,7 @@ try {
         } else {
             Test-Result "SmartScreen" "FAIL" "SmartScreen appears to be disabled"
             Write-Host "💡 To enable SmartScreen:" -ForegroundColor Yellow
-            Write-Host "   Windows Security > App and browser control > Reputation-based protection" -ForegroundColor Yellow
+            Write-Host "   Windows Security -> App and browser control -> Reputation-based protection" -ForegroundColor Yellow
         }
     }
 } catch {
@@ -244,7 +244,7 @@ try {
     } else {
         Test-Result "UAC" "FAIL" "UAC is disabled or set too low"
         Write-Host "💡 To enable UAC:" -ForegroundColor Yellow
-        Write-Host "   Control Panel > User Accounts > Change User Account Control settings" -ForegroundColor Yellow
+        Write-Host "   Control Panel -> User Accounts -> Change User Account Control settings" -ForegroundColor Yellow
         Pause-ForUser "Enable UAC and continue testing"
     }
 } catch {
@@ -272,7 +272,7 @@ try {
     } else {
         Test-Result "Automatic Updates" "FAIL" "Automatic updates are disabled"
         Write-Host "💡 To enable automatic updates:" -ForegroundColor Yellow
-        Write-Host "   Settings > Update and Security > Windows Update > Advanced options" -ForegroundColor Yellow
+        Write-Host "   Settings -> Update and Security -> Windows Update -> Advanced options" -ForegroundColor Yellow
     }
     
 } catch {
@@ -292,7 +292,7 @@ try {
     } else {
         Test-Result "Remote Desktop" "FAIL" "Remote Desktop is enabled (potential security risk)"
         Write-Host "💡 To disable Remote Desktop:" -ForegroundColor Yellow
-        Write-Host "   System Properties > Remote > Disable Remote Desktop" -ForegroundColor Yellow
+        Write-Host "   System Properties -> Remote -> Disable Remote Desktop" -ForegroundColor Yellow
         Pause-ForUser "Disable Remote Desktop if not needed and continue testing"
     }
 } catch {
@@ -310,7 +310,7 @@ try {
     if ($serverService -and $serverService.Status -eq "Running") {
         Test-Result "File Sharing Service" "FAIL" "File sharing service is running"
         Write-Host "💡 Consider disabling if not needed:" -ForegroundColor Yellow
-        Write-Host "   Control Panel > Network and Sharing Center > Advanced sharing settings" -ForegroundColor Yellow
+        Write-Host "   Control Panel -> Network and Sharing Center -> Advanced sharing settings" -ForegroundColor Yellow
     } else {
         Test-Result "File Sharing Service" "PASS" "File sharing service is not running"
     }
@@ -392,7 +392,7 @@ try {
     } else {
         Test-Result "Screen Saver" "FAIL" "Screen saver is disabled"
         Write-Host "💡 To enable screen saver:" -ForegroundColor Yellow
-        Write-Host "   Settings > Personalization > Lock screen > Screen saver settings" -ForegroundColor Yellow
+        Write-Host "   Settings -> Personalization -> Lock screen -> Screen saver settings" -ForegroundColor Yellow
         Pause-ForUser "Enable screen saver and continue testing"
     }
 } catch {
