@@ -69,6 +69,27 @@ jobs:
         env:
           CI: true
 
+      - name: Test global npm install and uninstall
+        run: |
+          # Test global install 
+          npm pack
+          PACKAGE_FILE=$(ls *.tgz)
+          npm install -g "$PACKAGE_FILE"
+          
+          # Test globally installed command
+          eai-security-check --help
+          eai-security-check --version
+          eai-security-check check --help
+          
+          # Test basic security check (allow failure in CI)
+          timeout 30s eai-security-check check --profile=relaxed --quiet || true
+          
+          # Clean up
+          npm uninstall -g eai-security-check
+          rm -f *.tgz
+        env:
+          CI: true
+
       - name: Upload pkg artifact
         uses: actions/upload-artifact@v4
         with:

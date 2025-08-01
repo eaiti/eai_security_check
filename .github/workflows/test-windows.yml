@@ -66,6 +66,28 @@ jobs:
           CI: true
         continue-on-error: true
 
+      - name: Test global npm install and uninstall
+        run: |
+          # Test global install 
+          npm pack
+          $packageFile = Get-ChildItem -Name "*.tgz"
+          npm install -g $packageFile
+          
+          # Test globally installed command
+          eai-security-check --help
+          eai-security-check --version
+          eai-security-check check --help
+          
+          # Test basic security check (allow failure in CI)
+          Start-Process -FilePath "eai-security-check" -ArgumentList "check", "--profile=relaxed", "--quiet" -Wait -NoNewWindow -PassThru | Out-Null
+          
+          # Clean up
+          npm uninstall -g eai-security-check
+          Remove-Item -Path "*.tgz" -Force
+        env:
+          CI: true
+        continue-on-error: true
+
       - name: Upload pkg artifact
         uses: actions/upload-artifact@v4
         with:
