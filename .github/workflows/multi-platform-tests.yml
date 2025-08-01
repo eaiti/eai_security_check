@@ -280,61 +280,108 @@ jobs:
           echo "Testing daemon status (no daemon running)..."
           node dist/cli/index.js daemon --status || echo "✅ Expected failure - no daemon running"
           
-          # Create minimal scheduling config for testing
-          echo "Creating test daemon configuration..."
-          mkdir -p ~/.config/eai-security-check
-          cat > ~/.config/eai-security-check/scheduling-config.json << 'EOF'
-          {
-            "enabled": true,
-            "intervalDays": 1,
-            "email": {
-              "smtp": {
-                "host": "smtp.example.com",
-                "port": 587,
-                "secure": false,
-                "auth": {
-                  "user": "test@example.com",
-                  "pass": "testpass"
-                }
-              },
-              "from": "security@example.com",
-              "to": ["admin@example.com"],
-              "subject": "[TEST] EAI Security Check Report"
-            },
-            "reportFormat": "email",
-            "securityProfile": "relaxed",
-            "scp": {
-              "enabled": false
-            }
-          }
-          EOF
+          # Test CLI daemon setup - minimal configuration
+          echo "Testing CLI daemon setup with --setup-minimal..."
+          node dist/cli/index.js daemon --setup-minimal \
+            --user-id "ci-test@$(hostname)" \
+            --security-profile relaxed \
+            --interval-days 1
           
-          # Test daemon status with config (should show configuration details)
-          echo "Testing daemon status with configuration..."
-          timeout 10s node dist/cli/index.js daemon --status || echo "✅ Daemon status completed"
-          
-          # Test daemon auto-configuration validation
-          echo "Validating daemon configuration was created correctly..."
+          # Verify minimal config was created correctly
+          echo "Validating minimal daemon configuration..."
           test -f ~/.config/eai-security-check/scheduling-config.json || \
             (echo "❌ Daemon config file not found" && exit 1)
           
-          # Verify config contains required fields
+          # Verify minimal config contains expected fields
+          grep -q "ci-test@" ~/.config/eai-security-check/scheduling-config.json || \
+            (echo "❌ User ID not found in config" && exit 1)
+          grep -q '"reportFormat": "console"' ~/.config/eai-security-check/scheduling-config.json || \
+            (echo "❌ Console report format not found" && exit 1)
+          grep -q '"intervalDays": 1' ~/.config/eai-security-check/scheduling-config.json || \
+            (echo "❌ Interval days not set correctly" && exit 1)
+          grep -q "relaxed" ~/.config/eai-security-check/scheduling-config.json || \
+            (echo "❌ Security profile not found" && exit 1)
+          
+          # Test daemon status with minimal config
+          echo "Testing daemon status with minimal configuration..."
+          timeout 10s node dist/cli/index.js daemon --status || echo "✅ Daemon status completed"
+          
+          # Clean up and test CLI daemon setup with email configuration
+          echo "Testing CLI daemon setup with --setup-email..."
+          rm -f ~/.config/eai-security-check/scheduling-config.json
+          
+          # Create email config JSON
+          EMAIL_CONFIG='{"host":"smtp.example.com","port":587,"user":"test@example.com","pass":"testpass","from":"security@example.com","to":["admin@example.com"],"subject":"[CI Test] Security Report"}'
+          
+          node dist/cli/index.js daemon --setup-email "$EMAIL_CONFIG" \
+            --user-id "ci-email-test@$(hostname)" \
+            --security-profile strict \
+            --interval-days 7
+          
+          # Verify email config was created correctly
+          echo "Validating email daemon configuration..."
+          test -f ~/.config/eai-security-check/scheduling-config.json || \
+            (echo "❌ Email daemon config file not found" && exit 1)
+          
+          # Verify email config contains expected fields
           grep -q "smtp.example.com" ~/.config/eai-security-check/scheduling-config.json || \
             (echo "❌ SMTP configuration not found" && exit 1)
           grep -q "admin@example.com" ~/.config/eai-security-check/scheduling-config.json || \
             (echo "❌ Email recipient not found" && exit 1)
-          grep -q "relaxed" ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q '"reportFormat": "email"' ~/.config/eai-security-check/scheduling-config.json || \
+            (echo "❌ Email report format not found" && exit 1)
+          grep -q "strict" ~/.config/eai-security-check/scheduling-config.json || \
             (echo "❌ Security profile not found" && exit 1)
+          grep -q '"intervalDays": 7' ~/.config/eai-security-check/scheduling-config.json || \
+            (echo "❌ Interval days not set correctly" && exit 1)
           
-          # Test daemon test-email (will fail due to fake SMTP but should handle gracefully)
-          echo "Testing daemon test-email (expected to fail gracefully)..."
-          timeout 30s node dist/cli/index.js daemon --test-email || echo "✅ Test email handled gracefully (expected SMTP failure)"
+          # Test daemon status with email config
+          echo "Testing daemon status with email configuration..."
+          timeout 10s node dist/cli/index.js daemon --status || echo "✅ Daemon status completed"
           
-          # Test daemon uninstall
-          echo "Testing daemon uninstall..."
-          node dist/cli/index.js daemon --uninstall --force || echo "✅ Daemon uninstall completed"
+          # Test validation - missing user ID should fail
+          echo "Testing validation - missing user ID..."
+          node dist/cli/index.js daemon --setup-minimal 2>&1 | grep -q "user-id is required" || \
+            (echo "❌ Missing user ID validation failed" && exit 1)
+          echo "✅ User ID validation works correctly"
           
-          echo "✅ Daemon setup and auto-configuration tests completed"
+          # Test validation - invalid JSON should fail  
+          echo "Testing validation - invalid email JSON..."
+          node dist/cli/index.js daemon --setup-email "invalid-json" --user-id "test" 2>&1 | \
+            grep -q "Invalid email configuration JSON" || \
+            (echo "❌ Invalid JSON validation failed" && exit 1)
+          echo "✅ Email JSON validation works correctly"
+          
+          # Test existing config protection
+          echo "Testing existing config protection..."
+          node dist/cli/index.js daemon --setup-minimal --user-id "test" 2>&1 | \
+            grep -q "configuration already exists" || \
+            (echo "❌ Existing config protection failed" && exit 1)
+          echo "✅ Existing config protection works correctly"
+          
+          # Test force overwrite
+          echo "Testing force overwrite..."
+          node dist/cli/index.js daemon --setup-minimal \
+            --user-id "force-test@$(hostname)" \
+            --security-profile developer \
+            --force
+          
+          # Verify force overwrite worked
+          grep -q "force-test@" ~/.config/eai-security-check/scheduling-config.json || \
+            (echo "❌ Force overwrite failed" && exit 1)
+          grep -q "developer" ~/.config/eai-security-check/scheduling-config.json || \
+            (echo "❌ Force overwrite profile not updated" && exit 1)
+          echo "✅ Force overwrite works correctly"
+          
+          # Test other daemon commands with config
+          echo "Testing daemon commands with configuration..."
+          node dist/cli/index.js daemon --test-email || echo "✅ Test email command completed"
+          node dist/cli/index.js daemon --check-now || echo "✅ Check now command completed"
+          node dist/cli/index.js daemon --stop || echo "✅ Stop command completed"
+          node dist/cli/index.js daemon --restart || echo "✅ Restart command completed"
+          node dist/cli/index.js daemon --uninstall --force || echo "✅ Uninstall command completed"
+          
+          echo "✅ CLI daemon setup and auto-configuration tests completed"
         env:
           CI: true
           TESTING_MODE: non-interactive
@@ -359,52 +406,68 @@ jobs:
             Write-Host "✅ Expected failure - no daemon running"
           }
           
-          # Create minimal scheduling config for testing
-          Write-Host "Creating test daemon configuration..."
-          New-Item -ItemType Directory -Force -Path "$env:APPDATA\eai-security-check"
+          # Test CLI daemon setup - minimal configuration
+          Write-Host "Testing CLI daemon setup with --setup-minimal..."
+          $hostname = $env:COMPUTERNAME
+          node dist/cli/index.js daemon --setup-minimal `
+            --user-id "ci-test@$hostname" `
+            --security-profile relaxed `
+            --interval-days 1
           
-          $config = @{
-            enabled = $true
-            intervalDays = 1
-            email = @{
-              smtp = @{
-                host = "smtp.example.com"
-                port = 587
-                secure = $false
-                auth = @{
-                  user = "test@example.com"
-                  pass = "testpass"
-                }
-              }
-              from = "security@example.com"
-              to = @("admin@example.com")
-              subject = "[TEST] EAI Security Check Report"
-            }
-            reportFormat = "email"
-            securityProfile = "relaxed"
-            scp = @{
-              enabled = $false
-            }
+          # Verify minimal config was created correctly
+          Write-Host "Validating minimal daemon configuration..."
+          if (-not (Test-Path "$env:APPDATA\eai-security-check\scheduling-config.json")) {
+            Write-Host "❌ Daemon config file not found"
+            exit 1
           }
           
-          $config | ConvertTo-Json -Depth 4 | Out-File -FilePath "$env:APPDATA\eai-security-check\scheduling-config.json"
+          # Verify minimal config contains expected fields
+          $configContent = Get-Content "$env:APPDATA\eai-security-check\scheduling-config.json" -Raw
+          if (-not ($configContent -match "ci-test@")) {
+            Write-Host "❌ User ID not found in config"
+            exit 1
+          }
+          if (-not ($configContent -match '"reportFormat": "console"')) {
+            Write-Host "❌ Console report format not found"
+            exit 1
+          }
+          if (-not ($configContent -match '"intervalDays": 1')) {
+            Write-Host "❌ Interval days not set correctly"
+            exit 1
+          }
+          if (-not ($configContent -match "relaxed")) {
+            Write-Host "❌ Security profile not found"
+            exit 1
+          }
           
-          # Test daemon status with config (should show configuration details)
-          Write-Host "Testing daemon status with configuration..."
+          # Test daemon status with minimal config
+          Write-Host "Testing daemon status with minimal configuration..."
           try {
             node dist/cli/index.js daemon --status
           } catch {
             Write-Host "✅ Daemon status completed"
           }
           
-          # Test daemon auto-configuration validation
-          Write-Host "Validating daemon configuration was created correctly..."
+          # Clean up and test CLI daemon setup with email configuration
+          Write-Host "Testing CLI daemon setup with --setup-email..."
+          Remove-Item "$env:APPDATA\eai-security-check\scheduling-config.json" -Force
+          
+          # Create email config JSON
+          $emailConfig = '{"host":"smtp.example.com","port":587,"user":"test@example.com","pass":"testpass","from":"security@example.com","to":["admin@example.com"],"subject":"[CI Test] Security Report"}'
+          
+          node dist/cli/index.js daemon --setup-email $emailConfig `
+            --user-id "ci-email-test@$hostname" `
+            --security-profile strict `
+            --interval-days 7
+          
+          # Verify email config was created correctly
+          Write-Host "Validating email daemon configuration..."
           if (-not (Test-Path "$env:APPDATA\eai-security-check\scheduling-config.json")) {
-            Write-Host "❌ Daemon config file not found"
+            Write-Host "❌ Email daemon config file not found"
             exit 1
           }
           
-          # Verify config contains required fields
+          # Verify email config contains expected fields
           $configContent = Get-Content "$env:APPDATA\eai-security-check\scheduling-config.json" -Raw
           if (-not ($configContent -match "smtp.example.com")) {
             Write-Host "❌ SMTP configuration not found"
@@ -414,28 +477,97 @@ jobs:
             Write-Host "❌ Email recipient not found"
             exit 1
           }
-          if (-not ($configContent -match "relaxed")) {
+          if (-not ($configContent -match '"reportFormat": "email"')) {
+            Write-Host "❌ Email report format not found"
+            exit 1
+          }
+          if (-not ($configContent -match "strict")) {
             Write-Host "❌ Security profile not found"
             exit 1
           }
-          
-          # Test daemon test-email (will fail due to fake SMTP but should handle gracefully)
-          Write-Host "Testing daemon test-email (expected to fail gracefully)..."
-          try {
-            node dist/cli/index.js daemon --test-email
-          } catch {
-            Write-Host "✅ Test email handled gracefully (expected SMTP failure)"
+          if (-not ($configContent -match '"intervalDays": 7')) {
+            Write-Host "❌ Interval days not set correctly"
+            exit 1
           }
           
-          # Test daemon uninstall
-          Write-Host "Testing daemon uninstall..."
+          # Test daemon status with email config
+          Write-Host "Testing daemon status with email configuration..."
           try {
-            node dist/cli/index.js daemon --uninstall --force
+            node dist/cli/index.js daemon --status
           } catch {
-            Write-Host "✅ Daemon uninstall completed"
+            Write-Host "✅ Daemon status completed"
           }
           
-          Write-Host "✅ Daemon setup and auto-configuration tests completed"
+          # Test validation - missing user ID should fail
+          Write-Host "Testing validation - missing user ID..."
+          try {
+            node dist/cli/index.js daemon --setup-minimal 2>&1 | Tee-Object -Variable output
+            if ($output -match "user-id is required") {
+              Write-Host "✅ User ID validation works correctly"
+            } else {
+              Write-Host "❌ Missing user ID validation failed"
+              exit 1
+            }
+          } catch {
+            Write-Host "✅ User ID validation works correctly"
+          }
+          
+          # Test validation - invalid JSON should fail  
+          Write-Host "Testing validation - invalid email JSON..."
+          try {
+            node dist/cli/index.js daemon --setup-email "invalid-json" --user-id "test" 2>&1 | Tee-Object -Variable output
+            if ($output -match "Invalid email configuration JSON") {
+              Write-Host "✅ Email JSON validation works correctly"
+            } else {
+              Write-Host "❌ Invalid JSON validation failed"
+              exit 1
+            }
+          } catch {
+            Write-Host "✅ Email JSON validation works correctly"
+          }
+          
+          # Test existing config protection
+          Write-Host "Testing existing config protection..."
+          try {
+            node dist/cli/index.js daemon --setup-minimal --user-id "test" 2>&1 | Tee-Object -Variable output
+            if ($output -match "configuration already exists") {
+              Write-Host "✅ Existing config protection works correctly"
+            } else {
+              Write-Host "❌ Existing config protection failed"
+              exit 1
+            }
+          } catch {
+            Write-Host "✅ Existing config protection works correctly"
+          }
+          
+          # Test force overwrite
+          Write-Host "Testing force overwrite..."
+          node dist/cli/index.js daemon --setup-minimal `
+            --user-id "force-test@$hostname" `
+            --security-profile developer `
+            --force
+          
+          # Verify force overwrite worked
+          $configContent = Get-Content "$env:APPDATA\eai-security-check\scheduling-config.json" -Raw
+          if (-not ($configContent -match "force-test@")) {
+            Write-Host "❌ Force overwrite failed"
+            exit 1
+          }
+          if (-not ($configContent -match "developer")) {
+            Write-Host "❌ Force overwrite profile not updated"
+            exit 1
+          }
+          Write-Host "✅ Force overwrite works correctly"
+          
+          # Test other daemon commands with config
+          Write-Host "Testing daemon commands with configuration..."
+          try { node dist/cli/index.js daemon --test-email } catch { Write-Host "✅ Test email command completed" }
+          try { node dist/cli/index.js daemon --check-now } catch { Write-Host "✅ Check now command completed" }
+          try { node dist/cli/index.js daemon --stop } catch { Write-Host "✅ Stop command completed" }
+          try { node dist/cli/index.js daemon --restart } catch { Write-Host "✅ Restart command completed" }
+          try { node dist/cli/index.js daemon --uninstall --force } catch { Write-Host "✅ Uninstall command completed" }
+          
+          Write-Host "✅ CLI daemon setup and auto-configuration tests completed"
         env:
           CI: true
           TESTING_MODE: non-interactive

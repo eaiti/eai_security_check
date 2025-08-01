@@ -35,6 +35,17 @@ describe('Daemon Setup and Auto-Configuration', () => {
     jest.spyOn(ConfigManager, 'getCentralizedConfigDirectory').mockReturnValue(testConfigDir);
     jest.spyOn(ConfigManager, 'getSchedulingConfigPath').mockReturnValue(testSchedulingConfig);
     jest.spyOn(ConfigManager, 'getSecurityConfigPath').mockReturnValue(testSecurityConfig);
+    jest.spyOn(ConfigManager, 'ensureCentralizedDirectories').mockReturnValue({
+      configDir: testConfigDir,
+      reportsDir: path.join(tmpDir, 'reports'),
+      logsDir: path.join(tmpDir, 'logs')
+    });
+    jest.spyOn(ConfigManager, 'hasSchedulingConfig').mockImplementation(() => {
+      return fs.existsSync(testSchedulingConfig);
+    });
+    jest.spyOn(ConfigManager, 'hasSecurityConfig').mockImplementation(() => {
+      return fs.existsSync(testSecurityConfig);
+    });
   });
 
   afterEach(() => {
@@ -318,6 +329,174 @@ describe('Daemon Setup and Auto-Configuration', () => {
 
       expect(result.success).toBe(true);
       expect(result.removedFiles).toContain(testSchedulingConfig);
+    });
+  });
+
+  describe('CLI daemon setup', () => {
+    it('should handle --setup-minimal command', async () => {
+      const { CommandHandlers } = await import('./command-handlers');
+      
+      // Mock the setup process
+      await CommandHandlers.handleDaemonCommand({
+        setupMinimal: true,
+        userId: 'test@example.com',
+        securityProfile: 'relaxed',
+        intervalDays: '1'
+      });
+
+      // Verify configuration was created
+      expect(fs.existsSync(testSchedulingConfig)).toBe(true);
+      
+      const config = JSON.parse(fs.readFileSync(testSchedulingConfig, 'utf-8'));
+      expect(config.enabled).toBe(true);
+      expect(config.userId).toBe('test@example.com');
+      expect(config.intervalDays).toBe(1);
+      expect(config.securityProfile).toBe('relaxed');
+      expect(config.reportFormat).toBe('console');
+      expect(config.scp.enabled).toBe(false);
+    });
+
+    it('should handle --setup-email command', async () => {
+      const { CommandHandlers } = await import('./command-handlers');
+      
+      const emailConfig = JSON.stringify({
+        host: 'smtp.example.com',
+        port: 587,
+        user: 'test@example.com',
+        pass: 'testpass',
+        from: 'security@example.com',
+        to: ['admin@example.com']
+      });
+
+      await CommandHandlers.handleDaemonCommand({
+        setupEmail: emailConfig,
+        userId: 'test@example.com',
+        securityProfile: 'strict',
+        intervalDays: '7'
+      });
+
+      // Verify configuration was created
+      expect(fs.existsSync(testSchedulingConfig)).toBe(true);
+      
+      const config = JSON.parse(fs.readFileSync(testSchedulingConfig, 'utf-8'));
+      expect(config.enabled).toBe(true);
+      expect(config.userId).toBe('test@example.com');
+      expect(config.intervalDays).toBe(7);
+      expect(config.securityProfile).toBe('strict');
+      expect(config.reportFormat).toBe('email');
+      expect(config.email.smtp.host).toBe('smtp.example.com');
+      expect(config.email.to).toContain('admin@example.com');
+      expect(config.scp.enabled).toBe(false);
+    });
+
+    it('should require --user-id for setup commands', async () => {
+      const { CommandHandlers } = await import('./command-handlers');
+      
+      // Mock process.exit to prevent test from terminating
+      const originalExit = process.exit;
+      const mockExit = jest.fn();
+      process.exit = mockExit as any;
+
+      try {
+        await CommandHandlers.handleDaemonCommand({
+          setupMinimal: true
+          // Missing userId
+        });
+        
+        expect(mockExit).toHaveBeenCalledWith(1);
+      } finally {
+        process.exit = originalExit;
+      }
+    });
+
+    it('should validate email configuration JSON', async () => {
+      const { CommandHandlers } = await import('./command-handlers');
+      
+      // Mock process.exit to prevent test from terminating
+      const originalExit = process.exit;
+      const mockExit = jest.fn();
+      process.exit = mockExit as any;
+
+      try {
+        await CommandHandlers.handleDaemonCommand({
+          setupEmail: 'invalid-json',
+          userId: 'test@example.com'
+        });
+        
+        expect(mockExit).toHaveBeenCalledWith(1);
+      } finally {
+        process.exit = originalExit;
+      }
+    });
+
+    it('should validate required email fields', async () => {
+      const { CommandHandlers } = await import('./command-handlers');
+      
+      // Mock process.exit to prevent test from terminating
+      const originalExit = process.exit;
+      const mockExit = jest.fn();
+      process.exit = mockExit as any;
+
+      try {
+        const incompleteEmailConfig = JSON.stringify({
+          host: 'smtp.example.com'
+          // Missing required fields
+        });
+
+        await CommandHandlers.handleDaemonCommand({
+          setupEmail: incompleteEmailConfig,
+          userId: 'test@example.com'
+        });
+        
+        expect(mockExit).toHaveBeenCalledWith(1);
+      } finally {
+        process.exit = originalExit;
+      }
+    });
+
+    it('should handle interval days validation', async () => {
+      const { CommandHandlers } = await import('./command-handlers');
+      
+      // Mock process.exit to prevent test from terminating
+      const originalExit = process.exit;
+      const mockExit = jest.fn();
+      process.exit = mockExit as any;
+
+      try {
+        await CommandHandlers.handleDaemonCommand({
+          setupMinimal: true,
+          userId: 'test@example.com',
+          intervalDays: 'invalid'
+        });
+        
+        expect(mockExit).toHaveBeenCalledWith(1);
+      } finally {
+        process.exit = originalExit;
+      }
+    });
+
+    it('should prevent overwriting existing config without --force', async () => {
+      const { CommandHandlers } = await import('./command-handlers');
+      
+      // Create existing config
+      const existingConfig = { enabled: true, userId: 'existing@example.com' };
+      fs.writeFileSync(testSchedulingConfig, JSON.stringify(existingConfig, null, 2));
+
+      // Mock process.exit to prevent test from terminating
+      const originalExit = process.exit;
+      const mockExit = jest.fn();
+      process.exit = mockExit as any;
+
+      try {
+        await CommandHandlers.handleDaemonCommand({
+          setupMinimal: true,
+          userId: 'test@example.com'
+        });
+        
+        expect(mockExit).toHaveBeenCalledWith(1);
+      } finally {
+        process.exit = originalExit;
+      }
     });
   });
 

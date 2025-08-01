@@ -187,6 +187,13 @@ export class CommandHandlers {
     uninstall?: boolean;
     removeExecutable?: boolean;
     force?: boolean;
+    setup?: boolean;
+    setupMinimal?: boolean;
+    setupEmail?: string;
+    userId?: string;
+    securityProfile?: string;
+    intervalDays?: string;
+    autoService?: boolean;
   }): Promise<void> {
     try {
       // Set default paths to centralized config locations
@@ -253,6 +260,12 @@ export class CommandHandlers {
           }
           process.exit(1);
         }
+        return;
+      }
+
+      // Handle setup options
+      if (options.setup || options.setupMinimal || options.setupEmail) {
+        await this.handleDaemonSetup(options);
         return;
       }
 
@@ -524,5 +537,176 @@ EXIT CODES:
 For detailed command help: eai-security-check help <command>
 `);
     }
+  }
+
+  /**
+   * Handle daemon setup options
+   */
+  private static async handleDaemonSetup(options: {
+    setup?: boolean;
+    setupMinimal?: boolean;
+    setupEmail?: string;
+    userId?: string;
+    securityProfile?: string;
+    intervalDays?: string;
+    autoService?: boolean;
+    force?: boolean;
+  }): Promise<void> {
+    const { DaemonOperations } = await import('../core/daemon-operations');
+
+    // Validate required parameters
+    if (!options.userId) {
+      console.error('❌ --user-id is required for daemon setup');
+      console.log('💡 Example: --user-id "user@company.com"');
+      process.exit(1);
+    }
+
+    console.log('🤖 Setting up daemon automation via CLI...\n');
+
+    try {
+      // Check if config already exists
+      if (ConfigManager.hasSchedulingConfig() && !options.force) {
+        console.log('⚠️  Daemon configuration already exists.');
+        console.log('💡 Use --force to overwrite existing configuration');
+        process.exit(1);
+      }
+
+      // Ensure security config exists first
+      const securityProfile = options.securityProfile || 'default';
+      if (!ConfigManager.hasSecurityConfig()) {
+        console.log(`📝 Creating security configuration with ${securityProfile} profile...\n`);
+        ConfigManager.createAllSecurityConfigs(false, securityProfile);
+      }
+
+      // Parse interval days
+      const intervalDays = parseInt(options.intervalDays || '7');
+      if (isNaN(intervalDays) || intervalDays < 1) {
+        console.error('❌ Invalid interval days. Must be a positive number.');
+        process.exit(1);
+      }
+
+      // Handle different setup modes
+      if (options.setupMinimal) {
+        await this.createMinimalDaemonConfig(options.userId, securityProfile, intervalDays);
+      } else if (options.setupEmail) {
+        await this.createEmailDaemonConfig(options.userId, options.setupEmail, securityProfile, intervalDays);
+      } else if (options.setup) {
+        // Interactive email setup
+        await ConfigManager.createSchedulingConfigInteractive(securityProfile);
+      }
+
+      console.log('✅ Daemon configuration created successfully!');
+
+      // Handle system service setup
+      if (options.autoService) {
+        console.log('\n🔧 Setting up system service...');
+        await DaemonOperations.setupSystemService();
+      }
+
+      console.log('\n💡 Next steps:');
+      console.log('  • Test configuration: eai-security-check daemon --status');
+      if (!options.setupMinimal) {
+        console.log('  • Test email: eai-security-check daemon --test-email');
+      }
+      console.log('  • Start daemon: eai-security-check daemon');
+      
+    } catch (error) {
+      console.error('❌ Daemon setup failed:', error);
+      process.exit(1);
+    }
+  }
+
+  /**
+   * Create minimal daemon configuration (no email)
+   */
+  private static async createMinimalDaemonConfig(
+    userId: string,
+    securityProfile: string,
+    intervalDays: number
+  ): Promise<void> {
+    const { configDir } = ConfigManager.ensureCentralizedDirectories();
+    console.log(`📁 Configuration will be saved to: ${configDir}`);
+
+    const config = {
+      enabled: true,
+      userId: userId.trim(),
+      intervalDays,
+      reportFormat: 'console' as const,
+      securityProfile,
+      scp: {
+        enabled: false
+      }
+    };
+
+    const configPath = ConfigManager.getSchedulingConfigPath();
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    console.log(`📝 Created minimal daemon configuration: ${configPath}`);
+  }
+
+  /**
+   * Create daemon configuration with email settings
+   */
+  private static async createEmailDaemonConfig(
+    userId: string,
+    emailConfigJson: string,
+    securityProfile: string,
+    intervalDays: number
+  ): Promise<void> {
+    const { configDir } = ConfigManager.ensureCentralizedDirectories();
+    console.log(`📁 Configuration will be saved to: ${configDir}`);
+
+    // Parse email configuration
+    let emailConfig;
+    try {
+      emailConfig = JSON.parse(emailConfigJson);
+    } catch (error) {
+      console.error('❌ Invalid email configuration JSON:', error);
+      console.log('💡 Example: \'{"host":"smtp.gmail.com","port":587,"user":"user@gmail.com","pass":"apppass","from":"alerts@company.com","to":["admin@company.com"]}\'');
+      process.exit(1);
+    }
+
+    // Validate required email fields
+    const requiredFields = ['host', 'port', 'user', 'pass', 'from', 'to'];
+    for (const field of requiredFields) {
+      if (!emailConfig[field]) {
+        console.error(`❌ Missing required email field: ${field}`);
+        process.exit(1);
+      }
+    }
+
+    // Validate email arrays
+    if (!Array.isArray(emailConfig.to) || emailConfig.to.length === 0) {
+      console.error('❌ Email "to" field must be a non-empty array');
+      process.exit(1);
+    }
+
+    const config = {
+      enabled: true,
+      userId: userId.trim(),
+      intervalDays,
+      email: {
+        smtp: {
+          host: emailConfig.host,
+          port: emailConfig.port,
+          secure: emailConfig.port === 465,
+          auth: {
+            user: emailConfig.user,
+            pass: emailConfig.pass
+          }
+        },
+        from: emailConfig.from,
+        to: emailConfig.to,
+        subject: emailConfig.subject || '[EAI Security Check] Security Report'
+      },
+      reportFormat: 'email' as const,
+      securityProfile,
+      scp: {
+        enabled: false
+      }
+    };
+
+    const configPath = ConfigManager.getSchedulingConfigPath();
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    console.log(`📝 Created daemon configuration with email: ${configPath}`);
   }
 }
