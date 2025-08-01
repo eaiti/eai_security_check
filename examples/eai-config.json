@@ -60,11 +60,6 @@
     ]
   },
   "wifiSecurity": {
-    "bannedNetworks": [
-      "EAIguest",
-      "xfinitywifi",
-      "Guest",
-      "Public WiFi"
-    ]
+    "bannedNetworks": ["EAIguest", "xfinitywifi", "Guest", "Public WiFi"]
   }
 }

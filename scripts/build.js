@@ -24,11 +24,11 @@ const child = spawn(tscCmd, tscArgs, {
   shell: isWindows
 });
 
-child.on('close', (code) => {
+child.on('close', code => {
   process.exit(code);
 });
 
-child.on('error', (err) => {
+child.on('error', err => {
   console.error('Failed to start TypeScript compiler:', err);
   process.exit(1);
 });
