@@ -14,7 +14,7 @@ describe('Daemon Controls', () => {
     if (!fs.existsSync(tmpDir)) {
       fs.mkdirSync(tmpDir, { recursive: true });
     }
-    
+
     // Clean up any existing test files
     [testLockFile, testStateFile, testConfigFile].forEach(file => {
       if (fs.existsSync(file)) {

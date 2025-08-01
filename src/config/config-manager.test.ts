@@ -29,18 +29,18 @@ describe('ConfigManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Mock process.execPath to use a test executable path
     Object.defineProperty(process, 'execPath', {
       value: '/test/app/eai-security-check',
       writable: true
     });
-    
+
     // Reset environment variables
     process.env = { ...originalEnv };
     delete process.env.XDG_CONFIG_HOME;
     delete process.env.APPDATA;
-    
+
     // Setup path mocking to use POSIX paths when platform is linux
     mockedPath.join.mockImplementation((...segments: string[]) => {
       return segments.join('/');

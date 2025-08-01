@@ -64,8 +64,9 @@ jobs:
       - name: Test pkg executable - Basic check (non-interactive)
         run: |
           # Run with timeout, allow failure since security checks may fail in CI
-          timeout /t 30 /nobreak > nul & `
-            ./bin/index-win.exe check relaxed --quiet
+          Start-Process -FilePath "./bin/index-win.exe" `
+            -ArgumentList "check", "relaxed", "--quiet" `
+            -Wait -NoNewWindow -PassThru | Out-Null
         env:
           CI: true
         continue-on-error: true
