@@ -32,14 +32,16 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Function to display test header
-function Test-Header {
+function Test-Header 
+{
     param([string]$TestName)
     Write-Host "🔍 Testing: $TestName" -ForegroundColor Blue
     Write-Host ("=" * 50) -ForegroundColor Blue
 }
 
 # Function to display test result
-function Test-Result {
+function Test-Result 
+{
     param(
         [string]$TestName,
         [string]$Status,
@@ -68,7 +70,8 @@ function Test-Result {
 }
 
 # Function to pause for user interaction
-function Pause-ForUser {
+function Pause-ForUser 
+{
     param([string]$Message)
     Write-Host ""
     Write-Host "⏸️  $Message" -ForegroundColor Yellow
