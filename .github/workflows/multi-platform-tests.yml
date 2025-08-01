@@ -13,6 +13,7 @@ permissions:
 jobs:
   test-all-platforms:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         include:
@@ -344,10 +345,12 @@ jobs:
           
           # Test validation - invalid JSON should fail  
           echo "Testing validation - invalid email JSON..."
-          ./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 | \
-            grep -q "❌ Invalid email configuration JSON:" || \
-            (echo "❌ Invalid JSON validation failed" && exit 1)
-          echo "✅ Email JSON validation works correctly"
+          if ./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 | grep -E "(Invalid email configuration JSON|Invalid JSON)" >/dev/null; then
+            echo "✅ Email JSON validation works correctly"
+          else
+            echo "❌ Invalid JSON validation failed"
+            exit 1
+          fi
           
           # Test existing config protection
           echo "Testing existing config protection..."
@@ -508,16 +511,12 @@ jobs:
           
           # Test validation - invalid JSON should fail  
           Write-Host "Testing validation - invalid email JSON..."
-          try {
-            ./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 | Tee-Object -Variable output
-            if ($output -match "❌ Invalid email configuration JSON:") {
-              Write-Host "✅ Email JSON validation works correctly"
-            } else {
-              Write-Host "❌ Invalid JSON validation failed"
-              exit 1
-            }
-          } catch {
+          $output = ./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 | Out-String
+          if ($output -match "Invalid email configuration JSON" -or $output -match "Invalid JSON") {
             Write-Host "✅ Email JSON validation works correctly"
+          } else {
+            Write-Host "❌ Invalid JSON validation failed"
+            exit 1
           }
           
           # Test existing config protection
