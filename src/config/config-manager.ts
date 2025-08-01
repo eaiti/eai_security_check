@@ -9,14 +9,16 @@ import { getConfigByProfile } from './config-profiles';
 import { Platform, PlatformDetector } from '../utils/platform-detector';
 import { SchedulingService } from '../services/scheduling-service';
 
-// Extend NodeJS.Process to include pkg property
-declare global {
-  namespace NodeJS {
-    interface Process {
-      pkg?: any;
-    }
-  }
+// Define pkg property interface for process
+interface ProcessWithPkg extends NodeJS.Process {
+  pkg?: {
+    entrypoint?: string;
+    mount?: Record<string, string>;
+  };
 }
+
+// Type assertion for the process object
+declare const process: ProcessWithPkg;
 
 /**
  * ConfigManager handles configuration directory setup and management
@@ -31,7 +33,7 @@ export class ConfigManager {
     // In pkg environment, process.execPath points to the pkg executable
     if (process.pkg) {
       const executablePath = process.execPath;
-      
+
       try {
         // Check if it's a symlink and resolve it
         const stats = fs.lstatSync(executablePath);
@@ -52,17 +54,24 @@ export class ConfigManager {
     } else {
       // In Node.js environment, we need to determine the actual CLI script path
       // This is more complex because process.execPath points to node, not our script
-      
+
+      // In test environments, process.execPath is often mocked to point to our executable
+      // Check if process.execPath looks like our executable (not the node binary)
+      const execPath = process.execPath;
+      if (execPath && !execPath.includes('/node') && !execPath.includes('\\node.exe')) {
+        return execPath;
+      }
+
       // Try to get the main module filename (our CLI script)
       if (require.main && require.main.filename) {
         return require.main.filename;
       }
-      
+
       // Fallback: use process.argv[1] which should be the script path
       if (process.argv[1]) {
         return path.resolve(process.argv[1]);
       }
-      
+
       // Last resort fallback - assume we're in the built CLI
       return path.resolve(__dirname, '..', 'cli', 'index.js');
     }
@@ -192,26 +201,26 @@ export class ConfigManager {
           // Node.js mode: copy the entire dist directory structure
           const distDir = path.resolve(__dirname, '..');
           const projectRoot = path.resolve(distDir, '..');
-          
+
           // Copy the entire dist directory
           await this.copyDirectory(distDir, path.join(targetDir, 'dist'));
-          
+
           // Copy package.json for dependencies
           const packageJsonPath = path.join(projectRoot, 'package.json');
           if (fs.existsSync(packageJsonPath)) {
             fs.copyFileSync(packageJsonPath, path.join(targetDir, 'package.json'));
           }
-          
+
           // Copy node_modules if it exists (needed for dependencies)
           const nodeModulesPath = path.join(projectRoot, 'node_modules');
           if (fs.existsSync(nodeModulesPath)) {
             await this.copyDirectory(nodeModulesPath, path.join(targetDir, 'node_modules'));
           }
-          
+
           // Update targetPath to point to the CLI within the copied structure
           targetPath = path.join(targetDir, 'dist', 'cli', 'index.js');
         }
-        
+
         // Also copy any data directories if they exist
         const execDir = this.getExecutableDirectory();
         const configDir = path.join(execDir, 'config');
@@ -236,22 +245,22 @@ export class ConfigManager {
           // Node.js mode: copy the entire application structure
           const distDir = path.resolve(__dirname, '..');
           const projectRoot = path.resolve(distDir, '..');
-          
+
           // Copy the entire dist directory
           await execAsync(`sudo cp -r "${distDir}" "${targetDir}/"`);
-          
+
           // Copy package.json for dependencies
           const packageJsonPath = path.join(projectRoot, 'package.json');
           if (fs.existsSync(packageJsonPath)) {
             await execAsync(`sudo cp "${packageJsonPath}" "${targetDir}/"`);
           }
-          
+
           // Copy node_modules if it exists (needed for dependencies)
           const nodeModulesPath = path.join(projectRoot, 'node_modules');
           if (fs.existsSync(nodeModulesPath)) {
             await execAsync(`sudo cp -r "${nodeModulesPath}" "${targetDir}/"`);
           }
-          
+
           // Update targetPath to point to the CLI within the copied structure
           targetPath = path.join(targetDir, 'dist', 'cli', 'index.js');
           await execAsync(`sudo chmod +x "${targetPath}"`);
