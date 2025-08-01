@@ -41,7 +41,8 @@ jobs:
 
       - name: Run Windows security check tests
         run: |
-          powershell.exe -ExecutionPolicy Bypass -File scripts/testing/test-windows.ps1 -Quiet
+          powershell.exe -ExecutionPolicy Bypass -File `
+            scripts/testing/test-windows.ps1 -Quiet
         env:
           CI: true
           TESTING_MODE: non-interactive
@@ -60,27 +61,30 @@ jobs:
 
       - name: Test pkg executable - Basic check (non-interactive)
         run: |
-          # Run with timeout and allow failure since security checks may fail in CI
-          timeout /t 30 /nobreak > nul & ./bin/index-win.exe check --profile=relaxed --quiet
+          # Run with timeout, allow failure since security checks may fail in CI
+          timeout /t 30 /nobreak > nul & `
+            ./bin/index-win.exe check --profile=relaxed --quiet
         env:
           CI: true
         continue-on-error: true
 
       - name: Test global npm install and uninstall
         run: |
-          # Test global install 
+          # Test global install
           npm pack
           $packageFile = Get-ChildItem -Name "*.tgz"
           npm install -g $packageFile
-          
+
           # Test globally installed command
           eai-security-check --help
           eai-security-check --version
           eai-security-check check --help
-          
+
           # Test basic security check (allow failure in CI)
-          Start-Process -FilePath "eai-security-check" -ArgumentList "check", "--profile=relaxed", "--quiet" -Wait -NoNewWindow -PassThru | Out-Null
-          
+          Start-Process -FilePath "eai-security-check" `
+            -ArgumentList "check", "--profile=relaxed", "--quiet" `
+            -Wait -NoNewWindow -PassThru | Out-Null
+
           # Clean up
           npm uninstall -g eai-security-check
           Remove-Item -Path "*.tgz" -Force
@@ -92,43 +96,52 @@ jobs:
         run: |
           # Build and prepare the application
           npm run build
-          
+
           # Test the application's own global install command
           Write-Host "Testing eai-security-check install command..."
           node dist/cli/index.js install
-          
+
           # Verify global installation created correct directories
           Write-Host "Verifying installation directories..."
           if (-not (Test-Path "C:\Program Files\eai-security-check")) {
             Write-Host "❌ Target directory not created"
             exit 1
           }
-          
+
           # Test that globally installed command works
           Write-Host "Testing globally installed command..."
-          & "C:\Program Files\eai-security-check\eai-security-check.exe" --help
-          & "C:\Program Files\eai-security-check\eai-security-check.exe" --version
-          & "C:\Program Files\eai-security-check\eai-security-check.exe" check --help
-          
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" `
+            --help
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" `
+            --version
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" `
+            check --help
+
           # Test basic security check with global install (allow failure)
           try {
-            Start-Process -FilePath "C:\Program Files\eai-security-check\eai-security-check.exe" -ArgumentList "check", "--profile=relaxed", "--quiet" -Wait -NoNewWindow -PassThru | Out-Null
+            Start-Process `
+              -FilePath `
+              "C:\Program Files\eai-security-check\eai-security-check.exe" `
+              -ArgumentList "check", "--profile=relaxed", "--quiet" `
+              -Wait -NoNewWindow -PassThru | Out-Null
           } catch {
             Write-Host "Security check failed (expected in CI)"
           }
-          
+
           # Test the application's own uninstall command
           Write-Host "Testing eai-security-check uninstall command..."
-          & "C:\Program Files\eai-security-check\eai-security-check.exe" uninstall
-          
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" `
+            uninstall
+
           # Verify uninstallation cleaned up correctly
           Write-Host "Verifying uninstallation cleanup..."
           if (Test-Path "C:\Program Files\eai-security-check") {
             Write-Host "❌ Installation directory not removed"
             exit 1
           }
-          
-          Write-Host "✅ Application global install/uninstall functionality works correctly"
+
+          Write-Host "✅ Application global install/uninstall functionality " `
+            "works correctly"
         env:
           CI: true
         continue-on-error: true

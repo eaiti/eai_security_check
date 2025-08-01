@@ -66,7 +66,8 @@ jobs:
       - name: Run platform-specific security check tests (Windows)
         if: matrix.platform == 'windows'
         run: |
-          powershell.exe -ExecutionPolicy Bypass -File ${{ matrix.test-script }} -Quiet
+          powershell.exe -ExecutionPolicy Bypass -File `
+            ${{ matrix.test-script }} -Quiet
         env:
           CI: true
           TESTING_MODE: non-interactive
@@ -93,15 +94,17 @@ jobs:
       - name: Test pkg executable - Basic check (Linux/macOS)
         if: matrix.platform != 'windows'
         run: |
-          timeout 30s ./bin/${{ matrix.binary-name }} check --profile=relaxed --quiet || true
+          timeout 30s ./bin/${{ matrix.binary-name }} check `
+            --profile=relaxed --quiet || true
         env:
           CI: true
 
       - name: Test pkg executable - Basic check (Windows)
         if: matrix.platform == 'windows'
         run: |
-          # Run with timeout and allow failure since security checks may fail in CI
-          timeout /t 30 /nobreak > nul & ./bin/${{ matrix.binary-name }} check --profile=relaxed --quiet
+          # Run with timeout, allow failure since security checks may fail in CI
+          timeout /t 30 /nobreak > nul & ./bin/${{ matrix.binary-name }} `
+            check --profile=relaxed --quiet
         env:
           CI: true
         continue-on-error: true
@@ -109,19 +112,19 @@ jobs:
       - name: Test global npm install and uninstall (Linux/macOS)
         if: matrix.platform != 'windows'
         run: |
-          # Test global install 
+          # Test global install
           npm pack
           PACKAGE_FILE=$(ls *.tgz)
           npm install -g "$PACKAGE_FILE"
-          
+
           # Test globally installed command
           eai-security-check --help
           eai-security-check --version
           eai-security-check check --help
-          
+
           # Test basic security check (allow failure in CI)
           timeout 30s eai-security-check check --profile=relaxed --quiet || true
-          
+
           # Clean up
           npm uninstall -g eai-security-check
           rm -f *.tgz
@@ -131,19 +134,21 @@ jobs:
       - name: Test global npm install and uninstall (Windows)
         if: matrix.platform == 'windows'
         run: |
-          # Test global install 
+          # Test global install
           npm pack
           $packageFile = Get-ChildItem -Name "*.tgz"
           npm install -g $packageFile
-          
+
           # Test globally installed command
           eai-security-check --help
           eai-security-check --version
           eai-security-check check --help
-          
+
           # Test basic security check (allow failure in CI)
-          Start-Process -FilePath "eai-security-check" -ArgumentList "check", "--profile=relaxed", "--quiet" -Wait -NoNewWindow -PassThru | Out-Null
-          
+          Start-Process -FilePath "eai-security-check" `
+            -ArgumentList "check", "--profile=relaxed", "--quiet" `
+            -Wait -NoNewWindow -PassThru | Out-Null
+
           # Clean up
           npm uninstall -g eai-security-check
           Remove-Item -Path "*.tgz" -Force
@@ -156,39 +161,43 @@ jobs:
         run: |
           # Build and prepare the application
           npm run build
-          
+
           # Test the application's own global install command
           echo "Testing eai-security-check install command..."
           sudo node dist/cli/index.js install
-          
+
           # Verify global installation created correct directories
           echo "Verifying installation directories..."
-          test -d "/usr/local/lib/eai-security-check" || (echo "❌ Target directory not created" && exit 1)
-          test -L "/usr/local/bin/eai-security-check" || (echo "❌ Symlink not created" && exit 1)
-          
+          test -d "/usr/local/lib/eai-security-check" || \
+            (echo "❌ Target directory not created" && exit 1)
+          test -L "/usr/local/bin/eai-security-check" || \
+            (echo "❌ Symlink not created" && exit 1)
           # Test that globally installed command works
           echo "Testing globally installed command..."
           /usr/local/bin/eai-security-check --help
           /usr/local/bin/eai-security-check --version
           /usr/local/bin/eai-security-check check --help
-          
+
           # Test that the command works from any directory
           cd /tmp
           eai-security-check --version
-          
+
           # Test basic security check with global install (allow failure)
           timeout 30s eai-security-check check --profile=relaxed --quiet || true
-          
+
           # Test the application's own uninstall command
           echo "Testing eai-security-check uninstall command..."
           sudo eai-security-check uninstall
-          
+
           # Verify uninstallation cleaned up correctly
           echo "Verifying uninstallation cleanup..."
-          test ! -L "/usr/local/bin/eai-security-check" || (echo "❌ Symlink not removed" && exit 1)
-          test ! -d "/usr/local/lib/eai-security-check" || (echo "❌ Installation directory not removed" && exit 1)
-          
-          echo "✅ Application global install/uninstall functionality works correctly"
+          test ! -L "/usr/local/bin/eai-security-check" || \
+            (echo "❌ Symlink not removed" && exit 1)
+          test ! -d "/usr/local/lib/eai-security-check" || \
+            (echo "❌ Installation directory not removed" && exit 1)
+
+          echo "✅ Application global install/uninstall functionality " \
+            "works correctly"
         env:
           CI: true
 
@@ -197,42 +206,48 @@ jobs:
         run: |
           # Build and prepare the application
           npm run build
-          
+
           # Test the application's own global install command
           Write-Host "Testing eai-security-check install command..."
           node dist/cli/index.js install
-          
+
           # Verify global installation created correct directories
           Write-Host "Verifying installation directories..."
           if (-not (Test-Path "C:\Program Files\eai-security-check")) {
             Write-Host "❌ Target directory not created"
             exit 1
           }
-          
+
           # Test that globally installed command works
           Write-Host "Testing globally installed command..."
-          & "C:\Program Files\eai-security-check\eai-security-check.exe" --help
-          & "C:\Program Files\eai-security-check\eai-security-check.exe" --version
-          & "C:\Program Files\eai-security-check\eai-security-check.exe" check --help
-          
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" `
+            --help
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" `
+            --version
+          & "C:\Program Files\eai-security-check\eai-security-check.exe" `
+            check --help
+
           # Test basic security check with global install (allow failure)
           try {
-            Start-Process -FilePath "C:\Program Files\eai-security-check\eai-security-check.exe" -ArgumentList "check", "--profile=relaxed", "--quiet" -Wait -NoNewWindow -PassThru | Out-Null
+            Start-Process `
+              -FilePath "C:\Program Files\eai-security-check\eai-security-check.exe" `
+              -ArgumentList "check", "--profile=relaxed", "--quiet" `
+              -Wait -NoNewWindow -PassThru | Out-Null
           } catch {
             Write-Host "Security check failed (expected in CI)"
           }
-          
+
           # Test the application's own uninstall command
           Write-Host "Testing eai-security-check uninstall command..."
           & "C:\Program Files\eai-security-check\eai-security-check.exe" uninstall
-          
+
           # Verify uninstallation cleaned up correctly
           Write-Host "Verifying uninstallation cleanup..."
           if (Test-Path "C:\Program Files\eai-security-check") {
             Write-Host "❌ Installation directory not removed"
             exit 1
           }
-          
+
           Write-Host "✅ Application global install/uninstall functionality works correctly"
         env:
           CI: true

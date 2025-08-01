@@ -71,19 +71,19 @@ jobs:
 
       - name: Test global npm install and uninstall
         run: |
-          # Test global install 
+          # Test global install
           npm pack
           PACKAGE_FILE=$(ls *.tgz)
           npm install -g "$PACKAGE_FILE"
-          
+
           # Test globally installed command
           eai-security-check --help
           eai-security-check --version
           eai-security-check check --help
-          
+
           # Test basic security check (allow failure in CI)
           timeout 30s eai-security-check check --profile=relaxed --quiet || true
-          
+
           # Clean up
           npm uninstall -g eai-security-check
           rm -f *.tgz
@@ -94,39 +94,44 @@ jobs:
         run: |
           # Build and prepare the application
           npm run build
-          
+
           # Test the application's own global install command
           echo "Testing eai-security-check install command..."
           sudo node dist/cli/index.js install
-          
+
           # Verify global installation created correct directories
           echo "Verifying installation directories..."
-          test -d "/usr/local/lib/eai-security-check" || (echo "❌ Target directory not created" && exit 1)
-          test -L "/usr/local/bin/eai-security-check" || (echo "❌ Symlink not created" && exit 1)
-          
+          test -d "/usr/local/lib/eai-security-check" || \
+            (echo "❌ Target directory not created" && exit 1)
+          test -L "/usr/local/bin/eai-security-check" || \
+            (echo "❌ Symlink not created" && exit 1)
+
           # Test that globally installed command works
           echo "Testing globally installed command..."
           /usr/local/bin/eai-security-check --help
           /usr/local/bin/eai-security-check --version
           /usr/local/bin/eai-security-check check --help
-          
+
           # Test that the command works from any directory
           cd /tmp
           eai-security-check --version
-          
+
           # Test basic security check with global install (allow failure)
           timeout 30s eai-security-check check --profile=relaxed --quiet || true
-          
+
           # Test the application's own uninstall command
           echo "Testing eai-security-check uninstall command..."
           sudo eai-security-check uninstall
-          
+
           # Verify uninstallation cleaned up correctly
           echo "Verifying uninstallation cleanup..."
-          test ! -L "/usr/local/bin/eai-security-check" || (echo "❌ Symlink not removed" && exit 1)
-          test ! -d "/usr/local/lib/eai-security-check" || (echo "❌ Installation directory not removed" && exit 1)
-          
-          echo "✅ Application global install/uninstall functionality works correctly"
+          test ! -L "/usr/local/bin/eai-security-check" || \
+            (echo "❌ Symlink not removed" && exit 1)
+          test ! -d "/usr/local/lib/eai-security-check" || \
+            (echo "❌ Installation directory not removed" && exit 1)
+
+          echo "✅ Application global install/uninstall functionality " \
+            "works correctly"
         env:
           CI: true
 
