@@ -76,82 +76,74 @@ Here's a comprehensive example showing all available options:
 ```json
 {
   "diskEncryption": {
-    "enabled": true,
-    "description": "Require full-disk encryption (FileVault/LUKS/BitLocker)"
+    "enabled": true
   },
   "passwordProtection": {
     "enabled": true,
-    "requirePasswordImmediately": true,
-    "description": "Screen saver/lock screen password requirements"
+    "requirePasswordImmediately": true
   },
   "password": {
     "required": true,
     "minLength": 8,
-    "maxLength": 128,
     "requireUppercase": true,
     "requireLowercase": true,
     "requireNumber": true,
     "requireSpecialChar": true,
-    "maxAgeDays": 180,
-    "description": "User account password requirements"
+    "maxAgeDays": 180
   },
   "autoLock": {
-    "maxTimeoutMinutes": 7,
-    "description": "Maximum time before screen automatically locks"
+    "maxTimeoutMinutes": 7
   },
   "firewall": {
     "enabled": true,
-    "stealthMode": false,
-    "description": "Network firewall protection requirements"
+    "stealthMode": false
   },
   "packageVerification": {
-    "enabled": true,
-    "strictMode": false,
-    "description": "Code signing and package integrity verification"
+    "enabled": true
   },
   "systemIntegrityProtection": {
-    "enabled": true,
-    "description": "System-level integrity protection (SIP/SELinux/AppArmor)"
+    "enabled": true
   },
   "remoteLogin": {
-    "enabled": false,
-    "description": "SSH and remote login services"
+    "enabled": false
   },
   "remoteManagement": {
-    "enabled": false,
-    "description": "Remote desktop and management services"
+    "enabled": false
   },
   "automaticUpdates": {
     "enabled": true,
     "downloadOnly": false,
     "automaticInstall": true,
     "automaticSecurityInstall": true,
-    "securityUpdatesOnly": false,
-    "description": "Automatic system and security updates"
+    "securityUpdatesOnly": false
   },
   "sharingServices": {
     "fileSharing": false,
     "screenSharing": false,
-    "remoteLogin": false,
-    "mediaSharing": false,
-    "internetSharing": false,
-    "description": "Network sharing services configuration"
+    "remoteLogin": false
   },
   "osVersion": {
-    "targetVersion": "latest",
-    "description": "Minimum required OS version"
+    "targetVersion": "latest"
+  },
+  "wifiSecurity": {
+    "bannedNetworks": [
+      "EAIguest",
+      "xfinitywifi",
+      "Guest",
+      "Public WiFi",
+      "Free WiFi"
+    ]
   },
   "installedApps": {
     "bannedApplications": [
-      "suspicious-app",
-      "malware-scanner-result"
-    ],
-    "description": "Applications that should not be installed"
+      "BitTorrent",
+      "uTorrent",
+      "TeamViewer",
+      "AnyDesk"
+    ]
   },
-  "networkSecurity": {
-    "vpnRequired": false,
-    "dnsFiltering": false,
-    "description": "Network security requirements"
+  "platform": {
+    "target": "auto"
   }
 }
 ```
@@ -201,7 +193,6 @@ User account password strength requirements:
   "password": {
     "required": true,
     "minLength": 12,
-    "maxLength": 128,
     "requireUppercase": true,
     "requireLowercase": true, 
     "requireNumber": true,
@@ -212,8 +203,8 @@ User account password strength requirements:
 ```
 
 **Options:**
-- `minLength`: Minimum password length (1-128)
-- `maxLength`: Maximum password length (minLength-128)
+- `required`: Whether password is required for the account
+- `minLength`: Minimum password length (integer value)
 - `requireUppercase`: Must contain uppercase letters (A-Z)
 - `requireLowercase`: Must contain lowercase letters (a-z)
 - `requireNumber`: Must contain numbers (0-9)
@@ -266,15 +257,13 @@ Code signing and package integrity:
 ```json
 {
   "packageVerification": {
-    "enabled": true,
-    "strictMode": true
+    "enabled": true
   }
 }
 ```
 
 **Options:**
 - `enabled`: Require package verification
-- `strictMode`: Strict verification (reject all unsigned code)
 
 **Platform Implementation:**
 - **macOS**: Gatekeeper
@@ -349,9 +338,7 @@ Network sharing service restrictions:
   "sharingServices": {
     "fileSharing": false,
     "screenSharing": false,
-    "remoteLogin": false,
-    "mediaSharing": false,
-    "internetSharing": false
+    "remoteLogin": false
   }
 }
 ```
@@ -360,8 +347,6 @@ Network sharing service restrictions:
 - **File Sharing**: SMB/AFP file sharing, Samba, NFS
 - **Screen Sharing**: VNC, Apple Screen Sharing
 - **Remote Login**: SSH, remote access services
-- **Media Sharing**: DLNA, iTunes sharing
-- **Internet Sharing**: Network bridge/hotspot functionality
 
 ## 🎯 Creating Custom Configurations
 
@@ -389,8 +374,7 @@ Network sharing service restrictions:
     "stealthMode": true
   },
   "packageVerification": {
-    "enabled": true,
-    "strictMode": true
+    "enabled": true
   },
   "systemIntegrityProtection": {
     "enabled": true
@@ -408,9 +392,7 @@ Network sharing service restrictions:
   "sharingServices": {
     "fileSharing": false,
     "screenSharing": false,
-    "remoteLogin": false,
-    "mediaSharing": false,
-    "internetSharing": false
+    "remoteLogin": false
   }
 }
 ```
@@ -436,8 +418,7 @@ Network sharing service restrictions:
     "stealthMode": false
   },
   "packageVerification": {
-    "enabled": true,
-    "strictMode": false
+    "enabled": true
   },
   "systemIntegrityProtection": {
     "enabled": true
@@ -531,12 +512,12 @@ The tool supports both modern cross-platform names and legacy platform-specific 
   // Modern cross-platform names (recommended)
   "diskEncryption": { "enabled": true },
   "packageVerification": { "enabled": true },
-  "systemIntegrityProtection": { "enabled": true },
+  "systemIntegrityProtection": { "enabled": true }
 
   // Legacy macOS-specific names (still supported)
-  "fileVault": { "enabled": true },
-  "gatekeeper": { "enabled": true },
-  "sip": { "enabled": true }
+  // "fileVault": { "enabled": true },
+  // "gatekeeper": { "enabled": true },
+  // "sip": { "enabled": true }
 }
 ```
 
@@ -578,6 +559,7 @@ The tool supports both modern cross-platform names and legacy platform-specific 
 ```json
 {
   "password": {
+    "required": true,
     "minLength": 12,
     "maxAgeDays": 90,
     "requireUppercase": true,
@@ -585,8 +567,12 @@ The tool supports both modern cross-platform names and legacy platform-specific 
     "requireNumber": true,
     "requireSpecialChar": true
   },
-  "autoLock": { "maxTimeoutMinutes": 5 },
-  "packageVerification": { "strictMode": true }
+  "autoLock": { 
+    "maxTimeoutMinutes": 5 
+  },
+  "packageVerification": { 
+    "enabled": true 
+  }
 }
 ```
 
