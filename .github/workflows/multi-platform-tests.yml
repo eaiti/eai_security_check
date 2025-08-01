@@ -345,7 +345,7 @@ jobs:
           
           # Test validation - invalid JSON should fail  
           echo "Testing validation - invalid email JSON..."
-          error_output=$(./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1)
+          error_output=$(./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 || true)
           echo "DEBUG: Error output was: $error_output"
           if echo "$error_output" | grep -E "Invalid.*email.*configuration.*JSON" >/dev/null; then
             echo "✅ Email JSON validation works correctly"
