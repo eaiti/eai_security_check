@@ -161,8 +161,8 @@ jobs:
           
           # Create minimal scheduling config for testing
           echo "Creating test daemon configuration..."
-          mkdir -p ~/.config/eai-security-check
-          cat > ~/.config/eai-security-check/scheduling-config.json << 'EOF'
+          mkdir -p bin/config
+          cat > bin/config/scheduling-config.json << 'EOF'
           {
             "enabled": true,
             "intervalDays": 1,
@@ -190,7 +190,7 @@ jobs:
           
           # Create security config as well (macOS-specific settings)
           echo "Creating test security configuration..."
-          cat > ~/.config/eai-security-check/security-config.json << 'EOF'
+          cat > bin/config/security-config.json << 'EOF'
           {
             "diskEncryption": {
               "required": false,
@@ -247,15 +247,15 @@ jobs:
           
           # Test daemon auto-configuration validation
           echo "Validating daemon configuration was created correctly..."
-          test -f ~/.config/eai-security-check/scheduling-config.json || \
+          test -f bin/config/scheduling-config.json || \
             (echo "❌ Daemon config file not found" && exit 1)
           
           # Verify config contains required fields
-          grep -q "smtp.example.com" ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q "smtp.example.com" bin/config/scheduling-config.json || \
             (echo "❌ SMTP configuration not found" && exit 1)
-          grep -q "admin@example.com" ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q "admin@example.com" bin/config/scheduling-config.json || \
             (echo "❌ Email recipient not found" && exit 1)
-          grep -q "relaxed" ~/.config/eai-security-check/scheduling-config.json || \
+          grep -q "relaxed" bin/config/scheduling-config.json || \
             (echo "❌ Security profile not found" && exit 1)
           
           # Test daemon test-email (will fail due to fake SMTP but should handle gracefully)
@@ -289,7 +289,7 @@ jobs:
           
           # Validate uninstall cleaned up config files when forced
           echo "Validating daemon uninstall cleanup..."
-          if [ -f ~/.config/eai-security-check/scheduling-config.json ]; then
+          if [ -f bin/config/scheduling-config.json ]; then
             echo "⚠️  Config file still exists after force uninstall (this is expected behavior)"
           fi
           

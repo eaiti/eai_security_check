@@ -22,6 +22,8 @@ jobs:
             test-script: scripts/testing/test-linux.sh
             pkg-target: pkg:linux
             binary-name: index-linux
+            # Note: GitHub Actions doesn't provide Fedora runners, so we test on Ubuntu
+            # For local testing on Fedora, use: ./scripts/testing/test-linux.sh
           - os: macos-latest
             platform: macos
             test-script: scripts/testing/test-macos.sh

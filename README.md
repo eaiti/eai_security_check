@@ -256,14 +256,9 @@ EAI Security Check uses a **centralized file structure** that keeps all applicat
 ✅ **Global access**: Works with system-wide installation via symlinks  
 ✅ **Daemon-compatible**: Services can reliably locate logs and config files  
 
-### Migration from Legacy Locations
+### Previous Installation Locations
 
-For backward compatibility, the tool also checks legacy OS-specific locations:
-- **macOS**: `~/Library/Application Support/eai-security-check/`
-- **Linux**: `~/.config/eai-security-check/` or `$XDG_CONFIG_HOME/eai-security-check/`
-- **Windows**: `%APPDATA%/eai-security-check/`
-
-However, new installations automatically use the centralized structure for better organization.
+**Note**: Previous versions used OS-specific configuration directories. Current versions use a centralized structure alongside the executable for better portability and organization. The legacy locations are no longer used.
 
 ## �🐧 Platform Support
 

@@ -279,7 +279,7 @@ The `init` command creates service templates. Manual setup:
 
 ```bash
 # Copy service file
-cp ~/.config/eai-security-check/daemon-templates/eai-security-check.service ~/.config/systemd/user/
+cp <executable-dir>/config/daemon-templates/eai-security-check.service ~/.config/systemd/user/
 
 # Edit service file to update paths
 nano ~/.config/systemd/user/eai-security-check.service
@@ -545,7 +545,7 @@ log show --predicate 'process == "eai-security-check"' --last 1h
 journalctl --user -u eai-security-check.service -f
 
 # Application logs
-tail -f ~/.config/eai-security-check/daemon.log
+tail -f <executable-dir>/logs/eai-security-check.log
 ```
 
 **Windows:**
@@ -570,7 +570,7 @@ eai-security-check daemon --status
 eai-security-check daemon --test-email
 
 # Check permissions
-ls -la ~/.config/eai-security-check/
+ls -la <executable-dir>/config/
 ```
 
 **Email not sending:**

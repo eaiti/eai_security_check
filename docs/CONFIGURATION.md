@@ -34,21 +34,9 @@ EAI Security Check uses a **centralized file structure** alongside the executabl
     └── eai-security-check.error.log
 ```
 
-### Legacy OS-Specific Locations (Backwards Compatibility)
+### Previous Installation Locations
 
-For existing installations, the tool also checks these locations:
-
-```bash
-# macOS
-~/Library/Application Support/eai-security-check/
-
-# Linux
-~/.config/eai-security-check/
-# or $XDG_CONFIG_HOME/eai-security-check/
-
-# Windows  
-%APPDATA%\eai-security-check\
-```
+**Note**: Previous versions used OS-specific configuration directories. Current versions use the centralized structure for better portability and organization.
 
 **Benefits of Centralized Structure:**
 ✅ **Portable**: Move executable directory, everything moves with it  

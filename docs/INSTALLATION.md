@@ -138,36 +138,35 @@ eai-security-check interactive
 
 ## 📂 Directory Structure After Installation
 
-The tool creates platform-appropriate configuration directories:
+The tool uses a **centralized file structure** that keeps all application data organized alongside the executable for better portability and management:
 
 ```
-# macOS
-~/Library/Application Support/eai-security-check/
-├── security-config.json         # Security profile configuration
-├── scheduling-config.json       # Daemon scheduling configuration  
-├── daemon-state.json           # Daemon state tracking
-└── daemon-templates/           # System service templates
-    ├── com.eai.security-check.plist
-    └── setup-instructions.txt
+# Application files are stored alongside the executable
+/path/to/eai-security-check        # Main executable
+/path/to/config/                   # Configuration files  
+├── security-config.json           # Security profile configuration
+├── scheduling-config.json         # Daemon scheduling configuration
+├── daemon-state.json             # Daemon state tracking
+└── daemon-templates/             # System service templates
+    ├── eai-security-check.service (Linux)
+    ├── com.eai.security-check.plist (macOS)  
+    └── windows-task-scheduler.xml (Windows)
 
-# Linux  
-~/.config/eai-security-check/
-├── security-config.json
-├── scheduling-config.json
-├── daemon-state.json
-└── daemon-templates/
-    ├── eai-security-check.service
-    └── setup-instructions.txt
+/path/to/reports/                  # Generated security reports
+├── security-report-*.txt
+├── security-report-*.md
+└── security-report-*.json
 
-# Windows
-%APPDATA%\eai-security-check\
-├── security-config.json
-├── scheduling-config.json
-├── daemon-state.json
-└── daemon-templates\
-    ├── windows-task-scheduler.xml
-    └── setup-instructions.txt
+/path/to/logs/                     # Application logs
+├── eai-security-check.log
+└── eai-security-check.error.log
 ```
+
+**Benefits of Centralized Structure:**
+✅ **Portable**: Move executable directory, everything moves with it  
+✅ **Self-contained**: All files in one location  
+✅ **Permission-safe**: No system directory issues  
+✅ **Global-compatible**: Works with global installation via symlinks
 
 ## 🔧 Platform-Specific Requirements
 
