@@ -113,10 +113,12 @@ jobs:
 
           # Test that the command works from any directory
           cd /tmp
+          which eai-security-check
           eai-security-check --version
 
           # Test basic security check with global install (allow failure)
-          timeout 30s eai-security-check check --profile=relaxed --quiet || true
+          echo "Testing basic security check..."
+          timeout 30s eai-security-check check --profile=relaxed --quiet || echo "Security check completed or timed out (expected in CI)"
 
           # Test the application's own uninstall command
           echo "Testing eai-security-check uninstall command..."
@@ -129,8 +131,7 @@ jobs:
           test ! -d "/usr/local/lib/eai-security-check" || \
             (echo "❌ Installation directory not removed" && exit 1)
 
-          echo "✅ Application global install/uninstall functionality " \
-            "works correctly"
+          echo "✅ Application global install/uninstall functionality works correctly"
         env:
           CI: true
 

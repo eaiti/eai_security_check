@@ -94,7 +94,7 @@ jobs:
       - name: Test pkg executable - Basic check (Linux/macOS)
         if: matrix.platform != 'windows'
         run: |
-          timeout 30s ./bin/${{ matrix.binary-name }} check `
+          timeout 30s ./bin/${{ matrix.binary-name }} check \
             --profile=relaxed --quiet || true
         env:
           CI: true
@@ -103,7 +103,7 @@ jobs:
         if: matrix.platform == 'windows'
         run: |
           # Run with timeout, allow failure since security checks may fail in CI
-          timeout /t 30 /nobreak > nul & ./bin/${{ matrix.binary-name }} `
+          timeout /t 30 /nobreak > nul & ./bin/${{ matrix.binary-name }} \
             check --profile=relaxed --quiet
         env:
           CI: true
@@ -180,10 +180,12 @@ jobs:
 
           # Test that the command works from any directory
           cd /tmp
+          which eai-security-check
           eai-security-check --version
 
           # Test basic security check with global install (allow failure)
-          timeout 30s eai-security-check check --profile=relaxed --quiet || true
+          echo "Testing basic security check..."
+          timeout 30s eai-security-check check --profile=relaxed --quiet || echo "Security check completed or timed out (expected in CI)"
 
           # Test the application's own uninstall command
           echo "Testing eai-security-check uninstall command..."
@@ -196,8 +198,7 @@ jobs:
           test ! -d "/usr/local/lib/eai-security-check" || \
             (echo "❌ Installation directory not removed" && exit 1)
 
-          echo "✅ Application global install/uninstall functionality " \
-            "works correctly"
+          echo "✅ Application global install/uninstall functionality works correctly"
         env:
           CI: true
 
