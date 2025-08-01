@@ -373,9 +373,12 @@ export class ConfigManager {
           for (const file of executableFiles) {
             const filePath = path.join(targetDir, file);
             if (platform === 'win32') {
-              fs.rmSync(filePath, { force: true });
+              fs.rmSync(filePath, { recursive: true, force: true });
             } else {
-              await execAsync(`sudo rm -f "${path.join(targetDir, file)}"`);
+              // Check if it's a directory or file and use appropriate command
+              const isDirectory = fs.existsSync(filePath) && fs.statSync(filePath).isDirectory();
+              const rmCommand = isDirectory ? 'sudo rm -rf' : 'sudo rm -f';
+              await execAsync(`${rmCommand} "${filePath}"`);
             }
           }
           removedItems.push(`executable files from: ${targetDir}`);

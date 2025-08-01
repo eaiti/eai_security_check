@@ -66,7 +66,7 @@ jobs:
 
       - name: Test pkg executable - Basic check (non-interactive)
         run: |
-          timeout 30s ./bin/index-macos check --profile=relaxed --quiet || true
+          timeout 30s ./bin/index-macos check relaxed --quiet || true
         env:
           CI: true
 
@@ -83,7 +83,7 @@ jobs:
           eai-security-check check --help
 
           # Test basic security check (allow failure in CI)
-          timeout 30s eai-security-check check --profile=relaxed --quiet || true
+          timeout 30s eai-security-check check relaxed --quiet || true
 
           # Clean up
           npm uninstall -g eai-security-check
@@ -118,7 +118,7 @@ jobs:
           eai-security-check --version
 
           # Test basic security check with global install (allow failure)
-          timeout 30s eai-security-check check --profile=relaxed --quiet || true
+          timeout 30s eai-security-check check relaxed --quiet || true
 
           # Test the application's own uninstall command
           echo "Testing eai-security-check uninstall command..."
