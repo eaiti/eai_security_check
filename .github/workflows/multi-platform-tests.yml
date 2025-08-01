@@ -345,7 +345,7 @@ jobs:
           
           # Test validation - invalid JSON should fail  
           echo "Testing validation - invalid email JSON..."
-          if ./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 | grep -E "(Invalid email configuration JSON|Invalid JSON)" >/dev/null; then
+          if ./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 | grep "Invalid email configuration JSON" >/dev/null; then
             echo "✅ Email JSON validation works correctly"
           else
             echo "❌ Invalid JSON validation failed"
@@ -512,7 +512,7 @@ jobs:
           # Test validation - invalid JSON should fail  
           Write-Host "Testing validation - invalid email JSON..."
           $output = ./bin/${{ matrix.binary-name }} daemon --setup-email "invalid-json" --user-id "test" 2>&1 | Out-String
-          if ($output -match "Invalid email configuration JSON" -or $output -match "Invalid JSON") {
+          if ($output -match "Invalid email configuration JSON") {
             Write-Host "✅ Email JSON validation works correctly"
           } else {
             Write-Host "❌ Invalid JSON validation failed"
