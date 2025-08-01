@@ -37,23 +37,12 @@ const mockConfigManager = ConfigManager as jest.Mocked<typeof ConfigManager>;
 const mockGetConfigByProfile = getConfigByProfile as jest.MockedFunction<typeof getConfigByProfile>;
 const mockIsValidProfile = isValidProfile as jest.MockedFunction<typeof isValidProfile>;
 
-// Import the functions we want to test AFTER mocking
-import {
-  runInteractiveMode,
-  showSecurityCheckMenu,
-  showConfigurationMenu,
-  showDaemonMenu,
-  showGlobalMenu,
-  showSystemMenu,
-  showVerifyMenu,
-  runInteractiveSecurityCheck,
-  runQuickSecurityCheck,
-  setupOrModifyConfigurations,
-  setupDaemonAutomation,
-  getConfigForProfile,
-  promptForAutoServiceSetup,
-  verifySpecificFile
-} from './index';
+// Import the functions we want to test from the new modules
+import { InteractiveHandlers } from './interactive-handlers';
+import { SecurityOperations } from '../core/security-operations';
+import { ConfigurationOperations } from '../core/configuration-operations';
+import { DaemonOperations } from '../core/daemon-operations';
+import { VerificationOperations } from '../core/verification-operations';
 
 describe('CLI Interactive Mode', () => {
   const originalConsoleLog = console.log;
