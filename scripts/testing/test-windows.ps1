@@ -27,21 +27,19 @@ $Script:PassedTests = 0
 $Script:FailedTests = 0
 $Script:SkippedTests = 0
 
-Write-Host "🪟 EAI Security Check - Windows Testing Suite" -ForegroundColor Cyan
+Write-Host "[WIN] EAI Security Check - Windows Testing Suite" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Function to display test header
-function Test-Header 
-{
+function Test-Header {
     param([string]$TestName)
-    Write-Host "🔍 Testing: $TestName" -ForegroundColor Blue
+    Write-Host "[TEST] Testing: $TestName" -ForegroundColor Blue
     Write-Host ("=" * 50) -ForegroundColor Blue
 }
 
 # Function to display test result
-function Test-Result 
-{
+function Test-Result {
     param(
         [string]$TestName,
         [string]$Status,
@@ -52,17 +50,17 @@ function Test-Result
     
     switch ($Status) {
         "PASS" {
-            Write-Host "✅ $TestName`: PASSED" -ForegroundColor Green
+            Write-Host "[PASS] $TestName`: PASSED" -ForegroundColor Green
             if ($Message) { Write-Host "   $Message" }
             $Script:PassedTests++
         }
         "FAIL" {
-            Write-Host "❌ $TestName`: FAILED" -ForegroundColor Red
+            Write-Host "[FAIL] $TestName`: FAILED" -ForegroundColor Red
             if ($Message) { Write-Host "   $Message" }
             $Script:FailedTests++
         }
         "SKIP" {
-            Write-Host "⏭️  $TestName`: SKIPPED" -ForegroundColor Yellow
+            Write-Host "[SKIP] $TestName`: SKIPPED" -ForegroundColor Yellow
             if ($Message) { Write-Host "   $Message" }
             $Script:SkippedTests++
         }
@@ -70,15 +68,14 @@ function Test-Result
 }
 
 # Function to pause for user interaction
-function Pause-ForUser 
-{
+function Pause-ForUser {
     param([string]$Message)
     Write-Host ""
-    Write-Host "⏸️  $Message" -ForegroundColor Yellow
+    Write-Host "[PAUSE] $Message" -ForegroundColor Yellow
     
     # Check if running in non-interactive mode (CI or automated environment)
     if ($env:CI -eq "true" -or $env:TESTING_MODE -eq "non-interactive" -or $Quiet) {
-        Write-Host "⏭️  Skipping user prompt (non-interactive mode)" -ForegroundColor Yellow
+        Write-Host "[SKIP] Skipping user prompt (non-interactive mode)" -ForegroundColor Yellow
         Write-Host ""
         return
     }
@@ -86,14 +83,14 @@ function Pause-ForUser
     Write-Host "Press Enter to continue after making changes, or 'q' to quit..." -ForegroundColor Yellow
     $response = Read-Host
     if ($response -eq "q" -or $response -eq "Q") {
-        Write-Host "👋 Testing stopped by user." -ForegroundColor Cyan
+        Write-Host "[QUIT] Testing stopped by user." -ForegroundColor Cyan
         exit 0
     }
     Write-Host ""
 }
 
 # Display system information
-Write-Host "🖥️  System Information:" -ForegroundColor Magenta
+Write-Host "[INFO] System Information:" -ForegroundColor Magenta
 Write-Host "   Computer Name: $env:COMPUTERNAME"
 Write-Host "   Windows Version: $((Get-CimInstance Win32_OperatingSystem).Caption)"
 Write-Host "   Build Number: $((Get-CimInstance Win32_OperatingSystem).BuildNumber)"
@@ -104,12 +101,12 @@ Write-Host ""
 
 # Check if CLI tool exists
 if (-not (Test-Path $CLIPath)) {
-    Write-Host "❌ CLI tool not found at: $CLIPath" -ForegroundColor Red
+    Write-Host "[ERROR] CLI tool not found at: $CLIPath" -ForegroundColor Red
     Write-Host "Please run 'npm run build' from the project root first." -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "✅ CLI tool found and ready for testing" -ForegroundColor Green
+Write-Host "[SUCCESS] CLI tool found and ready for testing" -ForegroundColor Green
 Write-Host ""
 
 # Test 1: Platform Detection
@@ -138,7 +135,7 @@ try {
         Write-Host "   Protected drives found: $protectedDrives"
     } else {
         Test-Result "BitLocker" "FAIL" "BitLocker is not enabled"
-        Write-Host "💡 To enable BitLocker:" -ForegroundColor Yellow
+        Write-Host "[HINT] To enable BitLocker:" -ForegroundColor Yellow
         Write-Host "   Control Panel -> System and Security -> BitLocker Drive Encryption"
         Write-Host "   Or use: manage-bde -on C: -RecoveryPassword" -ForegroundColor Yellow
         Pause-ForUser "Enable BitLocker and then continue testing"
@@ -166,7 +163,7 @@ try {
     }
     
     if (-not $allEnabled) {
-        Write-Host "💡 To enable Windows Defender Firewall:" -ForegroundColor Yellow
+        Write-Host "[HINT] To enable Windows Defender Firewall:" -ForegroundColor Yellow
         Write-Host "   Control Panel -> System and Security -> Windows Defender Firewall" -ForegroundColor Yellow
         Write-Host "   Or use: Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True" -ForegroundColor Yellow
         Pause-ForUser "Enable Windows Defender Firewall profiles and continue testing"
@@ -226,7 +223,7 @@ try {
             Test-Result "SmartScreen" "PASS" "SmartScreen is enabled for user"
         } else {
             Test-Result "SmartScreen" "FAIL" "SmartScreen appears to be disabled"
-            Write-Host "💡 To enable SmartScreen:" -ForegroundColor Yellow
+            Write-Host "[HINT] To enable SmartScreen:" -ForegroundColor Yellow
             Write-Host "   Windows Security -> App and browser control -> Reputation-based protection" -ForegroundColor Yellow
         }
     }
@@ -246,7 +243,7 @@ try {
         Test-Result "UAC" "PASS" "UAC is enabled (level: $($uacLevel.ConsentPromptBehaviorAdmin))"
     } else {
         Test-Result "UAC" "FAIL" "UAC is disabled or set too low"
-        Write-Host "💡 To enable UAC:" -ForegroundColor Yellow
+        Write-Host "[HINT] To enable UAC:" -ForegroundColor Yellow
         Write-Host "   Control Panel -> User Accounts -> Change User Account Control settings" -ForegroundColor Yellow
         Pause-ForUser "Enable UAC and continue testing"
     }
@@ -274,7 +271,7 @@ try {
         Test-Result "Automatic Updates" "PASS" "Automatic updates are enabled"
     } else {
         Test-Result "Automatic Updates" "FAIL" "Automatic updates are disabled"
-        Write-Host "💡 To enable automatic updates:" -ForegroundColor Yellow
+        Write-Host "[HINT] To enable automatic updates:" -ForegroundColor Yellow
         Write-Host "   Settings -> Update and Security -> Windows Update -> Advanced options" -ForegroundColor Yellow
     }
     
@@ -294,7 +291,7 @@ try {
         Test-Result "Remote Desktop" "PASS" "Remote Desktop is disabled"
     } else {
         Test-Result "Remote Desktop" "FAIL" "Remote Desktop is enabled (potential security risk)"
-        Write-Host "💡 To disable Remote Desktop:" -ForegroundColor Yellow
+        Write-Host "[HINT] To disable Remote Desktop:" -ForegroundColor Yellow
         Write-Host "   System Properties -> Remote -> Disable Remote Desktop" -ForegroundColor Yellow
         Pause-ForUser "Disable Remote Desktop if not needed and continue testing"
     }
@@ -312,7 +309,7 @@ try {
     $serverService = Get-Service -Name "LanmanServer" -ErrorAction SilentlyContinue
     if ($serverService -and $serverService.Status -eq "Running") {
         Test-Result "File Sharing Service" "FAIL" "File sharing service is running"
-        Write-Host "💡 Consider disabling if not needed:" -ForegroundColor Yellow
+        Write-Host "[HINT] Consider disabling if not needed:" -ForegroundColor Yellow
         Write-Host "   Control Panel -> Network and Sharing Center -> Advanced sharing settings" -ForegroundColor Yellow
     } else {
         Test-Result "File Sharing Service" "PASS" "File sharing service is not running"
@@ -394,7 +391,7 @@ try {
         }
     } else {
         Test-Result "Screen Saver" "FAIL" "Screen saver is disabled"
-        Write-Host "💡 To enable screen saver:" -ForegroundColor Yellow
+        Write-Host "[HINT] To enable screen saver:" -ForegroundColor Yellow
         Write-Host "   Settings -> Personalization -> Lock screen -> Screen saver settings" -ForegroundColor Yellow
         Pause-ForUser "Enable screen saver and continue testing"
     }
@@ -429,7 +426,7 @@ Write-Host ""
 
 # Display final summary
 Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host "🏁 Windows Testing Summary" -ForegroundColor Cyan
+Write-Host "[SUMMARY] Windows Testing Summary" -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "Total Tests: $Script:TotalTests"
 Write-Host "Passed: $Script:PassedTests" -ForegroundColor Green
@@ -447,14 +444,14 @@ if ($Script:TotalTests -gt 0) {
 
 Write-Host ""
 if ($Script:FailedTests -eq 0) {
-    Write-Host "🎉 All tests passed! Your Windows system appears to be well-configured for security." -ForegroundColor Green
+    Write-Host "[SUCCESS] All tests passed! Your Windows system appears to be well-configured for security." -ForegroundColor Green
 } else {
-    Write-Host "⚠️  Some security settings need attention. Review the failed tests above." -ForegroundColor Yellow
-    Write-Host "💡 Use 'node $CLIPath check --help' for more configuration options." -ForegroundColor Cyan
+    Write-Host "[WARNING] Some security settings need attention. Review the failed tests above." -ForegroundColor Yellow
+    Write-Host "[HINT] Use 'node $CLIPath check --help' for more configuration options." -ForegroundColor Cyan
 }
 
 Write-Host ""
-Write-Host "📚 For more information:" -ForegroundColor Cyan
+Write-Host "[INFO] For more information:" -ForegroundColor Cyan
 Write-Host "   • Run: node $CLIPath check default"
 Write-Host "   • View: README.md for detailed documentation"  
 Write-Host "   • Configure: Use 'node $CLIPath interactive' for guided setup"
