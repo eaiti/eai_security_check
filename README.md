@@ -7,7 +7,7 @@ A cross-platform Node.js + TypeScript tool for auditing security settings on mac
 ### 🖥️ Cross-Platform Support
 - **macOS**: Complete support for FileVault, Gatekeeper, SIP, and all macOS security features
 - **Linux**: Comprehensive support for LUKS encryption, firewall (ufw/firewalld), SELinux/AppArmor, and package verification
-- **Windows**: Full support for BitLocker, Windows Defender, Windows Firewall, and Windows security features
+- **Windows**: Core features implemented for BitLocker, Windows Defender, Windows Firewall (expanding support)
 - **Auto-Detection**: Automatically detects the operating system and uses appropriate security checks
 
 ### 🔒 Security Checks Performed

@@ -102,10 +102,10 @@ After downloading, you can optionally set up global access:
 ### Automatic Setup (Recommended)
 
 ```bash
-# Run interactive initialization (includes global setup option)
-eai-security-check init
+# Run interactive management mode (includes global setup option)
+eai-security-check interactive
 
-# During init, choose "Yes" when prompted for global installation
+# During interactive setup, choose "4. Global Installation" option
 ```
 
 ### Manual Global Setup
@@ -132,8 +132,8 @@ $newPath = $currentPath + ";" + (Get-Location).Path
 
 **Option 2: Create Desktop/Start Menu Shortcuts**
 ```powershell
-# The init command can create these automatically
-eai-security-check init
+# The interactive command can create these automatically
+eai-security-check interactive
 ```
 
 ## 📂 Directory Structure After Installation
@@ -217,7 +217,7 @@ sudo apt install -y nodejs npm git  # Ubuntu
 
 ```bash
 # Run the interactive setup wizard
-eai-security-check init
+eai-security-check interactive
 
 # This will:
 # - Guide you through security profile selection
@@ -316,8 +316,9 @@ sudo xattr -r -d com.apple.quarantine eai-security-check
 
 **Check logs and configuration:**
 ```bash
-# Show configuration directory
-eai-security-check init --dry-run
+# Show configuration directory location
+eai-security-check interactive
+# → Select "1. System Status" to view all configuration paths
 
 # Verbose output for debugging  
 eai-security-check check --help
