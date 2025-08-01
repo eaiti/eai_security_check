@@ -8,9 +8,30 @@ The testing scripts perform comprehensive validation of all security checking me
 
 - **Platform Detection**: Verify OS version and compatibility
 - **Individual Security Checks**: Test each security feature independently  
-- **Interactive Feedback**: Pause for user input when settings need modification
+- **Interactive & Non-Interactive Modes**: Support both user-guided and automated testing
 - **Clear Results**: Show pass/fail status with actionable recommendations
 - **Integration Testing**: Validate the CLI tool works correctly on the platform
+- **pkg Executable Testing**: Validate pre-built binaries work correctly
+- **CI/CD Integration**: Designed to work in GitHub Actions and other CI environments
+
+## Automated Testing (CI/CD)
+
+All scripts support non-interactive mode for use in continuous integration:
+
+```bash
+# Set environment variables for non-interactive mode
+export CI=true
+export TESTING_MODE=non-interactive
+
+# Run automated tests
+./scripts/testing/test-automated.sh
+```
+
+The scripts automatically detect CI environments and skip user prompts. This is used in our GitHub Actions workflows for:
+- **Linux Testing**: Ubuntu runners with full security check validation
+- **macOS Testing**: macOS runners with comprehensive Apple security features
+- **Windows Testing**: Windows runners with Microsoft security settings
+- **pkg Testing**: Validates pre-built executables work correctly on each platform
 
 ## Available Scripts
 
@@ -22,6 +43,23 @@ Auto-detects the current platform and runs the appropriate test script.
 # Make executable and run
 chmod +x scripts/testing/test-platform.sh
 ./scripts/testing/test-platform.sh
+```
+
+### `test-automated.sh` (CI/CD Testing)
+Non-interactive test runner designed for automated environments. Automatically:
+- Builds the project if needed
+- Detects the platform
+- Runs appropriate platform tests without user interaction
+- Tests pkg executables if available
+- Provides summary results
+
+**Usage:**
+```bash
+# For CI/automated testing
+./scripts/testing/test-automated.sh
+
+# Or with explicit environment variables
+CI=true TESTING_MODE=non-interactive ./scripts/testing/test-automated.sh
 ```
 
 ### `test-linux.sh` (Linux Testing)
@@ -160,6 +198,41 @@ The test scripts validate that:
 2. All security checking methods function properly
 3. The CLI tool can run successfully on the platform
 4. Results match expected behavior
+5. pkg executables work correctly with basic commands
+
+## GitHub Actions Integration
+
+These testing scripts are integrated into our CI/CD pipeline with multi-platform GitHub Actions workflows:
+
+### Workflow Files
+- **`.github/workflows/test-linux.yml`**: Linux testing on Ubuntu
+- **`.github/workflows/test-macos.yml`**: macOS testing on macOS runners  
+- **`.github/workflows/test-windows.yml`**: Windows testing on Windows runners
+- **`.github/workflows/multi-platform-tests.yml`**: Matrix strategy testing all platforms
+
+### CI Testing Process
+Each workflow performs:
+1. **Standard Tests**: Formatting, linting, TypeScript build, Jest tests
+2. **Platform Testing**: Runs the appropriate testing script in non-interactive mode
+3. **pkg Build**: Creates platform-specific executable using pkg
+4. **Executable Testing**: Validates the built executable with basic commands:
+   - `--help` - Show help information
+   - `--version` - Display version
+   - `profiles` - List security profiles
+   - `check --profile=relaxed --quiet` - Run basic security check
+5. **Artifact Upload**: Stores executables for download and review
+
+### CI Environment Variables
+The workflows automatically set:
+- `CI=true` - Indicates running in CI environment
+- `TESTING_MODE=non-interactive` - Skips user prompts
+
+### Benefits
+- **Early Detection**: Catch platform compatibility issues in PRs
+- **Executable Validation**: Ensure pkg builds work correctly
+- **Multi-Platform Coverage**: Test on Linux, macOS, and Windows simultaneously
+- **Automated Testing**: No manual intervention required
+- **Artifact Generation**: Automatically build and test executables for all platforms
 
 This ensures the main EAI Security Check tool will work reliably on the tested system.
 

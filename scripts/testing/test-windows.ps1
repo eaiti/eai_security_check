@@ -72,6 +72,14 @@ function Pause-ForUser {
     param([string]$Message)
     Write-Host ""
     Write-Host "⏸️  $Message" -ForegroundColor Yellow
+    
+    # Check if running in non-interactive mode (CI or automated environment)
+    if ($env:CI -eq "true" -or $env:TESTING_MODE -eq "non-interactive" -or $Quiet) {
+        Write-Host "⏭️  Skipping user prompt (non-interactive mode)" -ForegroundColor Yellow
+        Write-Host ""
+        return
+    }
+    
     Write-Host "Press Enter to continue after making changes, or 'q' to quit..." -ForegroundColor Yellow
     $response = Read-Host
     if ($response -eq "q" -or $response -eq "Q") {

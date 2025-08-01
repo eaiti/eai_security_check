@@ -1,7 +1,7 @@
 ---
-name: Linux Tests
+name: Windows Tests
 
-"on":
+on:
   pull_request:
     branches: [main, master]
   push:
@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  test-linux:
-    runs-on: ubuntu-latest
+  test-windows:
+    runs-on: windows-latest
 
     steps:
       - name: Checkout repository
@@ -39,37 +39,36 @@ jobs:
       - name: Run Jest tests
         run: npm test
 
-      - name: Run Linux security check tests
+      - name: Run Windows security check tests
         run: |
-          chmod +x scripts/testing/test-linux.sh
-          scripts/testing/test-linux.sh
+          powershell.exe -ExecutionPolicy Bypass -File scripts/testing/test-windows.ps1 -Quiet
         env:
           CI: true
           TESTING_MODE: non-interactive
 
-      - name: Build pkg executable for Linux
-        run: npm run pkg:linux
+      - name: Build pkg executable for Windows
+        run: npm run pkg:windows
 
       - name: Test pkg executable - Help command
-        run: |
-          chmod +x bin/index-linux
-          ./bin/index-linux --help
+        run: ./bin/index-win.exe --help
 
       - name: Test pkg executable - Version command
-        run: ./bin/index-linux --version
+        run: ./bin/index-win.exe --version
 
       - name: Test pkg executable - Check help command
-        run: ./bin/index-linux check --help
+        run: ./bin/index-win.exe check --help
 
       - name: Test pkg executable - Basic check (non-interactive)
         run: |
-          timeout 30s ./bin/index-linux check --profile=relaxed --quiet || true
+          # Run with timeout and allow failure since security checks may fail in CI
+          timeout /t 30 /nobreak > nul & ./bin/index-win.exe check --profile=relaxed --quiet
         env:
           CI: true
+        continue-on-error: true
 
       - name: Upload pkg artifact
         uses: actions/upload-artifact@v4
         with:
-          name: eai-security-check-linux
-          path: bin/index-linux
+          name: eai-security-check-windows
+          path: bin/index-win.exe
           retention-days: 7

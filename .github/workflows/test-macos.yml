@@ -1,7 +1,7 @@
 ---
-name: Linux Tests
+name: macOS Tests
 
-"on":
+on:
   pull_request:
     branches: [main, master]
   push:
@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  test-linux:
-    runs-on: ubuntu-latest
+  test-macos:
+    runs-on: macos-latest
 
     steps:
       - name: Checkout repository
@@ -39,37 +39,39 @@ jobs:
       - name: Run Jest tests
         run: npm test
 
-      - name: Run Linux security check tests
+      - name: Run macOS security check tests
         run: |
-          chmod +x scripts/testing/test-linux.sh
-          scripts/testing/test-linux.sh
+          chmod +x scripts/testing/test-macos.sh
+          scripts/testing/test-macos.sh
         env:
           CI: true
           TESTING_MODE: non-interactive
 
-      - name: Build pkg executable for Linux
-        run: npm run pkg:linux
+      - name: Build pkg executable for macOS
+        run: npm run pkg:macos
 
       - name: Test pkg executable - Help command
         run: |
-          chmod +x bin/index-linux
-          ./bin/index-linux --help
+          chmod +x bin/index-macos
+          ./bin/index-macos --help
 
       - name: Test pkg executable - Version command
-        run: ./bin/index-linux --version
+        run: ./bin/index-macos --version
 
       - name: Test pkg executable - Check help command
-        run: ./bin/index-linux check --help
+        run: |
+          chmod +x bin/index-macos
+          ./bin/index-macos check --help
 
       - name: Test pkg executable - Basic check (non-interactive)
         run: |
-          timeout 30s ./bin/index-linux check --profile=relaxed --quiet || true
+          timeout 30s ./bin/index-macos check --profile=relaxed --quiet || true
         env:
           CI: true
 
       - name: Upload pkg artifact
         uses: actions/upload-artifact@v4
         with:
-          name: eai-security-check-linux
-          path: bin/index-linux
+          name: eai-security-check-macos
+          path: bin/index-macos
           retention-days: 7

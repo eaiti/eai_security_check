@@ -68,8 +68,8 @@ pause_for_user() {
     echo ""
     echo -e "${YELLOW}⏸️  $message${NC}"
     
-    # Check if running in non-interactive mode (stdin not a terminal)
-    if [ ! -t 0 ]; then
+    # Check if running in non-interactive mode (CI, automated, or stdin not a terminal)
+    if [ "$CI" = "true" ] || [ "$TESTING_MODE" = "non-interactive" ] || [ ! -t 0 ]; then
         echo -e "${YELLOW}⏭️  Skipping user prompt (non-interactive mode)${NC}"
         echo ""
         return
