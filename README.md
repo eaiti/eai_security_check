@@ -7,7 +7,7 @@ A cross-platform Node.js + TypeScript tool for auditing security settings on mac
 ### 🖥️ Cross-Platform Support
 - **macOS**: Complete support for FileVault, Gatekeeper, SIP, and all macOS security features
 - **Linux**: Comprehensive support for LUKS encryption, firewall (ufw/firewalld), SELinux/AppArmor, and package verification
-- **Windows**: Full support for BitLocker, Windows Defender, Windows Firewall, and Windows security features
+- **Windows**: Core features implemented for BitLocker, Windows Defender, Windows Firewall (expanding support)
 - **Auto-Detection**: Automatically detects the operating system and uses appropriate security checks
 
 ### 🔒 Security Checks Performed
@@ -170,15 +170,15 @@ sudo loginctl enable-linger $USER
 ## 📚 Documentation
 
 ### Quick Reference
+- **[FAQ](FAQ.md)** - Frequently asked questions and troubleshooting
 - **[Installation Guide](docs/INSTALLATION.md)** - Detailed installation instructions for all platforms
-- **[Configuration Guide](docs/CONFIGURATION.md)** - Complete security configuration options and examples
+- **[Configuration Guide](docs/CONFIGURATION.md)** - Complete security configuration options and examples  
 - **[Usage Examples](docs/USAGE_EXAMPLES.md)** - Comprehensive examples for different use cases
 - **[Daemon Setup](docs/DAEMON_SETUP.md)** - Automated scheduling and system service setup
 
 ### Security & Implementation
 - **[Security Documentation](SECURITY.md)** - Complete security analysis, threat model, and implementation details
 - **[Signing Implementation](SIGNING_IMPLEMENTATION.md)** - Cryptographic verification and tamper detection
-- **[Changelog](CHANGELOG.md)** - Version history and updates
 
 ## 🎯 Example Output
 

@@ -1,9 +1,9 @@
-import { SchedulingService } from './scheduling-service';
+import { SchedulingService } from '../services/scheduling-service';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-describe('Daemon Controls', () => {
+describe('Daemon Operations', () => {
   const tmpDir = os.tmpdir();
   const testLockFile = path.join(tmpDir, 'test-daemon.lock');
   const testStateFile = path.join(tmpDir, 'test-daemon-state.json');
