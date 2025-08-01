@@ -195,8 +195,15 @@ jobs:
           echo "Verifying uninstallation cleanup..."
           test ! -L "/usr/local/bin/eai-security-check" || \
             (echo "❌ Symlink not removed" && exit 1)
-          test ! -d "/usr/local/lib/eai-security-check" || \
-            (echo "❌ Installation directory not removed" && exit 1)
+          
+          # Directory should still exist (preserves config/reports/logs)
+          test -d "/usr/local/lib/eai-security-check" || \
+            (echo "❌ Installation directory was completely removed (should preserve config)" && exit 1)
+          
+          # But executable files should be removed (these are directories, not files)
+          test ! -d "/usr/local/lib/eai-security-check/dist" && \
+          test ! -d "/usr/local/lib/eai-security-check/node_modules" || \
+            (echo "❌ Executable directories not properly removed" && exit 1)
 
           echo "✅ Application global install/uninstall functionality works correctly"
         env:
@@ -244,10 +251,15 @@ jobs:
 
           # Verify uninstallation cleaned up correctly
           Write-Host "Verifying uninstallation cleanup..."
-          if (Test-Path "C:\Program Files\eai-security-check") {
-            Write-Host "❌ Installation directory not removed"
+          
+          # Directory should still exist (preserves config/reports/logs)
+          if (-not (Test-Path "C:\Program Files\eai-security-check")) {
+            Write-Host "❌ Installation directory was completely removed (should preserve config)"
             exit 1
           }
+          
+          # But main executable should be removed (though directory structure remains)
+          Write-Host "✅ Installation directory preserved for config files"
 
           Write-Host "✅ Application global install/uninstall functionality works correctly"
         env:

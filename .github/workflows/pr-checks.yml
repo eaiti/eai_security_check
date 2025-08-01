@@ -129,8 +129,15 @@ jobs:
           echo "Verifying uninstallation cleanup..."
           test ! -L "/usr/local/bin/eai-security-check" || \
             (echo "❌ Symlink not removed" && exit 1)
-          test ! -d "/usr/local/lib/eai-security-check" || \
-            (echo "❌ Installation directory not removed" && exit 1)
+          
+          # Directory should still exist (preserves config/reports/logs)
+          test -d "/usr/local/lib/eai-security-check" || \
+            (echo "❌ Installation directory was completely removed (should preserve config)" && exit 1)
+          
+          # But executable files should be removed (these are directories, not files)
+          test ! -d "/usr/local/lib/eai-security-check/dist" && \
+          test ! -d "/usr/local/lib/eai-security-check/node_modules" || \
+            (echo "❌ Executable directories not properly removed" && exit 1)
 
           echo "✅ Application global install/uninstall functionality works correctly"
         env:
