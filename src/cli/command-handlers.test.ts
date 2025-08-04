@@ -11,15 +11,29 @@ jest.mock('../core/installation-operations');
 const mockFs = fs as jest.Mocked<typeof fs>;
 
 describe('CommandHandlers', () => {
+  let originalExit: typeof process.exit;
+  let mockExit: jest.Mock;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Mock process.exit to prevent test termination
+    originalExit = process.exit;
+    mockExit = jest.fn();
+    process.exit = mockExit as any;
+  });
+
+  afterEach(() => {
+    // Restore original process.exit
+    process.exit = originalExit;
   });
 
   describe('handleCheckCommand', () => {
     it('should run security check with basic options', async () => {
       const mockResult = {
         report: 'Security report content',
-        outputPath: '/path/to/report.txt'
+        outputPath: '/path/to/report.txt',
+        overallPassed: true
       };
 
       (SecurityOperations.runSecurityCheck as jest.Mock).mockResolvedValue(mockResult);
@@ -41,6 +55,7 @@ describe('CommandHandlers', () => {
         summary: undefined
       });
 
+      expect(mockExit).toHaveBeenCalledWith(0);
       consoleSpy.mockRestore();
     });
 
@@ -48,6 +63,7 @@ describe('CommandHandlers', () => {
       const mockResult = {
         report: 'Security report content',
         outputPath: '/path/to/report.txt',
+        overallPassed: true,
         hashInfo: {
           shortHash: 'abc123',
           fullHash: 'abcdef123456789'
@@ -77,7 +93,8 @@ describe('CommandHandlers', () => {
     it('should handle clipboard output', async () => {
       const mockResult = {
         report: 'Security report content',
-        clipboardSuccess: true
+        clipboardSuccess: true,
+        overallPassed: true
       };
 
       (SecurityOperations.runSecurityCheck as jest.Mock).mockResolvedValue(mockResult);
@@ -95,7 +112,8 @@ describe('CommandHandlers', () => {
     it('should handle clipboard failure', async () => {
       const mockResult = {
         report: 'Security report content',
-        clipboardSuccess: false
+        clipboardSuccess: false,
+        overallPassed: true
       };
 
       (SecurityOperations.runSecurityCheck as jest.Mock).mockResolvedValue(mockResult);
@@ -128,7 +146,8 @@ describe('CommandHandlers', () => {
 
     it('should handle console output when no file specified', async () => {
       const mockResult = {
-        report: 'Security report content'
+        report: 'Security report content',
+        overallPassed: true
       };
 
       (SecurityOperations.runSecurityCheck as jest.Mock).mockResolvedValue(mockResult);
