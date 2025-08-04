@@ -15,6 +15,19 @@ describe('ConfigEditorComponent', () => {
       'loadConfig',
     ]);
 
+    // Set up default return values
+    electronServiceSpy.createConfig.and.returnValue(Promise.resolve({
+      diskEncryption: { enabled: true, timeout: 0 },
+      passwordProtection: { enabled: true, timeout: 0 },
+      autoLockTimeout: { enabled: true, timeout: 5 },
+    }));
+    electronServiceSpy.saveConfig.and.returnValue(Promise.resolve(true));
+    electronServiceSpy.loadConfig.and.returnValue(Promise.resolve({
+      diskEncryption: { enabled: true, timeout: 0 },
+      passwordProtection: { enabled: true, timeout: 0 },
+      autoLockTimeout: { enabled: true, timeout: 5 },
+    }));
+
     await TestBed.configureTestingModule({
       imports: [ConfigEditorComponent],
       providers: [{ provide: ElectronService, useValue: electronServiceSpy }],
@@ -152,12 +165,17 @@ describe('ConfigEditorComponent', () => {
   });
 
   it('should handle config import/export', async () => {
+    // Set up component data
+    component.selectedProfile = 'default';
+    
+    // Load a profile first to set up the config data
+    await component.loadProfile('default');
+    
     // Test export - this method exists in the component
     component.exportConfig();
     // Export should work without errors
 
-    // Test load profile
-    await component.loadProfile('default');
+    // Verify the profile was loaded
     expect(component.selectedProfile).toBe('default');
   });
 
@@ -187,6 +205,9 @@ describe('ConfigEditorComponent', () => {
   });
 
   it('should handle save configuration', async () => {
+    // Set up config data first
+    await component.loadProfile('default');
+    
     mockElectronService.saveConfig.and.returnValue(Promise.resolve(true));
 
     await component.saveConfig();

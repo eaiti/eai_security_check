@@ -50,12 +50,30 @@ describe('DashboardComponent', () => {
   beforeEach(async () => {
     mockElectronService = jasmine.createSpyObj('ElectronService', [
       'installGlobally',
-      'isElectron',
+      'manageDaemon',
     ]);
+    // Add signal properties
+    Object.defineProperty(mockElectronService, 'isElectron', {
+      value: jasmine.createSpy('isElectron').and.returnValue(true),
+      writable: true,
+    });
+    Object.defineProperty(mockElectronService, 'cliVersion', {
+      value: jasmine.createSpy('cliVersion').and.returnValue('1.0.0'),
+      writable: true,
+    });
+    Object.defineProperty(mockElectronService, 'platformInfo', {
+      value: jasmine.createSpy('platformInfo').and.returnValue({
+        platform: 'darwin',
+        arch: 'x64',
+        version: '14.0.0',
+      }),
+      writable: true,
+    });
+    
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
 
     mockElectronService.installGlobally.and.returnValue(Promise.resolve(true));
-    mockElectronService.isElectron.and.returnValue(true);
+    mockElectronService.manageDaemon.and.returnValue(Promise.resolve('stopped'));
 
     await TestBed.configureTestingModule({
       imports: [DashboardComponent],

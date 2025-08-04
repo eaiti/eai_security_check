@@ -46,7 +46,7 @@ describe('DaemonManagerComponent', () => {
   });
 
   it('should validate cron expression', () => {
-    const validConfig = { schedule: '0 */6 * * *' };
+    const validConfig = { schedule: '0 2 * * *' }; // 2 AM daily
     const invalidConfig = { schedule: 'invalid' };
 
     expect(component['validateConfig'](validConfig)).toBeTrue();

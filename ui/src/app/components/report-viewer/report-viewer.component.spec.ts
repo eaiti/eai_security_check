@@ -75,34 +75,52 @@ describe('ReportViewerComponent', () => {
   });
 
   it('should handle copy to clipboard', async () => {
+    // Set up test data
+    component['_convertedContent'].set('Test content to copy');
+    
     // Mock clipboard API
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: jasmine
-          .createSpy('writeText')
-          .and.returnValue(Promise.resolve()),
-      },
+    const mockClipboard = {
+      writeText: jasmine.createSpy('writeText').and.returnValue(Promise.resolve()),
+    };
+    
+    // Override the clipboard property using defineProperty
+    Object.defineProperty(navigator, 'clipboard', {
+      value: mockClipboard,
+      writable: true,
+      configurable: true,
     });
 
     await component.copyToClipboard();
-    expect(navigator.clipboard.writeText).toHaveBeenCalled();
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Test content to copy');
+    
+    // Clean up
+    delete (navigator as any).clipboard;
   });
 
   it('should handle download functionality', () => {
+    // Set up some test data
+    component.selectedFormat = 'json';
+    component['_selectedReportPath'].set('test-report.json');
+    component['_convertedContent'].set('{"test": "data"}');
+
     // Mock URL.createObjectURL and document.createElement
     spyOn(URL, 'createObjectURL').and.returnValue('blob:url');
     spyOn(URL, 'revokeObjectURL');
-    spyOn(document, 'createElement').and.returnValue({
+    const mockAnchor = {
       href: '',
       download: '',
       click: jasmine.createSpy('click'),
-      style: {},
-    } as any);
+      style: { display: '' },
+    } as any;
+    spyOn(document, 'createElement').and.returnValue(mockAnchor);
+    spyOn(document.body, 'appendChild');
+    spyOn(document.body, 'removeChild');
 
     component.downloadReport();
 
     expect(URL.createObjectURL).toHaveBeenCalled();
     expect(document.createElement).toHaveBeenCalledWith('a');
+    expect(mockAnchor.click).toHaveBeenCalled();
   });
 
   it('should handle report verification', async () => {

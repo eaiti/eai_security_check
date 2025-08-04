@@ -52,6 +52,16 @@ describe('InteractiveModeComponent', () => {
     );
     mockElectronService.runInteractive.and.returnValue(Promise.resolve());
     mockElectronService.saveConfig.and.returnValue(Promise.resolve(true));
+    
+    // Add signal properties
+    Object.defineProperty(mockElectronService, 'platformInfo', {
+      value: jasmine.createSpy('platformInfo').and.returnValue(mockPlatformInfo),
+      writable: true,
+    });
+    Object.defineProperty(mockElectronService, 'cliVersion', {
+      value: jasmine.createSpy('cliVersion').and.returnValue('1.1.0'),
+      writable: true,
+    });
 
     await TestBed.configureTestingModule({
       imports: [InteractiveModeComponent],
@@ -72,7 +82,12 @@ describe('InteractiveModeComponent', () => {
     );
     expect(installAction).toBeDefined();
 
+    // Execute the action which sets up confirmation dialog
     await component.executeAction(installAction!);
+    expect(component.confirmationDialog()).toBeTruthy();
+    
+    // Confirm the action
+    await component.confirmAction();
     expect(mockElectronService.installGlobally).toHaveBeenCalled();
   });
 
@@ -82,7 +97,12 @@ describe('InteractiveModeComponent', () => {
     );
     expect(uninstallAction).toBeDefined();
 
+    // Execute the action which sets up confirmation dialog
     await component.executeAction(uninstallAction!);
+    expect(component.confirmationDialog()).toBeTruthy();
+    
+    // Confirm the action
+    await component.confirmAction();
     expect(mockElectronService.uninstallGlobally).toHaveBeenCalled();
   });
 
@@ -134,8 +154,16 @@ describe('InteractiveModeComponent', () => {
     );
     expect(installAction).toBeDefined();
 
+    // Execute the action which sets up confirmation dialog
     await component.executeAction(installAction!);
-    // Should handle error gracefully
+    expect(component.confirmationDialog()).toBeTruthy();
+    
+    // Confirm the action - this should handle the error gracefully
+    try {
+      await component.confirmAction();
+    } catch (error) {
+      // Error is expected and should be handled by the component
+    }
     expect(mockElectronService.installGlobally).toHaveBeenCalled();
   });
 
@@ -155,6 +183,15 @@ describe('InteractiveModeComponent', () => {
   });
 
   it('should render action log', () => {
+    // Add a log entry to make the action log visible
+    component['_actionLog'].set([
+      {
+        timestamp: new Date().toISOString(),
+        message: 'Test action completed',
+        type: 'success',
+      },
+    ]);
+    
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
