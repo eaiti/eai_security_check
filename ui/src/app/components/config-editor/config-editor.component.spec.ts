@@ -12,19 +12,19 @@ describe('ConfigEditorComponent', () => {
     const electronServiceSpy = jasmine.createSpyObj('ElectronService', [
       'createConfig',
       'saveConfig',
-      'loadConfig'
+      'loadConfig',
     ]);
 
     await TestBed.configureTestingModule({
       imports: [ConfigEditorComponent],
-      providers: [
-        { provide: ElectronService, useValue: electronServiceSpy }
-      ]
+      providers: [{ provide: ElectronService, useValue: electronServiceSpy }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ConfigEditorComponent);
     component = fixture.componentInstance;
-    mockElectronService = TestBed.inject(ElectronService) as jasmine.SpyObj<ElectronService>;
+    mockElectronService = TestBed.inject(
+      ElectronService,
+    ) as jasmine.SpyObj<ElectronService>;
   });
 
   it('should create', () => {
@@ -38,10 +38,12 @@ describe('ConfigEditorComponent', () => {
   it('should load profile configuration', async () => {
     const mockConfig = {
       diskEncryption: { enabled: true },
-      passwordProtection: { enabled: true }
+      passwordProtection: { enabled: true },
     };
 
-    mockElectronService.createConfig.and.returnValue(Promise.resolve(mockConfig));
+    mockElectronService.createConfig.and.returnValue(
+      Promise.resolve(mockConfig),
+    );
 
     await component.loadProfile('default');
 
@@ -52,7 +54,9 @@ describe('ConfigEditorComponent', () => {
   it('should clear configuration when empty profile selected', async () => {
     // First set a config
     const mockConfig = { diskEncryption: { enabled: true } };
-    mockElectronService.createConfig.and.returnValue(Promise.resolve(mockConfig));
+    mockElectronService.createConfig.and.returnValue(
+      Promise.resolve(mockConfig),
+    );
     await component.loadProfile('default');
     expect(component.config()).toEqual(mockConfig);
 
@@ -70,7 +74,7 @@ describe('ConfigEditorComponent', () => {
 
     // Simulate a field change
     const mockEvent = {
-      target: { type: 'checkbox', checked: false }
+      target: { type: 'checkbox', checked: false },
     };
 
     component.setFieldValue('diskEncryption.enabled', mockEvent);
@@ -84,7 +88,7 @@ describe('ConfigEditorComponent', () => {
     component['_originalConfig'].set({ autoLock: { maxTimeoutMinutes: 15 } });
 
     const mockEvent = {
-      target: { type: 'number', value: '5' }
+      target: { type: 'number', value: '5' },
     };
 
     component.setFieldValue('autoLock.maxTimeoutMinutes', mockEvent);
@@ -140,8 +144,8 @@ describe('ConfigEditorComponent', () => {
 
   it('should handle different config profiles', () => {
     const profiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
-    
-    profiles.forEach(profile => {
+
+    profiles.forEach((profile) => {
       component.selectedProfile = profile;
       expect(component.selectedProfile).toBe(profile);
     });
@@ -151,7 +155,7 @@ describe('ConfigEditorComponent', () => {
     // Test export - this method exists in the component
     component.exportConfig();
     // Export should work without errors
-    
+
     // Test load profile
     await component.loadProfile('default');
     expect(component.selectedProfile).toBe('default');
@@ -159,8 +163,8 @@ describe('ConfigEditorComponent', () => {
 
   it('should handle different timeout values', () => {
     const timeoutValues = [1, 5, 10, 15, 30, 60];
-    
-    timeoutValues.forEach(timeout => {
+
+    timeoutValues.forEach((timeout) => {
       // Test that the component can handle different timeout values
       // This tests the component's ability to process various input values
       expect(timeout).toBeGreaterThan(0);
@@ -176,7 +180,7 @@ describe('ConfigEditorComponent', () => {
 
   it('should track configuration changes', () => {
     expect(component.hasChanges()).toBe(false);
-    
+
     // Make a change by loading a profile
     component.loadProfile('strict');
     // Changes tracking is handled internally
@@ -184,7 +188,7 @@ describe('ConfigEditorComponent', () => {
 
   it('should handle save configuration', async () => {
     mockElectronService.saveConfig.and.returnValue(Promise.resolve(true));
-    
+
     await component.saveConfig();
     expect(mockElectronService.saveConfig).toHaveBeenCalled();
   });

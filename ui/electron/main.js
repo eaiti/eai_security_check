@@ -1,7 +1,7 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
-const { exec } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+const { app, BrowserWindow, ipcMain } = require("electron");
+const { exec } = require("child_process");
+const path = require("path");
+const fs = require("fs");
 
 class ElectronMain {
   constructor() {
@@ -17,13 +17,13 @@ class ElectronMain {
       this.setupIpcHandlers();
     });
 
-    app.on('window-all-closed', () => {
-      if (process.platform !== 'darwin') {
+    app.on("window-all-closed", () => {
+      if (process.platform !== "darwin") {
         app.quit();
       }
     });
 
-    app.on('activate', () => {
+    app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         this.createWindow();
       }
@@ -33,21 +33,21 @@ class ElectronMain {
   findCliPath() {
     // Try to find the CLI executable in various locations
     const possiblePaths = [
-      path.join(__dirname, '../../dist/cli/index.js'),
-      path.join(process.resourcesPath, 'app/dist/cli/index.js'),
-      path.join(__dirname, '../../../dist/cli/index.js')
+      path.join(__dirname, "../../dist/cli/index.js"),
+      path.join(process.resourcesPath, "app/dist/cli/index.js"),
+      path.join(__dirname, "../../../dist/cli/index.js"),
     ];
 
     for (const testPath of possiblePaths) {
       if (fs.existsSync(testPath)) {
         this.cliPath = testPath;
-        console.log('Found CLI at:', this.cliPath);
+        console.log("Found CLI at:", this.cliPath);
         break;
       }
     }
 
     if (!this.cliPath) {
-      console.warn('CLI not found, UI will use mock data');
+      console.warn("CLI not found, UI will use mock data");
     }
   }
 
@@ -59,131 +59,141 @@ class ElectronMain {
         nodeIntegration: false,
         contextIsolation: true,
         enableRemoteModule: false,
-        preload: path.join(__dirname, 'preload.js')
+        preload: path.join(__dirname, "preload.js"),
       },
-      icon: path.join(__dirname, '../public/favicon.ico'),
-      title: 'EAI Security Check',
-      show: false
+      icon: path.join(__dirname, "../public/favicon.ico"),
+      title: "EAI Security Check",
+      show: false,
     });
 
     // Load the Angular app
-    const isDev = process.env.NODE_ENV === 'development';
+    const isDev = process.env.NODE_ENV === "development";
     if (isDev) {
-      this.mainWindow.loadURL('http://localhost:4200');
+      this.mainWindow.loadURL("http://localhost:4200");
       this.mainWindow.webContents.openDevTools();
     } else {
-      this.mainWindow.loadFile(path.join(__dirname, '../dist/ui/index.html'));
+      this.mainWindow.loadFile(path.join(__dirname, "../dist/ui/index.html"));
     }
 
-    this.mainWindow.once('ready-to-show', () => {
+    this.mainWindow.once("ready-to-show", () => {
       this.mainWindow.show();
     });
   }
 
   setupIpcHandlers() {
-    ipcMain.handle('run-security-check', async (event, profile, config) => {
+    ipcMain.handle("run-security-check", async (event, profile, config) => {
       return this.runSecurityCheck(profile, config);
     });
 
-    ipcMain.handle('run-interactive', async () => {
-      return this.runCliCommand('interactive');
+    ipcMain.handle("run-interactive", async () => {
+      return this.runCliCommand("interactive");
     });
 
-    ipcMain.handle('verify-report', async (event, path) => {
+    ipcMain.handle("verify-report", async (event, path) => {
       return this.runCliCommand(`verify "${path}"`);
     });
 
-    ipcMain.handle('manage-daemon', async (event, action, config) => {
-      if (action === 'configure') {
+    ipcMain.handle("manage-daemon", async (event, action, config) => {
+      if (action === "configure") {
         // Handle configuration save
         try {
-          const configPath = path.join(app.getPath('userData'), 'daemon-config.json');
+          const configPath = path.join(
+            app.getPath("userData"),
+            "daemon-config.json",
+          );
           fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
           return { success: true };
         } catch (error) {
-          console.error('Failed to save daemon config:', error);
+          console.error("Failed to save daemon config:", error);
           return { success: false, error: error.message };
         }
       } else {
-        const configArg = config ? `--config "${JSON.stringify(config).replace(/"/g, '\\"')}"` : '';
+        const configArg = config
+          ? `--config "${JSON.stringify(config).replace(/"/g, '\\"')}"`
+          : "";
         return this.runCliCommand(`daemon ${action} ${configArg}`);
       }
     });
 
-    ipcMain.handle('install-globally', async () => {
-      return this.runCliCommand('install');
+    ipcMain.handle("install-globally", async () => {
+      return this.runCliCommand("install");
     });
 
-    ipcMain.handle('uninstall-globally', async (event, removeConfig) => {
-      const flag = removeConfig ? '--remove-config' : '';
+    ipcMain.handle("uninstall-globally", async (event, removeConfig) => {
+      const flag = removeConfig ? "--remove-config" : "";
       return this.runCliCommand(`uninstall ${flag}`);
     });
 
-    ipcMain.handle('update-app', async () => {
-      return this.runCliCommand('update');
+    ipcMain.handle("update-app", async () => {
+      return this.runCliCommand("update");
     });
 
-    ipcMain.handle('get-platform-info', async () => {
-      const os = require('os');
+    ipcMain.handle("get-platform-info", async () => {
+      const os = require("os");
       return {
         platform: os.platform(),
         arch: os.arch(),
-        version: os.release()
+        version: os.release(),
       };
     });
 
-    ipcMain.handle('get-cli-version', async () => {
+    ipcMain.handle("get-cli-version", async () => {
       try {
-        const result = await this.runCliCommand('--version');
-        return result.stdout?.trim() || '1.1.0';
+        const result = await this.runCliCommand("--version");
+        return result.stdout?.trim() || "1.1.0";
       } catch (error) {
-        return '1.1.0';
+        return "1.1.0";
       }
     });
 
-    ipcMain.handle('load-config', async (event, configPath) => {
+    ipcMain.handle("load-config", async (event, configPath) => {
       try {
         if (configPath && fs.existsSync(configPath)) {
-          const content = fs.readFileSync(configPath, 'utf8');
+          const content = fs.readFileSync(configPath, "utf8");
           return JSON.parse(content);
         }
         // Return default config
-        const defaultConfigPath = path.join(__dirname, '../../examples/default-config.json');
+        const defaultConfigPath = path.join(
+          __dirname,
+          "../../examples/default-config.json",
+        );
         if (fs.existsSync(defaultConfigPath)) {
-          const content = fs.readFileSync(defaultConfigPath, 'utf8');
+          const content = fs.readFileSync(defaultConfigPath, "utf8");
           return JSON.parse(content);
         }
         return this.getDefaultConfig();
       } catch (error) {
-        console.error('Failed to load config:', error);
+        console.error("Failed to load config:", error);
         return this.getDefaultConfig();
       }
     });
 
-    ipcMain.handle('save-config', async (event, config, configPath) => {
+    ipcMain.handle("save-config", async (event, config, configPath) => {
       try {
-        const savePath = configPath || path.join(app.getPath('userData'), 'security-config.json');
+        const savePath =
+          configPath ||
+          path.join(app.getPath("userData"), "security-config.json");
         fs.writeFileSync(savePath, JSON.stringify(config, null, 2));
         return true;
       } catch (error) {
-        console.error('Failed to save config:', error);
+        console.error("Failed to save config:", error);
         return false;
       }
     });
 
-    ipcMain.handle('create-config', async (event, profile) => {
+    ipcMain.handle("create-config", async (event, profile) => {
       const configs = {
         default: this.getDefaultConfig(),
         strict: this.getStrictConfig(),
         relaxed: this.getRelaxedConfig(),
         developer: this.getDeveloperConfig(),
-        eai: this.getEaiConfig()
+        eai: this.getEaiConfig(),
       };
       return configs[profile] || this.getDefaultConfig();
     });
 
-    ipcMain.handle('list-configs', async () => {
-      return ['default', 'strict', 'relaxed', 'developer', 'eai'];
+    ipcMain.handle("list-configs", async () => {
+      return ["default", "strict", "relaxed", "developer", "eai"];
     });
   }
 
@@ -191,9 +201,9 @@ class ElectronMain {
     try {
       const configArg = config ? `--config "${config}"` : profile;
       const command = `node "${this.cliPath}" check ${configArg} --format json --quiet`;
-      
+
       const result = await this.executeCommand(command);
-      
+
       if (result.error) {
         throw new Error(result.stderr || result.error.message);
       }
@@ -203,11 +213,11 @@ class ElectronMain {
         return JSON.parse(result.stdout);
       } catch (parseError) {
         // If parsing fails, create a mock report
-        console.warn('Failed to parse CLI output, using mock data');
+        console.warn("Failed to parse CLI output, using mock data");
         return this.createMockReport(profile);
       }
     } catch (error) {
-      console.error('Security check failed:', error);
+      console.error("Security check failed:", error);
       // Fallback to mock data
       return this.createMockReport(profile);
     }
@@ -215,7 +225,7 @@ class ElectronMain {
 
   async runCliCommand(command) {
     if (!this.cliPath) {
-      throw new Error('CLI not available');
+      throw new Error("CLI not available");
     }
 
     const fullCommand = `node "${this.cliPath}" ${command}`;
@@ -233,63 +243,63 @@ class ElectronMain {
   createMockReport(profile) {
     const mockChecks = [
       {
-        name: 'Disk Encryption',
-        status: 'pass',
-        message: 'FileVault is enabled',
-        details: 'Full disk encryption is active and protecting your data',
-        risk: 'high'
+        name: "Disk Encryption",
+        status: "pass",
+        message: "FileVault is enabled",
+        details: "Full disk encryption is active and protecting your data",
+        risk: "high",
       },
       {
-        name: 'Password Protection', 
-        status: 'pass',
-        message: 'Screen saver requires password immediately',
-        details: 'Screen lock is configured correctly',
-        risk: 'high'
+        name: "Password Protection",
+        status: "pass",
+        message: "Screen saver requires password immediately",
+        details: "Screen lock is configured correctly",
+        risk: "high",
       },
       {
-        name: 'Auto-lock Timeout',
-        status: profile === 'strict' ? 'fail' : 'warning',
-        message: 'Auto-lock timeout is 10 minutes',
-        details: 'Consider reducing to 5 minutes for better security',
-        risk: 'medium'
+        name: "Auto-lock Timeout",
+        status: profile === "strict" ? "fail" : "warning",
+        message: "Auto-lock timeout is 10 minutes",
+        details: "Consider reducing to 5 minutes for better security",
+        risk: "medium",
       },
       {
-        name: 'Firewall',
-        status: 'pass',
-        message: 'Application Firewall is enabled',
-        details: 'Network protection is active',
-        risk: 'high'
+        name: "Firewall",
+        status: "pass",
+        message: "Application Firewall is enabled",
+        details: "Network protection is active",
+        risk: "high",
       },
       {
-        name: 'Package Verification',
-        status: profile === 'strict' ? 'fail' : 'warning',
-        message: 'Gatekeeper enabled but not in strict mode',
-        details: 'Consider enabling strict mode for enhanced security',
-        risk: 'medium'
+        name: "Package Verification",
+        status: profile === "strict" ? "fail" : "warning",
+        message: "Gatekeeper enabled but not in strict mode",
+        details: "Consider enabling strict mode for enhanced security",
+        risk: "medium",
       },
       {
-        name: 'System Integrity Protection',
-        status: profile === 'relaxed' ? 'warning' : 'fail',
-        message: 'SIP is disabled',
-        details: 'System Integrity Protection should be enabled for security',
-        risk: 'high'
-      }
+        name: "System Integrity Protection",
+        status: profile === "relaxed" ? "warning" : "fail",
+        message: "SIP is disabled",
+        details: "System Integrity Protection should be enabled for security",
+        risk: "high",
+      },
     ];
 
-    const passed = mockChecks.filter(c => c.status === 'pass').length;
-    const failed = mockChecks.filter(c => c.status === 'fail').length;
-    const warnings = mockChecks.filter(c => c.status === 'warning').length;
+    const passed = mockChecks.filter((c) => c.status === "pass").length;
+    const failed = mockChecks.filter((c) => c.status === "fail").length;
+    const warnings = mockChecks.filter((c) => c.status === "warning").length;
 
-    let overallStatus = 'pass';
-    if (failed > 0) overallStatus = 'fail';
-    else if (warnings > 0) overallStatus = 'warning';
+    let overallStatus = "pass";
+    if (failed > 0) overallStatus = "fail";
+    else if (warnings > 0) overallStatus = "warning";
 
-    const os = require('os');
+    const os = require("os");
     return {
       platform: {
         platform: os.platform(),
         arch: os.arch(),
-        version: os.release()
+        version: os.release(),
       },
       profile,
       timestamp: new Date().toISOString(),
@@ -298,8 +308,8 @@ class ElectronMain {
         passed,
         failed,
         warnings,
-        overallStatus
-      }
+        overallStatus,
+      },
     };
   }
 
@@ -312,7 +322,7 @@ class ElectronMain {
       packageVerification: { enabled: true },
       systemIntegrityProtection: { enabled: true },
       remoteLogin: { enabled: false },
-      automaticUpdates: { enabled: true, automaticInstall: false }
+      automaticUpdates: { enabled: true, automaticInstall: false },
     };
   }
 
@@ -325,7 +335,7 @@ class ElectronMain {
       packageVerification: { enabled: true },
       systemIntegrityProtection: { enabled: true },
       remoteLogin: { enabled: false },
-      automaticUpdates: { enabled: true, automaticInstall: true }
+      automaticUpdates: { enabled: true, automaticInstall: true },
     };
   }
 
@@ -338,7 +348,7 @@ class ElectronMain {
       packageVerification: { enabled: false },
       systemIntegrityProtection: { enabled: false },
       remoteLogin: { enabled: true },
-      automaticUpdates: { enabled: true, automaticInstall: false }
+      automaticUpdates: { enabled: true, automaticInstall: false },
     };
   }
 
@@ -351,7 +361,7 @@ class ElectronMain {
       packageVerification: { enabled: false },
       systemIntegrityProtection: { enabled: false },
       remoteLogin: { enabled: true },
-      automaticUpdates: { enabled: true, automaticInstall: false }
+      automaticUpdates: { enabled: true, automaticInstall: false },
     };
   }
 
@@ -364,7 +374,7 @@ class ElectronMain {
       packageVerification: { enabled: true },
       systemIntegrityProtection: { enabled: true },
       remoteLogin: { enabled: false },
-      automaticUpdates: { enabled: true, automaticInstall: true }
+      automaticUpdates: { enabled: true, automaticInstall: true },
     };
   }
 }

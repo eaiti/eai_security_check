@@ -2,7 +2,8 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .header {
@@ -26,13 +27,13 @@
 
 .controls {
   margin-bottom: 30px;
-  
+
   .profile-controls {
     display: flex;
     gap: 15px;
     margin-bottom: 20px;
     align-items: center;
-    
+
     .profile-select {
       padding: 10px 15px;
       border: 2px solid #ddd;
@@ -106,7 +107,7 @@
   border: 1px solid #e9ecef;
   border-radius: 8px;
   padding: 25px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
   h3 {
     margin: 0 0 10px 0;
@@ -141,7 +142,7 @@
     display: block;
     font-weight: 600;
     color: #333;
-    
+
     .field-description {
       display: block;
       font-weight: normal;
@@ -190,7 +191,7 @@
     right: 0;
     bottom: 0;
     background-color: #ccc;
-    transition: .4s;
+    transition: 0.4s;
     border-radius: 34px;
 
     &:before {
@@ -201,7 +202,7 @@
       left: 3px;
       bottom: 3px;
       background-color: white;
-      transition: .4s;
+      transition: 0.4s;
       border-radius: 50%;
     }
   }

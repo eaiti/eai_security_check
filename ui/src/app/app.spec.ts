@@ -1,55 +1,33 @@
 import { TestBed } from '@angular/core/testing';
-import { Router, ActivatedRoute } from '@angular/router';
-import { Component } from '@angular/core';
-import { App } from './app';
-import { of } from 'rxjs';
+import { AppComponent } from './app';
 
-@Component({
-  template: ''
-})
-class MockComponent { }
-
-describe('App', () => {
+describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [App],
-      providers: [
-        {
-          provide: Router,
-          useValue: jasmine.createSpyObj('Router', ['navigate'])
-        },
-        {
-          provide: ActivatedRoute,
-          useValue: {
-            params: of({}),
-            queryParams: of({}),
-            snapshot: { params: {}, queryParams: {} }
-          }
-        }
-      ]
+      imports: [AppComponent],
     }).compileComponents();
   });
 
   it('should create the app', () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
     expect(app).toBeTruthy();
   });
 
   it('should have correct title', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
+    const fixture = TestBed.createComponent(AppComponent);
     // Access title through the DOM since it's protected
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('EAI Security Check');
+    expect(compiled.querySelector('h1')?.textContent).toContain(
+      'EAI Security Check',
+    );
   });
 
   it('should render navigation', () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('nav.navigation')).toBeTruthy();
-    expect(compiled.querySelector('h1')?.textContent).toContain('EAI Security Check');
+    expect(compiled.querySelector('nav')).toBeTruthy();
   });
 });

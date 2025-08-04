@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, signal, inject, OnInit } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  signal,
+  inject,
+  OnInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../services/electron.service';
@@ -28,7 +34,12 @@ interface DaemonStatus {
           <div class="status-info">
             <div class="status-item">
               <span class="label">Status:</span>
-              <span class="value" [class]="'status-' + (status()!.running ? 'running' : 'stopped')">
+              <span
+                class="value"
+                [class]="
+                  'status-' + (status()!.running ? 'running' : 'stopped')
+                "
+              >
                 {{ status()!.running ? '🟢 Running' : '🔴 Stopped' }}
               </span>
             </div>
@@ -58,24 +69,27 @@ interface DaemonStatus {
 
       <div class="controls">
         <div class="control-buttons">
-          <button 
-            class="btn btn-primary" 
+          <button
+            class="btn btn-primary"
             [disabled]="isOperating()"
-            (click)="startDaemon()">
+            (click)="startDaemon()"
+          >
             ▶️ Start Daemon
           </button>
-          
-          <button 
-            class="btn btn-secondary" 
+
+          <button
+            class="btn btn-secondary"
             [disabled]="isOperating()"
-            (click)="stopDaemon()">
+            (click)="stopDaemon()"
+          >
             ⏹️ Stop Daemon
           </button>
-          
-          <button 
-            class="btn btn-secondary" 
+
+          <button
+            class="btn btn-secondary"
             [disabled]="isOperating()"
-            (click)="refreshStatus()">
+            (click)="refreshStatus()"
+          >
             🔄 Refresh Status
           </button>
         </div>
@@ -83,23 +97,29 @@ interface DaemonStatus {
 
       <div class="configuration">
         <h2>Daemon Configuration</h2>
-        
+
         <div class="config-form">
           <div class="form-group">
             <label for="schedule">Schedule (Cron Expression)</label>
-            <input 
-              type="text" 
-              id="schedule" 
-              [(ngModel)]="scheduleInput" 
+            <input
+              type="text"
+              id="schedule"
+              [(ngModel)]="scheduleInput"
               placeholder="0 */6 * * *"
               class="form-control"
             />
-            <small class="help-text">Example: "0 */6 * * *" runs every 6 hours</small>
+            <small class="help-text"
+              >Example: "0 */6 * * *" runs every 6 hours</small
+            >
           </div>
 
           <div class="form-group">
             <label for="profile">Security Profile</label>
-            <select id="profile" [(ngModel)]="profileInput" class="form-control">
+            <select
+              id="profile"
+              [(ngModel)]="profileInput"
+              class="form-control"
+            >
               <option value="default">Default Profile</option>
               <option value="strict">Strict Profile</option>
               <option value="relaxed">Relaxed Profile</option>
@@ -110,39 +130,42 @@ interface DaemonStatus {
 
           <div class="form-group">
             <label for="email">Email Notifications</label>
-            <input 
-              type="email" 
-              id="email" 
-              [(ngModel)]="emailInput" 
+            <input
+              type="email"
+              id="email"
+              [(ngModel)]="emailInput"
               placeholder="admin@company.com"
               class="form-control"
             />
-            <small class="help-text">Email address for security report notifications</small>
+            <small class="help-text"
+              >Email address for security report notifications</small
+            >
           </div>
 
           <div class="form-group">
             <label for="output">Output Directory</label>
-            <input 
-              type="text" 
-              id="output" 
-              [(ngModel)]="outputDirInput" 
+            <input
+              type="text"
+              id="output"
+              [(ngModel)]="outputDirInput"
               placeholder="/var/log/security-checks"
               class="form-control"
             />
-            <small class="help-text">Directory to save security check reports</small>
+            <small class="help-text"
+              >Directory to save security check reports</small
+            >
           </div>
 
           <div class="form-actions">
-            <button 
-              class="btn btn-primary" 
+            <button
+              class="btn btn-primary"
               [disabled]="isOperating()"
-              (click)="saveDaemonConfig()">
+              (click)="saveDaemonConfig()"
+            >
               💾 Save Configuration
             </button>
-            
-            <button 
-              class="btn btn-secondary" 
-              (click)="resetForm()">
+
+            <button class="btn btn-secondary" (click)="resetForm()">
               🔄 Reset
             </button>
           </div>
@@ -157,7 +180,7 @@ interface DaemonStatus {
     </div>
   `,
   styleUrls: ['./daemon-manager.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DaemonManagerComponent implements OnInit {
   private readonly electronService = inject(ElectronService);
@@ -194,7 +217,7 @@ export class DaemonManagerComponent implements OnInit {
         running: false,
         schedule: undefined,
         nextRun: undefined,
-        lastRun: undefined
+        lastRun: undefined,
       });
     } finally {
       this._isOperating.set(false);
@@ -234,7 +257,7 @@ export class DaemonManagerComponent implements OnInit {
     try {
       this._isOperating.set(true);
       const config = this.buildDaemonConfig();
-      
+
       // Validate configuration
       if (!this.validateConfig(config)) {
         this.showMessage('Please check configuration values', 'error');
@@ -264,13 +287,14 @@ export class DaemonManagerComponent implements OnInit {
       schedule: this.scheduleInput,
       profile: this.profileInput,
       email: this.emailInput || undefined,
-      outputDir: this.outputDirInput || undefined
+      outputDir: this.outputDirInput || undefined,
     };
   }
 
   private validateConfig(config: any): boolean {
     // Basic cron expression validation
-    const cronRegex = /^(\*|[0-5]?\d) (\*|[01]?\d|2[0-3]) (\*|[0-2]?\d|3[01]) (\*|[01]?\d) (\*|[0-6])$/;
+    const cronRegex =
+      /^(\*|[0-5]?\d) (\*|[01]?\d|2[0-3]) (\*|[0-2]?\d|3[01]) (\*|[01]?\d) (\*|[0-6])$/;
     if (!cronRegex.test(config.schedule)) {
       return false;
     }
@@ -290,10 +314,13 @@ export class DaemonManagerComponent implements OnInit {
     return new Date(dateString).toLocaleString();
   }
 
-  private showMessage(message: string, type: 'success' | 'error' | 'info'): void {
+  private showMessage(
+    message: string,
+    type: 'success' | 'error' | 'info',
+  ): void {
     this._message.set(message);
     this._messageType.set(type);
-    
+
     setTimeout(() => {
       this._message.set('');
     }, 5000);

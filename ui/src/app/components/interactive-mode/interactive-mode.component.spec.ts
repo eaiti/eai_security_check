@@ -11,14 +11,14 @@ describe('InteractiveModeComponent', () => {
     platform: 'darwin',
     version: '14.0.0',
     arch: 'x64',
-    hostname: 'test-machine'
+    hostname: 'test-machine',
   };
 
   const mockVersionInfo = {
     cli: '1.1.0',
     ui: '1.1.0',
     electron: '37.2.5',
-    node: '18.0.0'
+    node: '18.0.0',
   };
 
   beforeEach(async () => {
@@ -28,27 +28,34 @@ describe('InteractiveModeComponent', () => {
       'uninstallGlobally',
       'runInteractive',
       'saveConfig',
-      'isElectron'
+      'isElectron',
     ]);
 
-    mockElectronService.runSecurityCheck.and.returnValue(Promise.resolve({
-      platform: mockPlatformInfo,
-      profile: 'default',
-      timestamp: new Date().toISOString(),
-      checks: [],
-      summary: { passed: 8, failed: 0, warnings: 2, overallStatus: 'warning' as const }
-    }));
+    mockElectronService.runSecurityCheck.and.returnValue(
+      Promise.resolve({
+        platform: mockPlatformInfo,
+        profile: 'default',
+        timestamp: new Date().toISOString(),
+        checks: [],
+        summary: {
+          passed: 8,
+          failed: 0,
+          warnings: 2,
+          overallStatus: 'warning' as const,
+        },
+      }),
+    );
     mockElectronService.isElectron.and.returnValue(true);
     mockElectronService.installGlobally.and.returnValue(Promise.resolve(true));
-    mockElectronService.uninstallGlobally.and.returnValue(Promise.resolve(true));
+    mockElectronService.uninstallGlobally.and.returnValue(
+      Promise.resolve(true),
+    );
     mockElectronService.runInteractive.and.returnValue(Promise.resolve());
     mockElectronService.saveConfig.and.returnValue(Promise.resolve(true));
 
     await TestBed.configureTestingModule({
       imports: [InteractiveModeComponent],
-      providers: [
-        { provide: ElectronService, useValue: mockElectronService }
-      ]
+      providers: [{ provide: ElectronService, useValue: mockElectronService }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(InteractiveModeComponent);
@@ -60,36 +67,48 @@ describe('InteractiveModeComponent', () => {
   });
 
   it('should execute install globally action', async () => {
-    const installAction = component.managementActions.find(a => a.id === 'install-global');
+    const installAction = component.managementActions.find(
+      (a) => a.id === 'install-global',
+    );
     expect(installAction).toBeDefined();
-    
+
     await component.executeAction(installAction!);
     expect(mockElectronService.installGlobally).toHaveBeenCalled();
   });
 
   it('should execute uninstall globally action', async () => {
-    const uninstallAction = component.managementActions.find(a => a.id === 'uninstall-global');
+    const uninstallAction = component.managementActions.find(
+      (a) => a.id === 'uninstall-global',
+    );
     expect(uninstallAction).toBeDefined();
-    
+
     await component.executeAction(uninstallAction!);
     expect(mockElectronService.uninstallGlobally).toHaveBeenCalled();
   });
 
   it('should run quick check', async () => {
     await component.runQuickCheck();
-    expect(mockElectronService.runSecurityCheck).toHaveBeenCalledWith('default');
+    expect(mockElectronService.runSecurityCheck).toHaveBeenCalledWith(
+      'default',
+    );
   });
 
   it('should open config editor', () => {
     spyOn(component as any, 'showMessage');
     component.openConfigEditor();
-    expect((component as any).showMessage).toHaveBeenCalledWith('Opening configuration editor...', 'info');
+    expect((component as any).showMessage).toHaveBeenCalledWith(
+      'Opening configuration editor...',
+      'info',
+    );
   });
 
   it('should view reports', () => {
     spyOn(component as any, 'showMessage');
     component.viewReports();
-    expect((component as any).showMessage).toHaveBeenCalledWith('Opening report viewer...', 'info');
+    expect((component as any).showMessage).toHaveBeenCalledWith(
+      'Opening report viewer...',
+      'info',
+    );
   });
 
   it('should handle action execution gracefully', async () => {
@@ -98,21 +117,23 @@ describe('InteractiveModeComponent', () => {
       title: 'Test Action',
       description: 'Test Description',
       icon: '🧪',
-      action: jasmine.createSpy('action').and.returnValue(Promise.resolve())
+      action: jasmine.createSpy('action').and.returnValue(Promise.resolve()),
     };
-    
+
     await component.executeAction(mockAction);
     expect(mockAction.action).toHaveBeenCalled();
   });
 
   it('should handle errors during action execution', async () => {
     mockElectronService.installGlobally.and.returnValue(
-      Promise.reject(new Error('Installation failed'))
+      Promise.reject(new Error('Installation failed')),
     );
-    
-    const installAction = component.managementActions.find(a => a.id === 'install-global');
+
+    const installAction = component.managementActions.find(
+      (a) => a.id === 'install-global',
+    );
     expect(installAction).toBeDefined();
-    
+
     await component.executeAction(installAction!);
     // Should handle error gracefully
     expect(mockElectronService.installGlobally).toHaveBeenCalled();
@@ -127,7 +148,7 @@ describe('InteractiveModeComponent', () => {
 
   it('should render management actions', () => {
     fixture.detectChanges();
-    
+
     const compiled = fixture.nativeElement as HTMLElement;
     const actionCards = compiled.querySelectorAll('.action-card');
     expect(actionCards.length).toBe(component.managementActions.length);
@@ -135,7 +156,7 @@ describe('InteractiveModeComponent', () => {
 
   it('should render action log', () => {
     fixture.detectChanges();
-    
+
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.action-log')).toBeTruthy();
   });

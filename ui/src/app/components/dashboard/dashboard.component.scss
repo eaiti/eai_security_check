@@ -58,10 +58,16 @@
 
   .status-value {
     font-weight: 600;
-    
-    &.status-good { color: var(--color-success); }
-    &.status-warning { color: var(--color-warning); }
-    &.status-error { color: var(--color-error); }
+
+    &.status-good {
+      color: var(--color-success);
+    }
+    &.status-warning {
+      color: var(--color-warning);
+    }
+    &.status-error {
+      color: var(--color-error);
+    }
   }
 }
 
@@ -91,7 +97,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
     align-items: stretch;
@@ -117,9 +123,15 @@
     font-size: 1.1rem;
   }
 
-  &.status-pass .status-text { color: var(--color-success); }
-  &.status-fail .status-text { color: var(--color-error); }
-  &.status-warning .status-text { color: var(--color-warning); }
+  &.status-pass .status-text {
+    color: var(--color-success);
+  }
+  &.status-fail .status-text {
+    color: var(--color-error);
+  }
+  &.status-warning .status-text {
+    color: var(--color-warning);
+  }
 }
 
 .check-stats {
@@ -133,9 +145,18 @@
     font-size: 0.9rem;
     font-weight: 500;
 
-    &.pass { background: var(--color-success-light); color: var(--color-success-dark); }
-    &.fail { background: var(--color-error-light); color: var(--color-error-dark); }
-    &.warning { background: var(--color-warning-light); color: var(--color-warning-dark); }
+    &.pass {
+      background: var(--color-success-light);
+      color: var(--color-success-dark);
+    }
+    &.fail {
+      background: var(--color-error-light);
+      color: var(--color-error-dark);
+    }
+    &.warning {
+      background: var(--color-warning-light);
+      color: var(--color-warning-dark);
+    }
   }
 }
 
@@ -144,7 +165,7 @@
   gap: 1rem;
   color: var(--text-secondary);
   font-size: 0.9rem;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
     gap: 0.25rem;
@@ -155,10 +176,10 @@
   display: flex;
   gap: 0.5rem;
   flex-shrink: 0;
-  
+
   @media (max-width: 768px) {
     justify-content: stretch;
-    
+
     .btn {
       flex: 1;
     }
@@ -207,9 +228,15 @@
   border-radius: 8px;
   border-left: 4px solid transparent;
 
-  &.report-pass { border-left-color: var(--color-success); }
-  &.report-fail { border-left-color: var(--color-error); }
-  &.report-warning { border-left-color: var(--color-warning); }
+  &.report-pass {
+    border-left-color: var(--color-success);
+  }
+  &.report-fail {
+    border-left-color: var(--color-error);
+  }
+  &.report-warning {
+    border-left-color: var(--color-warning);
+  }
 }
 
 .report-info {
@@ -245,10 +272,19 @@
     font-size: 0.85rem;
     padding: 0.2rem 0.4rem;
     border-radius: 3px;
-    
-    &.pass { background: var(--color-success-light); color: var(--color-success-dark); }
-    &.fail { background: var(--color-error-light); color: var(--color-error-dark); }
-    &.warning { background: var(--color-warning-light); color: var(--color-warning-dark); }
+
+    &.pass {
+      background: var(--color-success-light);
+      color: var(--color-success-dark);
+    }
+    &.fail {
+      background: var(--color-error-light);
+      color: var(--color-error-dark);
+    }
+    &.warning {
+      background: var(--color-warning-light);
+      color: var(--color-warning-dark);
+    }
   }
 }
 
@@ -284,7 +320,9 @@
   border-radius: 8px;
   padding: 1.5rem;
   text-align: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 
   &:hover {
     transform: translateY(-2px);

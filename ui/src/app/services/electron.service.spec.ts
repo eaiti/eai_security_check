@@ -9,7 +9,7 @@ describe('ElectronService', () => {
     (window as any).electronAPI = {
       runSecurityCheck: jasmine.createSpy('runSecurityCheck'),
       getPlatformInfo: jasmine.createSpy('getPlatformInfo'),
-      getCliVersion: jasmine.createSpy('getCliVersion')
+      getCliVersion: jasmine.createSpy('getCliVersion'),
     };
     (window as any).isElectron = true;
 
@@ -49,20 +49,26 @@ describe('ElectronService', () => {
     delete (window as any).isElectron;
 
     const newService = new ElectronService();
-    
+
     const defaultReport = await newService.runSecurityCheck('default');
     const strictReport = await newService.runSecurityCheck('strict');
     const relaxedReport = await newService.runSecurityCheck('relaxed');
 
     // Strict should have more failures than default
-    expect(strictReport.summary.failed).toBeGreaterThanOrEqual(defaultReport.summary.failed);
-    
+    expect(strictReport.summary.failed).toBeGreaterThanOrEqual(
+      defaultReport.summary.failed,
+    );
+
     // Relaxed should have fewer failures than default
-    expect(relaxedReport.summary.failed).toBeLessThanOrEqual(defaultReport.summary.failed);
+    expect(relaxedReport.summary.failed).toBeLessThanOrEqual(
+      defaultReport.summary.failed,
+    );
   });
 
   it('should handle Electron API failures gracefully', async () => {
-    (window as any).electronAPI.runSecurityCheck.and.rejectWith(new Error('API Error'));
+    (window as any).electronAPI.runSecurityCheck.and.rejectWith(
+      new Error('API Error'),
+    );
 
     const report = await service.runSecurityCheck('default');
     expect(report).toBeDefined();
@@ -76,9 +82,15 @@ describe('ElectronService', () => {
 
     const newService = new ElectronService();
 
-    await expectAsync(newService.runInteractive()).toBeRejectedWithError('Interactive mode requires Electron');
-    await expectAsync(newService.verifyReport('test.json')).toBeRejectedWithError('Report verification requires Electron');
-    await expectAsync(newService.installGlobally()).toBeRejectedWithError('Global installation requires Electron');
+    await expectAsync(newService.runInteractive()).toBeRejectedWithError(
+      'Interactive mode requires Electron',
+    );
+    await expectAsync(
+      newService.verifyReport('test.json'),
+    ).toBeRejectedWithError('Report verification requires Electron');
+    await expectAsync(newService.installGlobally()).toBeRejectedWithError(
+      'Global installation requires Electron',
+    );
   });
 
   it('should provide mock configuration data', async () => {
@@ -86,7 +98,7 @@ describe('ElectronService', () => {
     delete (window as any).isElectron;
 
     const newService = new ElectronService();
-    
+
     const config = await newService.loadConfig();
     expect(config).toBeDefined();
     expect(config.diskEncryption).toBeDefined();
@@ -106,7 +118,7 @@ describe('ElectronService', () => {
 
     const profiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
     const reports = await Promise.all(
-      profiles.map(profile => newService.runSecurityCheck(profile))
+      profiles.map((profile) => newService.runSecurityCheck(profile)),
     );
 
     reports.forEach((report, index) => {
@@ -147,17 +159,17 @@ describe('ElectronService', () => {
     console.error = jasmine.createSpy('console.error');
 
     (window as any).electronAPI = {
-      getPlatformInfo: jasmine.createSpy('getPlatformInfo').and.returnValue(
-        Promise.reject(new Error('Init failed'))
-      ),
-      getCliVersion: jasmine.createSpy('getCliVersion').and.returnValue(
-        Promise.reject(new Error('Init failed'))
-      )
+      getPlatformInfo: jasmine
+        .createSpy('getPlatformInfo')
+        .and.returnValue(Promise.reject(new Error('Init failed'))),
+      getCliVersion: jasmine
+        .createSpy('getCliVersion')
+        .and.returnValue(Promise.reject(new Error('Init failed'))),
     };
     (window as any).isElectron = true;
 
     const newService = new ElectronService();
-    
+
     // Allow time for async initialization
     setTimeout(() => {
       expect(console.error).toHaveBeenCalled();
@@ -166,19 +178,33 @@ describe('ElectronService', () => {
   });
 
   it('should handle various daemon management operations', async () => {
-    (window as any).electronAPI.manageDaemon = jasmine.createSpy('manageDaemon').and.returnValue(Promise.resolve(true));
+    (window as any).electronAPI.manageDaemon = jasmine
+      .createSpy('manageDaemon')
+      .and.returnValue(Promise.resolve(true));
 
     await service.manageDaemon('start');
-    expect((window as any).electronAPI.manageDaemon).toHaveBeenCalledWith('start', undefined);
+    expect((window as any).electronAPI.manageDaemon).toHaveBeenCalledWith(
+      'start',
+      undefined,
+    );
 
     await service.manageDaemon('stop');
-    expect((window as any).electronAPI.manageDaemon).toHaveBeenCalledWith('stop', undefined);
+    expect((window as any).electronAPI.manageDaemon).toHaveBeenCalledWith(
+      'stop',
+      undefined,
+    );
 
     await service.manageDaemon('status');
-    expect((window as any).electronAPI.manageDaemon).toHaveBeenCalledWith('status', undefined);
+    expect((window as any).electronAPI.manageDaemon).toHaveBeenCalledWith(
+      'status',
+      undefined,
+    );
 
     const config = { schedule: '0 2 * * *' };
     await service.manageDaemon('configure', config);
-    expect((window as any).electronAPI.manageDaemon).toHaveBeenCalledWith('configure', config);
+    expect((window as any).electronAPI.manageDaemon).toHaveBeenCalledWith(
+      'configure',
+      config,
+    );
   });
 });

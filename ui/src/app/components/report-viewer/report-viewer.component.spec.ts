@@ -9,19 +9,19 @@ describe('ReportViewerComponent', () => {
 
   beforeEach(async () => {
     const electronServiceSpy = jasmine.createSpyObj('ElectronService', [
-      'verifyReport'
+      'verifyReport',
     ]);
 
     await TestBed.configureTestingModule({
       imports: [ReportViewerComponent],
-      providers: [
-        { provide: ElectronService, useValue: electronServiceSpy }
-      ]
+      providers: [{ provide: ElectronService, useValue: electronServiceSpy }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ReportViewerComponent);
     component = fixture.componentInstance;
-    mockElectronService = TestBed.inject(ElectronService) as jasmine.SpyObj<ElectronService>;
+    mockElectronService = TestBed.inject(
+      ElectronService,
+    ) as jasmine.SpyObj<ElectronService>;
   });
 
   it('should create', () => {
@@ -39,7 +39,9 @@ describe('ReportViewerComponent', () => {
 
     await component.verifyReport();
 
-    expect(mockElectronService.verifyReport).toHaveBeenCalledWith('test-report.json');
+    expect(mockElectronService.verifyReport).toHaveBeenCalledWith(
+      'test-report.json',
+    );
     expect(component.verificationResult()).toBeTrue();
   });
 
@@ -65,8 +67,8 @@ describe('ReportViewerComponent', () => {
 
   it('should handle different output formats', () => {
     const formats = ['json', 'markdown', 'html', 'csv', 'plain'];
-    
-    formats.forEach(format => {
+
+    formats.forEach((format) => {
       // Test that different formats can be handled
       expect(formats).toContain(format);
     });
@@ -76,10 +78,12 @@ describe('ReportViewerComponent', () => {
     // Mock clipboard API
     Object.assign(navigator, {
       clipboard: {
-        writeText: jasmine.createSpy('writeText').and.returnValue(Promise.resolve())
-      }
+        writeText: jasmine
+          .createSpy('writeText')
+          .and.returnValue(Promise.resolve()),
+      },
     });
-    
+
     await component.copyToClipboard();
     expect(navigator.clipboard.writeText).toHaveBeenCalled();
   });
@@ -92,11 +96,11 @@ describe('ReportViewerComponent', () => {
       href: '',
       download: '',
       click: jasmine.createSpy('click'),
-      style: {}
+      style: {},
     } as any);
-    
+
     component.downloadReport();
-    
+
     expect(URL.createObjectURL).toHaveBeenCalled();
     expect(document.createElement).toHaveBeenCalledWith('a');
   });
@@ -115,10 +119,10 @@ describe('ReportViewerComponent', () => {
     const timestamps = [
       '2024-01-01T00:00:00Z',
       '2024-01-01T00:00:00.000Z',
-      '2024-01-01 00:00:00'
+      '2024-01-01 00:00:00',
     ];
-    
-    timestamps.forEach(timestamp => {
+
+    timestamps.forEach((timestamp) => {
       // Test that different timestamp formats can be processed
       const date = new Date(timestamp);
       expect(date).toBeInstanceOf(Date);
@@ -129,7 +133,7 @@ describe('ReportViewerComponent', () => {
   it('should render report content correctly', () => {
     // Test basic rendering
     fixture.detectChanges();
-    
+
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.report-viewer-container')).toBeTruthy();
   });

@@ -9,19 +9,19 @@ describe('DaemonManagerComponent', () => {
 
   beforeEach(async () => {
     const electronServiceSpy = jasmine.createSpyObj('ElectronService', [
-      'manageDaemon'
+      'manageDaemon',
     ]);
 
     await TestBed.configureTestingModule({
       imports: [DaemonManagerComponent],
-      providers: [
-        { provide: ElectronService, useValue: electronServiceSpy }
-      ]
+      providers: [{ provide: ElectronService, useValue: electronServiceSpy }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(DaemonManagerComponent);
     component = fixture.componentInstance;
-    mockElectronService = TestBed.inject(ElectronService) as jasmine.SpyObj<ElectronService>;
+    mockElectronService = TestBed.inject(
+      ElectronService,
+    ) as jasmine.SpyObj<ElectronService>;
   });
 
   it('should create', () => {
@@ -33,11 +33,16 @@ describe('DaemonManagerComponent', () => {
   });
 
   it('should start daemon with configuration', async () => {
-    mockElectronService.manageDaemon.and.returnValue(Promise.resolve({ success: true }));
+    mockElectronService.manageDaemon.and.returnValue(
+      Promise.resolve({ success: true }),
+    );
 
     await component.startDaemon();
 
-    expect(mockElectronService.manageDaemon).toHaveBeenCalledWith('start', jasmine.any(Object));
+    expect(mockElectronService.manageDaemon).toHaveBeenCalledWith(
+      'start',
+      jasmine.any(Object),
+    );
   });
 
   it('should validate cron expression', () => {
@@ -56,7 +61,9 @@ describe('DaemonManagerComponent', () => {
 
   it('should handle daemon configuration changes', () => {
     // Test basic daemon configuration functionality
-    expect(component.formatDate('2023-12-01T12:00:00.000Z')).toContain('12/1/2023');
+    expect(component.formatDate('2023-12-01T12:00:00.000Z')).toContain(
+      '12/1/2023',
+    );
   });
 
   it('should validate cron expressions correctly', () => {
@@ -74,7 +81,7 @@ describe('DaemonManagerComponent', () => {
 
   it('should handle loading states during operations', async () => {
     // Test basic daemon operations
-    
+
     // Simulate save operation
     const savePromise = component.saveDaemonConfig();
     // Loading state should be managed internally
@@ -84,12 +91,12 @@ describe('DaemonManagerComponent', () => {
 
   it('should handle error scenarios', async () => {
     mockElectronService.manageDaemon.and.returnValue(
-      Promise.reject(new Error('Daemon operation failed'))
+      Promise.reject(new Error('Daemon operation failed')),
     );
-    
+
     await component.startDaemon();
     // Should handle error gracefully
-    
+
     await component.stopDaemon();
     // Should handle error gracefully
   });

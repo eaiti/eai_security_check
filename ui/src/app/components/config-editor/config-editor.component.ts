@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, signal, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  signal,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../services/electron.service';
@@ -33,7 +38,11 @@ interface ConfigField {
 
       <div class="controls">
         <div class="profile-controls">
-          <select [(ngModel)]="selectedProfile" (ngModelChange)="loadProfile($event)" class="profile-select">
+          <select
+            [(ngModel)]="selectedProfile"
+            (ngModelChange)="loadProfile($event)"
+            class="profile-select"
+          >
             <option value="">Select a profile to edit...</option>
             <option value="default">Default Profile</option>
             <option value="strict">Strict Profile</option>
@@ -41,30 +50,42 @@ interface ConfigField {
             <option value="developer">Developer Profile</option>
             <option value="eai">EAI Profile</option>
           </select>
-          
+
           <button class="btn btn-secondary" (click)="createNewProfile()">
             ➕ New Profile
           </button>
         </div>
 
         <div class="action-controls">
-          <button class="btn btn-primary" [disabled]="!hasChanges() || isSaving()" (click)="saveConfig()">
+          <button
+            class="btn btn-primary"
+            [disabled]="!hasChanges() || isSaving()"
+            (click)="saveConfig()"
+          >
             @if (isSaving()) {
               💾 Saving...
             } @else {
               💾 Save Configuration
             }
           </button>
-          
-          <button class="btn btn-secondary" [disabled]="!hasChanges()" (click)="resetChanges()">
+
+          <button
+            class="btn btn-secondary"
+            [disabled]="!hasChanges()"
+            (click)="resetChanges()"
+          >
             🔄 Reset Changes
           </button>
-          
+
           <button class="btn btn-secondary" (click)="loadFromFile()">
             📁 Load from File
           </button>
-          
-          <button class="btn btn-secondary" [disabled]="!config()" (click)="exportConfig()">
+
+          <button
+            class="btn btn-secondary"
+            [disabled]="!config()"
+            (click)="exportConfig()"
+          >
             💾 Export
           </button>
         </div>
@@ -76,21 +97,23 @@ interface ConfigField {
             <div class="config-section">
               <h3>{{ section.title }}</h3>
               <p class="section-description">{{ section.description }}</p>
-              
+
               <div class="fields">
                 @for (field of section.fields; track field.key) {
                   <div class="field">
                     <label class="field-label">
                       {{ field.label }}
-                      <span class="field-description">{{ field.description }}</span>
+                      <span class="field-description">{{
+                        field.description
+                      }}</span>
                     </label>
-                    
+
                     @switch (field.type) {
                       @case ('boolean') {
                         <div class="field-input">
                           <label class="toggle-switch">
-                            <input 
-                              type="checkbox" 
+                            <input
+                              type="checkbox"
                               [checked]="getFieldValue(field.key)"
                               (change)="setFieldValue(field.key, $event)"
                             />
@@ -100,8 +123,8 @@ interface ConfigField {
                       }
                       @case ('number') {
                         <div class="field-input">
-                          <input 
-                            type="number" 
+                          <input
+                            type="number"
                             class="number-input"
                             [value]="getFieldValue(field.key)"
                             [min]="field.min"
@@ -112,8 +135,8 @@ interface ConfigField {
                       }
                       @case ('string') {
                         <div class="field-input">
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             class="text-input"
                             [value]="getFieldValue(field.key)"
                             (input)="setFieldValue(field.key, $event)"
@@ -122,13 +145,15 @@ interface ConfigField {
                       }
                       @case ('select') {
                         <div class="field-input">
-                          <select 
+                          <select
                             class="select-input"
                             [value]="getFieldValue(field.key)"
                             (change)="setFieldValue(field.key, $event)"
                           >
                             @for (option of field.options; track option.value) {
-                              <option [value]="option.value">{{ option.label }}</option>
+                              <option [value]="option.value">
+                                {{ option.label }}
+                              </option>
                             }
                           </select>
                         </div>
@@ -144,7 +169,9 @@ interface ConfigField {
         <div class="empty-state">
           <div class="icon">⚙️</div>
           <p>Select a profile to start editing configuration settings</p>
-          <p>You can also create a new profile or load configuration from a file.</p>
+          <p>
+            You can also create a new profile or load configuration from a file.
+          </p>
         </div>
       }
 
@@ -156,7 +183,7 @@ interface ConfigField {
     </div>
   `,
   styleUrls: ['./config-editor.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConfigEditorComponent {
   private readonly electronService = inject(ElectronService);
@@ -185,9 +212,10 @@ export class ConfigEditorComponent {
           key: 'diskEncryption.enabled',
           label: 'Require Disk Encryption',
           type: 'boolean',
-          description: 'Require FileVault (macOS) or LUKS (Linux) to be enabled'
-        }
-      ]
+          description:
+            'Require FileVault (macOS) or LUKS (Linux) to be enabled',
+        },
+      ],
     },
     {
       name: 'passwordProtection',
@@ -198,15 +226,16 @@ export class ConfigEditorComponent {
           key: 'passwordProtection.enabled',
           label: 'Require Password Protection',
           type: 'boolean',
-          description: 'Require screen saver password protection'
+          description: 'Require screen saver password protection',
         },
         {
           key: 'passwordProtection.requirePasswordImmediately',
           label: 'Require Password Immediately',
           type: 'boolean',
-          description: 'Require password immediately when screen saver activates'
-        }
-      ]
+          description:
+            'Require password immediately when screen saver activates',
+        },
+      ],
     },
     {
       name: 'autoLock',
@@ -219,9 +248,9 @@ export class ConfigEditorComponent {
           type: 'number',
           description: 'Maximum allowed screen lock timeout in minutes',
           min: 1,
-          max: 60
-        }
-      ]
+          max: 60,
+        },
+      ],
     },
     {
       name: 'firewall',
@@ -232,15 +261,15 @@ export class ConfigEditorComponent {
           key: 'firewall.enabled',
           label: 'Require Firewall',
           type: 'boolean',
-          description: 'Require application firewall to be enabled'
+          description: 'Require application firewall to be enabled',
         },
         {
           key: 'firewall.stealthMode',
           label: 'Require Stealth Mode',
           type: 'boolean',
-          description: 'Require firewall stealth mode (macOS only)'
-        }
-      ]
+          description: 'Require firewall stealth mode (macOS only)',
+        },
+      ],
     },
     {
       name: 'packageVerification',
@@ -251,9 +280,9 @@ export class ConfigEditorComponent {
           key: 'packageVerification.enabled',
           label: 'Require Package Verification',
           type: 'boolean',
-          description: 'Require Gatekeeper (macOS) or GPG verification (Linux)'
-        }
-      ]
+          description: 'Require Gatekeeper (macOS) or GPG verification (Linux)',
+        },
+      ],
     },
     {
       name: 'systemIntegrityProtection',
@@ -264,9 +293,10 @@ export class ConfigEditorComponent {
           key: 'systemIntegrityProtection.enabled',
           label: 'Require SIP/SELinux',
           type: 'boolean',
-          description: 'Require System Integrity Protection (macOS) or SELinux (Linux)'
-        }
-      ]
+          description:
+            'Require System Integrity Protection (macOS) or SELinux (Linux)',
+        },
+      ],
     },
     {
       name: 'remoteAccess',
@@ -277,15 +307,15 @@ export class ConfigEditorComponent {
           key: 'remoteLogin.enabled',
           label: 'Allow Remote Login',
           type: 'boolean',
-          description: 'Allow SSH remote login'
+          description: 'Allow SSH remote login',
         },
         {
           key: 'remoteManagement.enabled',
           label: 'Allow Remote Management',
           type: 'boolean',
-          description: 'Allow remote management/VNC'
-        }
-      ]
+          description: 'Allow remote management/VNC',
+        },
+      ],
     },
     {
       name: 'automaticUpdates',
@@ -296,16 +326,16 @@ export class ConfigEditorComponent {
           key: 'automaticUpdates.enabled',
           label: 'Require Automatic Updates',
           type: 'boolean',
-          description: 'Require automatic security updates'
+          description: 'Require automatic security updates',
         },
         {
           key: 'automaticUpdates.automaticInstall',
           label: 'Automatic Installation',
           type: 'boolean',
-          description: 'Require automatic installation of updates'
-        }
-      ]
-    }
+          description: 'Require automatic installation of updates',
+        },
+      ],
+    },
   ];
 
   async loadProfile(profile: string): Promise<void> {
@@ -333,7 +363,10 @@ export class ConfigEditorComponent {
     this._originalConfig.set(JSON.parse(JSON.stringify(config)));
     this._hasChanges.set(false);
     this.selectedProfile = '';
-    this.showMessage('Created new configuration based on default profile', 'info');
+    this.showMessage(
+      'Created new configuration based on default profile',
+      'info',
+    );
   }
 
   async saveConfig(): Promise<void> {
@@ -385,14 +418,14 @@ export class ConfigEditorComponent {
 
   getFieldValue(fieldPath: string): any {
     if (!this.config()) return null;
-    
+
     const path = fieldPath.split('.');
     let value = this.config();
-    
+
     for (const key of path) {
       value = value?.[key];
     }
-    
+
     return value;
   }
 
@@ -424,13 +457,18 @@ export class ConfigEditorComponent {
     current[path[path.length - 1]] = value;
 
     this._config.set(config);
-    this._hasChanges.set(JSON.stringify(config) !== JSON.stringify(this._originalConfig()));
+    this._hasChanges.set(
+      JSON.stringify(config) !== JSON.stringify(this._originalConfig()),
+    );
   }
 
-  private showMessage(message: string, type: 'success' | 'error' | 'info'): void {
+  private showMessage(
+    message: string,
+    type: 'success' | 'error' | 'info',
+  ): void {
     this._message.set(message);
     this._messageType.set(type);
-    
+
     setTimeout(() => {
       this._message.set('');
     }, 5000);

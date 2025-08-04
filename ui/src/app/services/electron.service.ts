@@ -30,10 +30,16 @@ export interface SecurityCheckReport {
 declare global {
   interface Window {
     electronAPI?: {
-      runSecurityCheck: (profile: string, config?: string) => Promise<SecurityCheckReport>;
+      runSecurityCheck: (
+        profile: string,
+        config?: string,
+      ) => Promise<SecurityCheckReport>;
       runInteractive: () => Promise<void>;
       verifyReport: (path: string) => Promise<boolean>;
-      manageDaemon: (action: 'start' | 'stop' | 'status' | 'configure', config?: any) => Promise<any>;
+      manageDaemon: (
+        action: 'start' | 'stop' | 'status' | 'configure',
+        config?: any,
+      ) => Promise<any>;
       installGlobally: () => Promise<boolean>;
       uninstallGlobally: (removeConfig?: boolean) => Promise<boolean>;
       updateApp: () => Promise<boolean>;
@@ -49,7 +55,7 @@ declare global {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ElectronService {
   private readonly _isElectron = signal(false);
@@ -70,7 +76,7 @@ export class ElectronService {
       try {
         const [platform, version] = await Promise.all([
           window.electronAPI!.getPlatformInfo(),
-          window.electronAPI!.getCliVersion()
+          window.electronAPI!.getCliVersion(),
         ]);
         this._platformInfo.set(platform);
         this._cliVersion.set(version);
@@ -80,7 +86,10 @@ export class ElectronService {
     }
   }
 
-  async runSecurityCheck(profile: string, config?: string): Promise<SecurityCheckReport> {
+  async runSecurityCheck(
+    profile: string,
+    config?: string,
+  ): Promise<SecurityCheckReport> {
     if (!this._isElectron()) {
       return this.getMockSecurityCheck(profile);
     }
@@ -108,7 +117,10 @@ export class ElectronService {
     return window.electronAPI!.verifyReport(path);
   }
 
-  async manageDaemon(action: 'start' | 'stop' | 'status' | 'configure', config?: any): Promise<any> {
+  async manageDaemon(
+    action: 'start' | 'stop' | 'status' | 'configure',
+    config?: any,
+  ): Promise<any> {
     if (!this._isElectron()) {
       throw new Error('Daemon management requires Electron');
     }
@@ -171,62 +183,62 @@ export class ElectronService {
         status: 'pass',
         message: 'FileVault is enabled',
         details: 'Full disk encryption is active and protecting your data',
-        risk: 'high'
+        risk: 'high',
       },
       {
         name: 'Password Protection',
         status: 'pass',
         message: 'Screen saver requires password immediately',
         details: 'Screen lock is configured correctly',
-        risk: 'high'
+        risk: 'high',
       },
       {
         name: 'Auto-lock Timeout',
         status: profile === 'strict' ? 'fail' : 'warning',
         message: 'Auto-lock timeout is 10 minutes',
         details: 'Consider reducing to 5 minutes for better security',
-        risk: 'medium'
+        risk: 'medium',
       },
       {
         name: 'Firewall',
         status: 'pass',
         message: 'Application Firewall is enabled',
         details: 'Network protection is active',
-        risk: 'high'
+        risk: 'high',
       },
       {
         name: 'Package Verification',
         status: profile === 'strict' ? 'fail' : 'warning',
         message: 'Gatekeeper enabled but not in strict mode',
         details: 'Consider enabling strict mode for enhanced security',
-        risk: 'medium'
+        risk: 'medium',
       },
       {
         name: 'System Integrity Protection',
         status: profile === 'relaxed' ? 'warning' : 'fail',
         message: 'SIP is disabled',
         details: 'System Integrity Protection should be enabled for security',
-        risk: 'high'
+        risk: 'high',
       },
       {
         name: 'Remote Login',
         status: 'pass',
         message: 'SSH is disabled',
         details: 'Remote access is properly secured',
-        risk: 'medium'
+        risk: 'medium',
       },
       {
         name: 'Automatic Updates',
         status: 'pass',
         message: 'Automatic security updates enabled',
         details: 'System will automatically install security patches',
-        risk: 'medium'
-      }
+        risk: 'medium',
+      },
     ];
 
-    const passed = mockChecks.filter(c => c.status === 'pass').length;
-    const failed = mockChecks.filter(c => c.status === 'fail').length;
-    const warnings = mockChecks.filter(c => c.status === 'warning').length;
+    const passed = mockChecks.filter((c) => c.status === 'pass').length;
+    const failed = mockChecks.filter((c) => c.status === 'fail').length;
+    const warnings = mockChecks.filter((c) => c.status === 'warning').length;
 
     let overallStatus: 'pass' | 'fail' | 'warning' = 'pass';
     if (failed > 0) overallStatus = 'fail';
@@ -236,7 +248,7 @@ export class ElectronService {
       platform: this._platformInfo() || {
         platform: 'darwin',
         arch: 'x64',
-        version: '14.0.0'
+        version: '14.0.0',
       },
       profile,
       timestamp: new Date().toISOString(),
@@ -245,8 +257,8 @@ export class ElectronService {
         passed,
         failed,
         warnings,
-        overallStatus
-      }
+        overallStatus,
+      },
     };
   }
 
@@ -259,7 +271,7 @@ export class ElectronService {
       packageVerification: { enabled: true },
       systemIntegrityProtection: { enabled: true },
       remoteLogin: { enabled: false },
-      automaticUpdates: { enabled: true, automaticInstall: false }
+      automaticUpdates: { enabled: true, automaticInstall: false },
     };
   }
 }

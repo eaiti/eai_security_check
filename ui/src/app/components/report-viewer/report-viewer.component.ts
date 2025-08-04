@@ -1,7 +1,16 @@
-import { ChangeDetectionStrategy, Component, signal, inject, OnInit } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  signal,
+  inject,
+  OnInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ElectronService, SecurityCheckReport } from '../../services/electron.service';
+import {
+  ElectronService,
+  SecurityCheckReport,
+} from '../../services/electron.service';
 
 interface ReportFile {
   path: string;
@@ -29,20 +38,21 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
           <button class="btn btn-primary" (click)="openFileDialog()">
             📁 Open Report File
           </button>
-          <input 
-            type="file" 
-            #fileInput 
-            accept=".json,.html,.pdf,.md,.txt" 
+          <input
+            type="file"
+            #fileInput
+            accept=".json,.html,.pdf,.md,.txt"
             (change)="onFileSelected($event)"
             style="display: none;"
           />
         </div>
 
         <div class="verification-section">
-          <button 
-            class="btn btn-secondary" 
+          <button
+            class="btn btn-secondary"
             [disabled]="!selectedReportPath() || isVerifying()"
-            (click)="verifyReport()">
+            (click)="verifyReport()"
+          >
             @if (isVerifying()) {
               🔄 Verifying...
             } @else {
@@ -59,11 +69,12 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
             <div class="report-controls">
               <div class="format-selector">
                 <label for="outputFormat">Output Format:</label>
-                <select 
-                  id="outputFormat" 
-                  [(ngModel)]="selectedFormat" 
+                <select
+                  id="outputFormat"
+                  [(ngModel)]="selectedFormat"
                   (change)="onFormatChange()"
-                  class="format-select">
+                  class="format-select"
+                >
                   <option value="json">JSON</option>
                   <option value="markdown">Markdown</option>
                   <option value="html">HTML</option>
@@ -71,25 +82,29 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
                   <option value="csv">CSV</option>
                 </select>
               </div>
-              <button 
-                class="btn btn-sm" 
+              <button
+                class="btn btn-sm"
                 (click)="copyToClipboard()"
-                [disabled]="!reportContent()">
+                [disabled]="!reportContent()"
+              >
                 📋 Copy to Clipboard
               </button>
-              <button 
-                class="btn btn-sm" 
+              <button
+                class="btn btn-sm"
                 (click)="downloadReport()"
-                [disabled]="!reportContent()">
+                [disabled]="!reportContent()"
+              >
                 💾 Download
               </button>
             </div>
           </div>
-          
+
           <div class="report-info">
             <div class="info-item">
               <span class="label">File:</span>
-              <span class="value">{{ getFileName(selectedReportPath()!) }}</span>
+              <span class="value">{{
+                getFileName(selectedReportPath()!)
+              }}</span>
             </div>
             <div class="info-item">
               <span class="label">Format:</span>
@@ -98,8 +113,18 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
             @if (verificationResult()) {
               <div class="info-item">
                 <span class="label">Verification:</span>
-                <span class="value" [class]="'verification-' + (verificationResult()! ? 'valid' : 'invalid')">
-                  {{ verificationResult()! ? '✅ Valid & Unmodified' : '❌ Invalid or Modified' }}
+                <span
+                  class="value"
+                  [class]="
+                    'verification-' +
+                    (verificationResult()! ? 'valid' : 'invalid')
+                  "
+                >
+                  {{
+                    verificationResult()!
+                      ? '✅ Valid & Unmodified'
+                      : '❌ Invalid or Modified'
+                  }}
                 </span>
               </div>
             }
@@ -116,7 +141,12 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
                 <div class="report-header">
                   <span class="report-name">{{ report.name }}</span>
                   @if (report.verified !== undefined) {
-                    <span class="verification-badge" [class]="'badge-' + (report.verified ? 'valid' : 'invalid')">
+                    <span
+                      class="verification-badge"
+                      [class]="
+                        'badge-' + (report.verified ? 'valid' : 'invalid')
+                      "
+                    >
                       {{ report.verified ? '✅' : '❌' }}
                     </span>
                   }
@@ -124,7 +154,9 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
                 <div class="report-meta">
                   <div class="meta-item">
                     <span class="meta-label">Date:</span>
-                    <span class="meta-value">{{ formatDate(report.timestamp) }}</span>
+                    <span class="meta-value">{{
+                      formatDate(report.timestamp)
+                    }}</span>
                   </div>
                   <div class="meta-item">
                     <span class="meta-label">Size:</span>
@@ -132,10 +164,16 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
                   </div>
                 </div>
                 <div class="report-actions">
-                  <button class="btn btn-xs" (click)="selectAndCopy(report.path, $event)">
+                  <button
+                    class="btn btn-xs"
+                    (click)="selectAndCopy(report.path, $event)"
+                  >
                     📋 Copy
                   </button>
-                  <button class="btn btn-xs" (click)="quickDownload(report.path, $event)">
+                  <button
+                    class="btn btn-xs"
+                    (click)="quickDownload(report.path, $event)"
+                  >
                     💾 Download
                   </button>
                 </div>
@@ -192,7 +230,7 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
     </div>
   `,
   styleUrls: ['./report-viewer.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReportViewerComponent implements OnInit {
   private readonly electronService = inject(ElectronService);
@@ -222,21 +260,23 @@ export class ReportViewerComponent implements OnInit {
   }
 
   openFileDialog(): void {
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const fileInput = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
     fileInput?.click();
   }
 
   async onFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    
+
     if (!file) return;
 
     try {
       const content = await this.readFileContent(file);
       this._selectedReportPath.set(file.name);
       this._reportContent.set(content);
-      
+
       // Try to parse as security report
       try {
         const parsed = JSON.parse(content);
@@ -246,7 +286,7 @@ export class ReportViewerComponent implements OnInit {
       } catch {
         // Not a JSON security report, that's okay
       }
-      
+
       this._verificationResult.set(null);
       this.convertContent();
       this.showMessage(`Loaded report: ${file.name}`, 'success');
@@ -290,17 +330,28 @@ export class ReportViewerComponent implements OnInit {
 
     this._isVerifying.set(true);
     try {
-      const result = await this.electronService.verifyReport(this.selectedReportPath()!);
+      const result = await this.electronService.verifyReport(
+        this.selectedReportPath()!,
+      );
       this._verificationResult.set(result);
-      
+
       if (result) {
-        this.showMessage('Report verification successful - integrity confirmed', 'success');
+        this.showMessage(
+          'Report verification successful - integrity confirmed',
+          'success',
+        );
       } else {
-        this.showMessage('Report verification failed - file may be modified or corrupted', 'error');
+        this.showMessage(
+          'Report verification failed - file may be modified or corrupted',
+          'error',
+        );
       }
     } catch (error) {
       console.error('Verification failed:', error);
-      this.showMessage('Verification failed - unable to check report integrity', 'error');
+      this.showMessage(
+        'Verification failed - unable to check report integrity',
+        'error',
+      );
       this._verificationResult.set(false);
     } finally {
       this._isVerifying.set(false);
@@ -316,7 +367,10 @@ export class ReportViewerComponent implements OnInit {
 
     try {
       await navigator.clipboard.writeText(this.convertedContent());
-      this.showMessage(`Report copied to clipboard as ${this.selectedFormat.toUpperCase()}`, 'success');
+      this.showMessage(
+        `Report copied to clipboard as ${this.selectedFormat.toUpperCase()}`,
+        'success',
+      );
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
       this.showMessage('Failed to copy to clipboard', 'error');
@@ -332,7 +386,7 @@ export class ReportViewerComponent implements OnInit {
 
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
-    
+
     const a = document.createElement('a');
     a.href = url;
     a.download = fileName;
@@ -381,16 +435,17 @@ export class ReportViewerComponent implements OnInit {
     md += `**Profile:** ${report.profile}\n`;
     md += `**Platform:** ${report.platform.platform} ${report.platform.arch}\n`;
     md += `**Timestamp:** ${new Date(report.timestamp).toLocaleString()}\n\n`;
-    
+
     md += `## Summary\n\n`;
     md += `- ✅ **Passed:** ${report.summary.passed}\n`;
     md += `- ❌ **Failed:** ${report.summary.failed}\n`;
     md += `- ⚠️ **Warnings:** ${report.summary.warnings}\n`;
     md += `- **Overall Status:** ${report.summary.overallStatus.toUpperCase()}\n\n`;
-    
+
     md += `## Security Checks\n\n`;
-    report.checks.forEach(check => {
-      const icon = check.status === 'pass' ? '✅' : check.status === 'fail' ? '❌' : '⚠️';
+    report.checks.forEach((check) => {
+      const icon =
+        check.status === 'pass' ? '✅' : check.status === 'fail' ? '❌' : '⚠️';
       md += `### ${icon} ${check.name}\n\n`;
       md += `**Status:** ${check.status.toUpperCase()}\n`;
       md += `**Message:** ${check.message}\n`;
@@ -402,7 +457,7 @@ export class ReportViewerComponent implements OnInit {
       }
       md += '\n';
     });
-    
+
     return md;
   }
 
@@ -431,9 +486,10 @@ export class ReportViewerComponent implements OnInit {
         <div class="checks">
           <h2>🔍 Security Checks</h2>
     `;
-    
-    report.checks.forEach(check => {
-      const icon = check.status === 'pass' ? '✅' : check.status === 'fail' ? '❌' : '⚠️';
+
+    report.checks.forEach((check) => {
+      const icon =
+        check.status === 'pass' ? '✅' : check.status === 'fail' ? '❌' : '⚠️';
       html += `
         <div class="check-item status-${check.status}">
           <h3>${icon} ${check.name}</h3>
@@ -443,7 +499,7 @@ export class ReportViewerComponent implements OnInit {
         </div>
       `;
     });
-    
+
     html += `
         </div>
       </div>
@@ -464,7 +520,7 @@ export class ReportViewerComponent implements OnInit {
         .risk-low { color: #28a745; font-weight: bold; }
       </style>
     `;
-    
+
     return html;
   }
 
@@ -474,19 +530,24 @@ export class ReportViewerComponent implements OnInit {
     text += `Profile: ${report.profile}\n`;
     text += `Platform: ${report.platform.platform} ${report.platform.arch}\n`;
     text += `Timestamp: ${new Date(report.timestamp).toLocaleString()}\n\n`;
-    
+
     text += `SUMMARY\n`;
     text += `-------\n`;
     text += `Passed: ${report.summary.passed}\n`;
     text += `Failed: ${report.summary.failed}\n`;
     text += `Warnings: ${report.summary.warnings}\n`;
     text += `Overall Status: ${report.summary.overallStatus.toUpperCase()}\n\n`;
-    
+
     text += `SECURITY CHECKS\n`;
     text += `---------------\n\n`;
-    
+
     report.checks.forEach((check, index) => {
-      const status = check.status === 'pass' ? 'PASS' : check.status === 'fail' ? 'FAIL' : 'WARNING';
+      const status =
+        check.status === 'pass'
+          ? 'PASS'
+          : check.status === 'fail'
+            ? 'FAIL'
+            : 'WARNING';
       text += `${index + 1}. ${check.name} - ${status}\n`;
       text += `   Message: ${check.message}\n`;
       if (check.details) {
@@ -497,23 +558,23 @@ export class ReportViewerComponent implements OnInit {
       }
       text += '\n';
     });
-    
+
     return text;
   }
 
   private convertToCsv(report: SecurityCheckReport): string {
     let csv = 'Check Name,Status,Message,Details,Risk Level\n';
-    
-    report.checks.forEach(check => {
+
+    report.checks.forEach((check) => {
       const name = this.escapeCsv(check.name);
       const status = check.status;
       const message = this.escapeCsv(check.message);
       const details = this.escapeCsv(check.details || '');
       const risk = check.risk || '';
-      
+
       csv += `${name},${status},${message},${details},${risk}\n`;
     });
-    
+
     return csv;
   }
 
@@ -525,36 +586,55 @@ export class ReportViewerComponent implements OnInit {
   }
 
   private getDownloadFileName(): string {
-    const baseName = this.getFileName(this.selectedReportPath()!).replace(/\.[^/.]+$/, '');
+    const baseName = this.getFileName(this.selectedReportPath()!).replace(
+      /\.[^/.]+$/,
+      '',
+    );
     const extension = this.getFileExtension();
     return `${baseName}.${extension}`;
   }
 
   private getFileExtension(): string {
     switch (this.selectedFormat) {
-      case 'json': return 'json';
-      case 'markdown': return 'md';
-      case 'html': return 'html';
-      case 'plain': return 'txt';
-      case 'csv': return 'csv';
-      default: return 'txt';
+      case 'json':
+        return 'json';
+      case 'markdown':
+        return 'md';
+      case 'html':
+        return 'html';
+      case 'plain':
+        return 'txt';
+      case 'csv':
+        return 'csv';
+      default:
+        return 'txt';
     }
   }
 
   private getMimeType(): string {
     switch (this.selectedFormat) {
-      case 'json': return 'application/json';
-      case 'markdown': return 'text/markdown';
-      case 'html': return 'text/html';
-      case 'plain': return 'text/plain';
-      case 'csv': return 'text/csv';
-      default: return 'text/plain';
+      case 'json':
+        return 'application/json';
+      case 'markdown':
+        return 'text/markdown';
+      case 'html':
+        return 'text/html';
+      case 'plain':
+        return 'text/plain';
+      case 'csv':
+        return 'text/csv';
+      default:
+        return 'text/plain';
     }
   }
 
   private generateMockReport(path: string): SecurityCheckReport {
-    const profile = path.includes('strict') ? 'strict' : path.includes('relaxed') ? 'relaxed' : 'default';
-    
+    const profile = path.includes('strict')
+      ? 'strict'
+      : path.includes('relaxed')
+        ? 'relaxed'
+        : 'default';
+
     return {
       platform: { platform: 'darwin', arch: 'x64', version: '14.0.0' },
       profile,
@@ -565,40 +645,42 @@ export class ReportViewerComponent implements OnInit {
           status: 'pass',
           message: 'FileVault is enabled',
           details: 'Full disk encryption is active and protecting your data',
-          risk: 'high'
+          risk: 'high',
         },
         {
           name: 'Password Protection',
           status: 'pass',
           message: 'Screen saver requires password immediately',
           details: 'Screen lock is configured correctly',
-          risk: 'high'
+          risk: 'high',
         },
         {
           name: 'Auto-lock Timeout',
           status: profile === 'strict' ? 'fail' : 'warning',
           message: 'Auto-lock timeout is 10 minutes',
           details: 'Consider reducing to 5 minutes for better security',
-          risk: 'medium'
-        }
+          risk: 'medium',
+        },
       ],
       summary: {
         passed: 2,
         failed: profile === 'strict' ? 1 : 0,
         warnings: profile === 'strict' ? 0 : 1,
-        overallStatus: profile === 'strict' ? 'fail' : 'warning'
-      }
+        overallStatus: profile === 'strict' ? 'fail' : 'warning',
+      },
     };
   }
 
   private isSecurityReport(obj: any): obj is SecurityCheckReport {
-    return obj && 
-           obj.platform && 
-           obj.profile && 
-           obj.timestamp && 
-           obj.checks && 
-           Array.isArray(obj.checks) && 
-           obj.summary;
+    return (
+      obj &&
+      obj.platform &&
+      obj.profile &&
+      obj.timestamp &&
+      obj.checks &&
+      Array.isArray(obj.checks) &&
+      obj.summary
+    );
   }
 
   private async readFileContent(file: File): Promise<string> {
@@ -619,24 +701,24 @@ export class ReportViewerComponent implements OnInit {
         name: 'security-check-2023-12-01.json',
         timestamp: '2023-12-01T10:00:00Z',
         size: '45.2 KB',
-        verified: true
+        verified: true,
       },
       {
         path: '/reports/security-check-2023-11-30.json',
         name: 'security-check-2023-11-30.json',
         timestamp: '2023-11-30T10:00:00Z',
         size: '43.8 KB',
-        verified: true
+        verified: true,
       },
       {
         path: '/reports/security-check-2023-11-29.json',
         name: 'security-check-2023-11-29.json',
         timestamp: '2023-11-29T10:00:00Z',
         size: '44.1 KB',
-        verified: false
-      }
+        verified: false,
+      },
     ];
-    
+
     this._recentReports.set(mockReports);
   }
 
@@ -657,10 +739,13 @@ export class ReportViewerComponent implements OnInit {
     }
   }
 
-  private showMessage(message: string, type: 'success' | 'error' | 'info'): void {
+  private showMessage(
+    message: string,
+    type: 'success' | 'error' | 'info',
+  ): void {
     this._message.set(message);
     this._messageType.set(type);
-    
+
     setTimeout(() => {
       this._message.set('');
     }, 5000);

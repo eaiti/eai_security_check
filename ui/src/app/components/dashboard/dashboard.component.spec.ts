@@ -1,7 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
-import { DashboardComponent, ReportHistory, SystemStatus } from './dashboard.component';
+import {
+  DashboardComponent,
+  ReportHistory,
+  SystemStatus,
+} from './dashboard.component';
 import { ElectronService } from '../../services/electron.service';
 
 describe('DashboardComponent', () => {
@@ -19,7 +23,7 @@ describe('DashboardComponent', () => {
       passed: 8,
       failed: 0,
       warnings: 2,
-      reportPath: '/path/to/report1.json'
+      reportPath: '/path/to/report1.json',
     },
     {
       id: '2',
@@ -29,8 +33,8 @@ describe('DashboardComponent', () => {
       passed: 5,
       failed: 3,
       warnings: 2,
-      reportPath: '/path/to/report2.json'
-    }
+      reportPath: '/path/to/report2.json',
+    },
   ];
 
   const mockSystemStatus: SystemStatus = {
@@ -40,13 +44,13 @@ describe('DashboardComponent', () => {
     lastCheck: mockReportHistory[0],
     recentReports: mockReportHistory,
     configExists: true,
-    schedulingConfigExists: true
+    schedulingConfigExists: true,
   };
 
   beforeEach(async () => {
     mockElectronService = jasmine.createSpyObj('ElectronService', [
       'installGlobally',
-      'isElectron'
+      'isElectron',
     ]);
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
 
@@ -63,10 +67,10 @@ describe('DashboardComponent', () => {
           useValue: {
             params: of({}),
             queryParams: of({}),
-            snapshot: { params: {}, queryParams: {} }
-          }
-        }
-      ]
+            snapshot: { params: {}, queryParams: {} },
+          },
+        },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(DashboardComponent);
@@ -112,13 +116,13 @@ describe('DashboardComponent', () => {
     const component2 = fixture.componentInstance;
     component2['_systemStatus'].set({
       ...mockSystemStatus,
-      daemonStatus: 'running'
+      daemonStatus: 'running',
     });
     expect(component2.getDaemonStatusClass()).toBe('status-good');
-    
+
     component2['_systemStatus'].set({
       ...mockSystemStatus,
-      daemonStatus: 'stopped'
+      daemonStatus: 'stopped',
     });
     expect(component2.getDaemonStatusClass()).toBe('status-warning');
   });
@@ -127,7 +131,7 @@ describe('DashboardComponent', () => {
     const component2 = fixture.componentInstance;
     component2['_systemStatus'].set({
       ...mockSystemStatus,
-      daemonStatus: 'running'
+      daemonStatus: 'running',
     });
     expect(component2.getDaemonStatusText()).toBe('✅ Running');
   });
@@ -147,7 +151,7 @@ describe('DashboardComponent', () => {
   it('should render system status correctly', async () => {
     await component.ngOnInit();
     fixture.detectChanges();
-    
+
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.status-card')).toBeTruthy();
   });
@@ -155,7 +159,7 @@ describe('DashboardComponent', () => {
   it('should render feature cards', async () => {
     await component.ngOnInit();
     fixture.detectChanges();
-    
+
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.features-card')).toBeTruthy();
   });
