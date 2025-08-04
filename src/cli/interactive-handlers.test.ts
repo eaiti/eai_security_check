@@ -14,9 +14,10 @@ jest.mock('../core/installation-operations');
 jest.mock('../core/verification-operations');
 jest.mock('../config/config-manager');
 
-import { select } from '@inquirer/prompts';
+import { select, confirm } from '@inquirer/prompts';
 
 const mockSelect = select as jest.MockedFunction<typeof select>;
+const mockConfirm = confirm as jest.MockedFunction<typeof confirm>;
 
 describe('InteractiveHandlers', () => {
   beforeEach(() => {
@@ -37,6 +38,9 @@ describe('InteractiveHandlers', () => {
         securityConfigExists: true
       }
     });
+
+    // Default confirm behavior for sub-menu navigation
+    mockConfirm.mockResolvedValue(false); // Don't continue by default
   });
 
   describe('runInteractiveMode', () => {
@@ -59,8 +63,10 @@ describe('InteractiveHandlers', () => {
 
     it('should handle security check option', async () => {
       mockSelect
-        .mockResolvedValueOnce('1') // Choose security check
-        .mockResolvedValueOnce('8'); // Then exit
+        .mockResolvedValueOnce('1') // Choose security check menu
+        .mockResolvedValueOnce('1') // Choose interactive security check
+        .mockResolvedValueOnce('back') // Back from security menu
+        .mockResolvedValueOnce('7'); // Then exit
 
       (SecurityOperations.runInteractiveSecurityCheck as jest.Mock).mockResolvedValue(undefined);
 
@@ -90,8 +96,10 @@ describe('InteractiveHandlers', () => {
 
     it('should handle configuration management option', async () => {
       mockSelect
-        .mockResolvedValueOnce('3') // Choose configuration management
-        .mockResolvedValueOnce('8'); // Then exit
+        .mockResolvedValueOnce('2') // Choose configuration menu
+        .mockResolvedValueOnce('1') // Choose setup/modify configurations
+        .mockResolvedValueOnce('back') // Back from configuration menu
+        .mockResolvedValueOnce('7'); // Then exit
 
       (ConfigurationOperations.setupOrModifyConfigurations as jest.Mock).mockResolvedValue(
         undefined
@@ -108,8 +116,10 @@ describe('InteractiveHandlers', () => {
 
     it('should handle verification option', async () => {
       mockSelect
-        .mockResolvedValueOnce('5') // Choose verification
-        .mockResolvedValueOnce('8'); // Then exit
+        .mockResolvedValueOnce('6') // Choose verification menu
+        .mockResolvedValueOnce('1') // Choose verify local reports
+        .mockResolvedValueOnce('back') // Back from verification menu
+        .mockResolvedValueOnce('7'); // Then exit
 
       (VerificationOperations.verifyLocalReports as jest.Mock).mockResolvedValue(undefined);
 
@@ -130,23 +140,20 @@ describe('InteractiveHandlers', () => {
 
       await InteractiveHandlers.runInteractiveMode();
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '❌ Error in interactive mode:',
-        expect.any(Error)
-      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error: Error: Selection failed');
 
       consoleSpy.mockRestore();
       consoleErrorSpy.mockRestore();
     });
 
     it('should exit when user selects exit option', async () => {
-      mockSelect.mockResolvedValueOnce('8'); // Exit option
+      mockSelect.mockResolvedValueOnce('7'); // Exit option
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await InteractiveHandlers.runInteractiveMode();
 
-      expect(consoleSpy).toHaveBeenCalledWith('👋 Goodbye!');
+      expect(consoleSpy).toHaveBeenCalledWith('👋 Thank you for using EAI Security Check!');
 
       consoleSpy.mockRestore();
     });
@@ -154,22 +161,26 @@ describe('InteractiveHandlers', () => {
     it('should handle invalid selection gracefully', async () => {
       mockSelect
         .mockResolvedValueOnce('invalid') // Invalid option
-        .mockResolvedValueOnce('8'); // Then exit
+        .mockResolvedValueOnce('7'); // Then exit
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await InteractiveHandlers.runInteractiveMode();
 
-      expect(consoleSpy).toHaveBeenCalledWith('❌ Invalid choice. Please try again.\n');
+      expect(consoleSpy).toHaveBeenCalledWith('❌ Invalid choice. Please try again.');
 
       consoleSpy.mockRestore();
     });
 
     it('should continue looping until exit is selected', async () => {
       mockSelect
-        .mockResolvedValueOnce('1') // Security check
-        .mockResolvedValueOnce('2') // Daemon management
-        .mockResolvedValueOnce('8'); // Exit
+        .mockResolvedValueOnce('1') // Security check menu
+        .mockResolvedValueOnce('1') // Interactive security check
+        .mockResolvedValueOnce('back') // Back from security menu
+        .mockResolvedValueOnce('3') // Daemon menu
+        .mockResolvedValueOnce('1') // Setup daemon automation
+        .mockResolvedValueOnce('back') // Back from daemon menu
+        .mockResolvedValueOnce('7'); // Exit
 
       (SecurityOperations.runInteractiveSecurityCheck as jest.Mock).mockResolvedValue(undefined);
       (DaemonOperations.setupDaemonAutomation as jest.Mock).mockResolvedValue(undefined);

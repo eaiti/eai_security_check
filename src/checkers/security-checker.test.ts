@@ -1,9 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { MacOSSecurityChecker } from './security-checker';
-import { exec } from 'child_process';
+// Mock child_process and util modules before importing the class
+const mockExecAsync = jest.fn();
 
-jest.mock('child_process');
-const mockExec = exec as jest.MockedFunction<typeof exec>;
+jest.mock('child_process', () => ({
+  exec: jest.fn()
+}));
+
+jest.mock('util', () => ({
+  promisify: () => mockExecAsync
+}));
+
+import { MacOSSecurityChecker } from './security-checker';
 
 describe('MacOSSecurityChecker', () => {
   let checker: MacOSSecurityChecker;
@@ -83,9 +89,9 @@ describe('MacOSSecurityChecker', () => {
 
   describe('checkFileVault', () => {
     it('should return true when FileVault is enabled', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(null, { stdout: 'FileVault is On.', stderr: '' });
-        return {} as any;
+      mockExecAsync.mockResolvedValue({
+        stdout: 'FileVault is On.',
+        stderr: ''
       });
 
       const result = await checker.checkFileVault();
@@ -93,9 +99,9 @@ describe('MacOSSecurityChecker', () => {
     });
 
     it('should return false when FileVault is disabled', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(null, { stdout: 'FileVault is Off.', stderr: '' });
-        return {} as any;
+      mockExecAsync.mockResolvedValue({
+        stdout: 'FileVault is Off.',
+        stderr: ''
       });
 
       const result = await checker.checkFileVault();
@@ -103,10 +109,7 @@ describe('MacOSSecurityChecker', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(new Error('Command failed'), null);
-        return {} as any;
-      });
+      mockExecAsync.mockRejectedValue(new Error('Command failed'));
 
       const result = await checker.checkFileVault();
       expect(result).toBe(false);
@@ -115,16 +118,9 @@ describe('MacOSSecurityChecker', () => {
 
   describe('checkPasswordProtection', () => {
     it('should detect enabled password protection', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        if (cmd.includes('askForPassword')) {
-          callback(null, { stdout: '1', stderr: '' });
-        } else if (cmd.includes('askForPasswordDelay')) {
-          callback(null, { stdout: '0', stderr: '' });
-        } else {
-          callback(null, { stdout: 'enabled', stderr: '' });
-        }
-        return {} as any;
-      });
+      mockExecAsync
+        .mockResolvedValueOnce({ stdout: 'enabled', stderr: '' }) // login password check
+        .mockResolvedValueOnce({ stdout: 'true', stderr: '' }); // AppleScript lock screen check
 
       const result = await checker.checkPasswordProtection();
       expect(result.enabled).toBe(true);
@@ -133,28 +129,20 @@ describe('MacOSSecurityChecker', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(new Error('Command failed'), null);
-        return {} as any;
-      });
+      mockExecAsync.mockRejectedValue(new Error('Command failed'));
 
       const result = await checker.checkPasswordProtection();
       expect(result.enabled).toBe(false);
+      expect(result.requirePasswordImmediately).toBe(false);
+      expect(result.passwordRequiredAfterLock).toBe(false);
     });
   });
 
   describe('checkFirewall', () => {
     it('should detect enabled firewall', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        if (cmd.includes('getglobalstate')) {
-          callback(null, { stdout: 'enabled', stderr: '' });
-        } else if (cmd.includes('getstealthmode')) {
-          callback(null, { stdout: 'enabled', stderr: '' });
-        } else {
-          callback(null, { stdout: '', stderr: '' });
-        }
-        return {} as any;
-      });
+      mockExecAsync
+        .mockResolvedValueOnce({ stdout: 'enabled', stderr: '' }) // globalstate check
+        .mockResolvedValueOnce({ stdout: 'enabled', stderr: '' }); // stealth mode check
 
       const result = await checker.checkFirewall();
       expect(result.enabled).toBe(true);
@@ -162,10 +150,7 @@ describe('MacOSSecurityChecker', () => {
     });
 
     it('should handle command errors', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(new Error('Command failed'), null);
-        return {} as any;
-      });
+      mockExecAsync.mockRejectedValue(new Error('Command failed'));
 
       const result = await checker.checkFirewall();
       expect(result.enabled).toBe(false);
@@ -175,9 +160,9 @@ describe('MacOSSecurityChecker', () => {
 
   describe('checkGatekeeper', () => {
     it('should detect enabled Gatekeeper', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(null, { stdout: 'assessments enabled', stderr: '' });
-        return {} as any;
+      mockExecAsync.mockResolvedValue({
+        stdout: 'assessments enabled',
+        stderr: ''
       });
 
       const result = await checker.checkGatekeeper();
@@ -185,9 +170,9 @@ describe('MacOSSecurityChecker', () => {
     });
 
     it('should detect disabled Gatekeeper', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(null, { stdout: 'assessments disabled', stderr: '' });
-        return {} as any;
+      mockExecAsync.mockResolvedValue({
+        stdout: 'assessments disabled',
+        stderr: ''
       });
 
       const result = await checker.checkGatekeeper();
@@ -197,9 +182,9 @@ describe('MacOSSecurityChecker', () => {
 
   describe('checkSystemIntegrityProtection', () => {
     it('should detect enabled SIP', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(null, { stdout: 'System Integrity Protection status: enabled.', stderr: '' });
-        return {} as any;
+      mockExecAsync.mockResolvedValue({
+        stdout: 'System Integrity Protection status: enabled.',
+        stderr: ''
       });
 
       const result = await checker.checkSystemIntegrityProtection();
@@ -207,9 +192,9 @@ describe('MacOSSecurityChecker', () => {
     });
 
     it('should detect disabled SIP', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(null, { stdout: 'System Integrity Protection status: disabled.', stderr: '' });
-        return {} as any;
+      mockExecAsync.mockResolvedValue({
+        stdout: 'System Integrity Protection status: disabled.',
+        stderr: ''
       });
 
       const result = await checker.checkSystemIntegrityProtection();
@@ -219,20 +204,14 @@ describe('MacOSSecurityChecker', () => {
 
   describe('checkRemoteLogin', () => {
     it('should detect enabled SSH', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(null, { stdout: 'com.openssh.sshd', stderr: '' });
-        return {} as any;
-      });
+      mockExecAsync.mockResolvedValue({ stdout: 'com.openssh.sshd', stderr: '' });
 
       const result = await checker.checkRemoteLogin();
       expect(result).toBe(true);
     });
 
     it('should detect disabled SSH', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(null, { stdout: '', stderr: '' });
-        return {} as any;
-      });
+      mockExecAsync.mockResolvedValue({ stdout: '', stderr: '' });
 
       const result = await checker.checkRemoteLogin();
       expect(result).toBe(false);
@@ -241,32 +220,22 @@ describe('MacOSSecurityChecker', () => {
 
   describe('checkAutomaticUpdates', () => {
     it('should detect enabled automatic updates', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        if (cmd.includes('softwareupdate --schedule')) {
-          callback(null, { stdout: 'Automatic checking for updates is turned on.', stderr: '' });
-        } else if (cmd.includes('AutomaticDownload')) {
-          callback(null, { stdout: '1', stderr: '' });
-        } else if (cmd.includes('AutomaticallyInstallMacOSUpdates')) {
-          callback(null, { stdout: '1', stderr: '' });
-        } else if (cmd.includes('CriticalUpdateInstall')) {
-          callback(null, { stdout: '1', stderr: '' });
-        } else if (cmd.includes('ConfigDataInstall')) {
-          callback(null, { stdout: '1', stderr: '' });
-        } else {
-          callback(null, { stdout: '', stderr: '' });
-        }
-        return {} as any;
-      });
+      mockExecAsync
+        .mockResolvedValueOnce({
+          stdout: 'Automatic checking for updates is turned on.',
+          stderr: ''
+        })
+        .mockResolvedValueOnce({ stdout: '1', stderr: '' })
+        .mockResolvedValueOnce({ stdout: '1', stderr: '' })
+        .mockResolvedValueOnce({ stdout: '1', stderr: '' })
+        .mockResolvedValueOnce({ stdout: '1', stderr: '' });
 
       const result = await checker.checkAutomaticUpdates();
       expect(result.enabled).toBe(true);
     });
 
     it('should handle command errors', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(new Error('Command failed'), null);
-        return {} as any;
-      });
+      mockExecAsync.mockRejectedValue(new Error('Command failed'));
 
       const result = await checker.checkAutomaticUpdates();
       expect(result.enabled).toBe(false);
@@ -275,26 +244,14 @@ describe('MacOSSecurityChecker', () => {
 
   describe('checkSharingServices', () => {
     it('should detect enabled sharing services', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        if (cmd.includes('com.apple.smbd Disabled')) {
-          callback(null, { stdout: '0', stderr: '' });
-        } else if (cmd.includes('sharing -l')) {
-          callback(null, { stdout: 'name: TestShare', stderr: '' });
-        } else if (cmd.includes('com.apple.screensharing')) {
-          callback(null, { stdout: '0', stderr: '' });
-        } else if (cmd.includes('com.apple.Music sharingEnabled')) {
-          callback(null, { stdout: '1', stderr: '' });
-        } else if (cmd.includes('com.apple.Photos sharingEnabled')) {
-          callback(null, { stdout: '1', stderr: '' });
-        } else if (cmd.includes('AirplayRecieverEnabled')) {
-          callback(null, { stdout: '1', stderr: '' });
-        } else if (cmd.includes('launchctl print')) {
-          callback(null, { stdout: 'state = running', stderr: '' });
-        } else {
-          callback(null, { stdout: '', stderr: '' });
-        }
-        return {} as any;
-      });
+      mockExecAsync
+        .mockResolvedValueOnce({ stdout: '0', stderr: '' }) // smbd disabled check
+        .mockResolvedValueOnce({ stdout: 'name: TestShare', stderr: '' }) // sharing list
+        .mockResolvedValueOnce({ stdout: '0', stderr: '' }) // screen sharing
+        .mockResolvedValueOnce({ stdout: '1', stderr: '' }) // music sharing
+        .mockResolvedValueOnce({ stdout: '1', stderr: '' }) // photos sharing
+        .mockResolvedValueOnce({ stdout: '1', stderr: '' }) // airplay receiver
+        .mockResolvedValueOnce({ stdout: 'state = running', stderr: '' }); // launchctl
 
       const result = await checker.checkSharingServices();
       expect(result.fileSharing).toBe(true);
@@ -303,10 +260,7 @@ describe('MacOSSecurityChecker', () => {
     });
 
     it('should handle command errors', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(new Error('Command failed'), null);
-        return {} as any;
-      });
+      mockExecAsync.mockRejectedValue(new Error('Command failed'));
 
       const result = await checker.checkSharingServices();
       expect(result.fileSharing).toBe(false);
@@ -327,20 +281,14 @@ describe('MacOSSecurityChecker', () => {
 
   describe('getCurrentMacOSVersion', () => {
     it('should return macOS version', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(null, { stdout: '14.2.1', stderr: '' });
-        return {} as any;
-      });
+      mockExecAsync.mockResolvedValue({ stdout: '14.2.1', stderr: '' });
 
       const result = await checker.getCurrentMacOSVersion();
       expect(result).toBe('14.2.1');
     });
 
     it('should handle command errors', async () => {
-      mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(new Error('Command failed'), null);
-        return {} as any;
-      });
+      mockExecAsync.mockRejectedValue(new Error('Command failed'));
 
       const result = await checker.getCurrentMacOSVersion();
       expect(result).toBe('0.0.0');
