@@ -1,41 +1,74 @@
 {
   "name": "eai-security-check-ui",
   "version": "1.1.0",
-  "description": "Electron UI for EAI Security Check",
-  "main": "main.js",
+  "main": "electron/main.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --enable-logging",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "dist:mac": "electron-builder --mac",
-    "dist:win": "electron-builder --win",
-    "dist:linux": "electron-builder --linux"
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "build:prod": "ng build --configuration production",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "electron": "electron .",
+    "electron:dev": "concurrently \"npm start\" \"wait-on http://localhost:4200 && NODE_ENV=development electron .\"",
+    "electron:build": "npm run build:prod && electron .",
+    "pack": "npm run build:prod && electron-builder --dir",
+    "dist": "npm run build:prod && electron-builder",
+    "dist:mac": "npm run build:prod && electron-builder --mac",
+    "dist:win": "npm run build:prod && electron-builder --win",
+    "dist:linux": "npm run build:prod && electron-builder --linux"
   },
-  "keywords": [
-    "electron",
-    "security",
-    "audit",
-    "ui",
-    "cross-platform"
-  ],
-  "author": "",
-  "license": "MIT",
+  "prettier": {
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/cdk": "^20.1.4",
+    "@angular/common": "^20.1.0",
+    "@angular/compiler": "^20.1.0",
+    "@angular/core": "^20.1.0",
+    "@angular/forms": "^20.1.0",
+    "@angular/material": "^20.1.4",
+    "@angular/platform-browser": "^20.1.0",
+    "@angular/router": "^20.1.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0",
+    "zone.js": "~0.15.0"
+  },
   "devDependencies": {
-    "electron": "^32.3.3",
-    "electron-builder": "^25.0.0"
+    "@angular/build": "^20.1.4",
+    "@angular/cli": "^20.1.4",
+    "@angular/compiler-cli": "^20.1.0",
+    "@types/jasmine": "~5.1.0",
+    "concurrently": "^8.2.2",
+    "electron": "^37.2.5",
+    "electron-builder": "^26.0.12",
+    "jasmine-core": "~5.8.0",
+    "karma": "~6.4.0",
+    "karma-chrome-launcher": "~3.2.0",
+    "karma-coverage": "~2.2.0",
+    "karma-jasmine": "~5.1.0",
+    "karma-jasmine-html-reporter": "~2.1.0",
+    "typescript": "~5.8.2",
+    "wait-on": "^8.0.4"
   },
   "build": {
-    "appId": "com.eai.security-check",
-    "productName": "EAI Security Check",
+    "appId": "com.eai.security-check-ui",
+    "productName": "EAI Security Check UI",
     "directories": {
       "output": "release/"
     },
     "files": [
-      "index.html",
-      "main.js",
-      "preload.js",
-      "assets/**/*"
+      "dist/ui/**/*",
+      "electron/**/*",
+      "package.json"
     ],
     "extraResources": [
       {
@@ -48,14 +81,17 @@
     ],
     "mac": {
       "target": "dmg",
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "icon": "public/favicon.ico"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "public/favicon.ico"
     },
     "linux": {
       "target": "AppImage",
-      "category": "Utility"
+      "category": "Utility",
+      "icon": "public/favicon.ico"
     }
   }
 }

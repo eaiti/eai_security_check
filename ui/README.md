@@ -1,101 +1,59 @@
-# EAI Security Check UI
+# Ui
 
-A lightweight Electron-based UI for the EAI Security Check CLI tool.
+This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.1.4.
 
-## Overview
+## Development server
 
-This UI provides a modern, cross-platform graphical interface for the existing EAI Security Check CLI functionality. It demonstrates how the command-line tool can be wrapped with an Electron application to provide an intuitive user experience.
-
-## Features
-
-- **Cross-platform**: Runs on Windows, macOS, and Linux
-- **Lightweight**: Simple HTML/CSS/JavaScript with Electron wrapper
-- **Integrated**: Uses the existing CLI logic via IPC calls
-- **Real-time**: Shows actual security check results from the system
-- **Profile Support**: Supports all security profiles (default, strict, relaxed, developer, eai)
-
-## Architecture
-
-- **main.js**: Electron main process that manages the application window and integrates with CLI
-- **preload.js**: Secure bridge between renderer and main process
-- **index.html**: The UI interface with embedded CSS and JavaScript
-- **package.json**: Electron application configuration and build settings
-
-## Usage
-
-### Development Mode
+To start a local development server, run:
 
 ```bash
-# From the root directory, build the CLI first
-npm run build
-
-# Then start the UI
-npm run start:ui
+ng serve
 ```
 
-### Standalone Mode
+Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+
+## Code scaffolding
+
+Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
 
 ```bash
-# Navigate to UI directory
-cd ui
-
-# Install dependencies (first time only)
-npm install
-
-# Run the application
-npm start
+ng generate component component-name
 ```
 
-### Building Distributables
+For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
 
 ```bash
-# Build for current platform
-cd ui
-npm run dist
-
-# Build for specific platforms
-npm run dist:mac
-npm run dist:win
-npm run dist:linux
+ng generate --help
 ```
 
-## How It Works
+## Building
 
-1. **UI Layer**: HTML/CSS/JavaScript provides the user interface
-2. **IPC Bridge**: Electron IPC handles secure communication between UI and CLI
-3. **CLI Integration**: Main process executes the actual CLI commands and returns results
-4. **Data Transformation**: Results are transformed from CLI JSON format to UI-friendly format
+To build the project run:
 
-## Integration with CLI
+```bash
+ng build
+```
 
-The UI integrates with the existing CLI in several ways:
+This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
-- **Security Checks**: Calls `eai-security-check check <profile> --format json --quiet`
-- **Platform Info**: Uses Node.js process information
-- **Version Info**: Reads from the main package.json
-- **Profile Support**: Passes profile selection to CLI commands
+## Running unit tests
 
-## Fallback Behavior
+To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
 
-- If the CLI is not built or available, the UI falls back to mock data
-- This allows the UI to be demonstrated even without a fully built CLI
-- Error handling provides user-friendly messages for troubleshooting
+```bash
+ng test
+```
 
-## Future Enhancements
+## Running end-to-end tests
 
-This proof of concept could be extended with:
+For end-to-end (e2e) testing, run:
 
-- Configuration management UI
-- Daemon/scheduling setup interface
-- Real-time monitoring dashboard
-- Report generation and export
-- System tray integration
-- Auto-update functionality
-- Dark/light theme support
+```bash
+ng e2e
+```
 
-## Security Considerations
+Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
 
-- **Context Isolation**: Enabled for security
-- **Node Integration**: Disabled in renderer
-- **Preload Script**: Provides controlled access to Node.js APIs
-- **IPC Validation**: All communications are validated and sanitized
+## Additional Resources
+
+For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
