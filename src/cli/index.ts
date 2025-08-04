@@ -11,7 +11,7 @@ program
   .description(
     "🔒 Cross-Platform Security Audit Tool - Check your system's security settings against configurable requirements"
   )
-  .version('1.1.0')
+  .version('1.0.0')
   .addHelpText(
     'before',
     `
@@ -239,10 +239,10 @@ Examples:
   1. Set up daemon configuration:
      $ eai-security-check daemon --setup-minimal --user-id "$(whoami)@$(hostname)"    # Quick CLI setup
      $ eai-security-check interactive    # Or use interactive mode
-  
+
   2. Start daemon manually (for testing):
      $ eai-security-check daemon         # Runs until you stop it
-  
+
   3. Set up automatic startup (optional):
      macOS:   Use interactive mode's "Start/Stop/Restart Daemon" option for LaunchAgent setup
      Linux:   $ sudo systemctl --user enable eai-security-check-daemon
@@ -260,13 +260,13 @@ Daemon Control:
 
 Configuration:
   The daemon requires two configuration steps:
-  
+
   1. 📧 Email & Schedule Setup (Required):
      - SMTP server settings for sending reports
      - Email recipients and subject
      - Check interval (daily/weekly)
      - Security profile to use
-     
+
   2. 🔧 System Service Setup (Optional but Recommended):
      - Makes daemon start automatically on login/boot
      - Automatically restarts if daemon crashes
