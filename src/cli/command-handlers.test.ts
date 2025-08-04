@@ -1,6 +1,7 @@
 import { CommandHandlers } from './command-handlers';
 import { SecurityOperations } from '../core/security-operations';
 import { InstallationOperations } from '../core/installation-operations';
+import { SchedulingService } from '../services/scheduling-service';
 import * as fs from 'fs';
 
 // Mock all dependencies
@@ -11,6 +12,7 @@ jest.mock('../services/scheduling-service');
 jest.mock('../config/config-manager');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
+const mockSchedulingService = SchedulingService as jest.MockedClass<typeof SchedulingService>;
 
 describe('CommandHandlers', () => {
   let originalExit: typeof process.exit;
@@ -189,6 +191,15 @@ describe('CommandHandlers', () => {
   });
 
   describe('handleVerifyCommand', () => {
+    beforeEach(() => {
+      // Mock filesystem operations for verify command
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'statSync').mockReturnValue({
+        isDirectory: jest.fn().mockReturnValue(false)
+      } as unknown as fs.Stats);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('mock file content');
+    });
+
     it('should handle verify command', async () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
@@ -209,6 +220,37 @@ describe('CommandHandlers', () => {
   });
 
   describe('handleDaemonCommand', () => {
+    beforeEach(() => {
+      // Mock fs.existsSync to return true for config path
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+
+      // Mock SchedulingService
+      mockSchedulingService.mockImplementation(
+        () =>
+          ({
+            getDaemonStatus: jest.fn().mockReturnValue({
+              running: false,
+              state: {
+                lastReportSent: 'Never',
+                totalReportsGenerated: 0,
+                daemonStarted: false,
+                currentVersion: '1.0.0'
+              },
+              config: {
+                intervalDays: 7,
+                email: { to: [] },
+                scp: { enabled: false }
+              }
+            }),
+            stopDaemon: jest.fn(),
+            startDaemon: jest.fn()
+          }) as unknown as InstanceType<typeof SchedulingService>
+      );
+      mockSchedulingService.getDaemonPlatformInfo = jest.fn().mockReturnValue({
+        platform: 'linux'
+      });
+    });
+
     it('should handle daemon command with stop option', async () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
