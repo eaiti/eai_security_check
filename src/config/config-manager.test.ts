@@ -304,4 +304,141 @@ describe('ConfigManager', () => {
       });
     });
   });
+
+  describe('validateSecurityConfig', () => {
+    it('should validate correct security config', () => {
+      const validConfig = {
+        profileName: 'test',
+        enabledChecks: ['diskEncryption', 'passwordProtection'],
+        timeouts: { diskEncryption: 30 },
+        requirements: { diskEncryption: true }
+      };
+
+      expect(() => ConfigManager.validateSecurityConfig(validConfig)).not.toThrow();
+    });
+  });
+
+  describe('getCurrentVersion', () => {
+    it('should return current version from package.json', () => {
+      mockedFs.readFileSync.mockReturnValue(JSON.stringify({ version: '1.1.0' }));
+
+      const version = ConfigManager.getCurrentVersion();
+
+      expect(version).toBe('1.1.0');
+    });
+
+    it('should handle missing package.json', () => {
+      mockedFs.readFileSync.mockImplementation(() => {
+        throw new Error('File not found');
+      });
+
+      const version = ConfigManager.getCurrentVersion();
+
+      expect(version).toBe('unknown');
+    });
+  });
+
+  describe('getSystemStatus', () => {
+    it('should return system status with global install', async () => {
+      mockedFs.existsSync.mockImplementation((path: any) => {
+        const pathStr = String(path);
+        if (pathStr.includes('security-config.json')) return true;
+        if (pathStr.includes('scheduling-config.json')) return false;
+        if (pathStr.includes('/usr/local/bin/eai-security-check')) return true;
+        return false;
+      });
+
+      const status = await ConfigManager.getSystemStatus();
+
+      expect(status.globalInstall.exists).toBe(true);
+      expect(status.config.securityConfigExists).toBe(true);
+      expect(status.config.schedulingConfigExists).toBe(false);
+    });
+
+    it('should detect local install when global not found', async () => {
+      mockedFs.existsSync.mockImplementation((path: any) => {
+        const pathStr = String(path);
+        if (pathStr.includes('/usr/local/bin/eai-security-check')) return false;
+        if (pathStr.includes('/usr/bin/eai-security-check')) return false;
+        return false;
+      });
+
+      const status = await ConfigManager.getSystemStatus();
+
+      expect(status.globalInstall.exists).toBe(false);
+    });
+  });
+
+  describe('ensureCentralizedDirectories', () => {
+    it('should create centralized directories if they do not exist', () => {
+      mockedFs.existsSync.mockReturnValue(false);
+      mockedFs.mkdirSync.mockImplementation();
+
+      const result = ConfigManager.ensureCentralizedDirectories();
+
+      expect(mockedFs.mkdirSync).toHaveBeenCalledWith('/test/app/config', { recursive: true });
+      expect(mockedFs.mkdirSync).toHaveBeenCalledWith('/test/app/reports', { recursive: true });
+      expect(result.configDir).toBe('/test/app/config');
+      expect(result.reportsDir).toBe('/test/app/reports');
+    });
+
+    it('should not create directories if they already exist', () => {
+      mockedFs.existsSync.mockReturnValue(true);
+
+      const result = ConfigManager.ensureCentralizedDirectories();
+
+      expect(mockedFs.mkdirSync).not.toHaveBeenCalled();
+      expect(result.configDir).toBe('/test/app/config');
+      expect(result.reportsDir).toBe('/test/app/reports');
+    });
+  });
+
+  describe('platform-specific paths', () => {
+    it('should use XDG_CONFIG_HOME on Linux when available', () => {
+      mockedOs.platform.mockReturnValue('linux');
+      process.env.XDG_CONFIG_HOME = '/custom/config';
+
+      const result = ConfigManager.ensureCentralizedDirectories();
+
+      expect(result.configDir).toBe('/custom/config/eai-security-check');
+    });
+
+    it('should use APPDATA on Windows when available', () => {
+      mockedOs.platform.mockReturnValue('win32');
+      process.env.APPDATA = 'C:\\Users\\User\\AppData\\Roaming';
+
+      const result = ConfigManager.ensureCentralizedDirectories();
+
+      expect(result.configDir).toBe('C:\\Users\\User\\AppData\\Roaming/eai-security-check');
+    });
+
+    it('should use home directory as fallback', () => {
+      mockedOs.platform.mockReturnValue('linux');
+      mockedOs.homedir.mockReturnValue('/home/user');
+      delete process.env.XDG_CONFIG_HOME;
+
+      const result = ConfigManager.ensureCentralizedDirectories();
+
+      expect(result.configDir).toBe('/home/user/.config/eai-security-check');
+    });
+  });
+
+  describe('error handling', () => {
+    it('should handle directory creation errors gracefully', () => {
+      mockedFs.existsSync.mockReturnValue(false);
+      mockedFs.mkdirSync.mockImplementation(() => {
+        throw new Error('Permission denied');
+      });
+
+      expect(() => ConfigManager.ensureCentralizedDirectories()).toThrow('Permission denied');
+    });
+
+    it('should handle invalid JSON in package.json', () => {
+      mockedFs.readFileSync.mockReturnValue('invalid json');
+
+      const version = ConfigManager.getCurrentVersion();
+
+      expect(version).toBe('unknown');
+    });
+  });
 });

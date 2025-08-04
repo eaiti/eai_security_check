@@ -122,11 +122,16 @@ describe('LinuxSecurityChecker', () => {
     });
 
     it('should handle passwd command errors gracefully', async () => {
+      // Mock KDE config to not exist to test the fallback
+      mockExistsSync.mockReturnValue(false);
+
       mockExec.mockImplementation((cmd: any, callback: any) => {
         if (cmd.includes('passwd -S')) {
           callback(new Error('Command failed'), null);
-        } else {
+        } else if (cmd.includes('gsettings')) {
           callback(null, { stdout: 'not-found', stderr: '' });
+        } else {
+          callback(null, { stdout: '', stderr: '' });
         }
         return {} as any;
       });
@@ -273,7 +278,11 @@ describe('LinuxSecurityChecker', () => {
         if (cmd.includes('ufw status') || cmd.includes('firewall-cmd --state')) {
           callback(new Error('Command not found'), null);
         } else if (cmd.includes('iptables -L')) {
-          callback(null, { stdout: 'Chain INPUT (policy ACCEPT)\ntarget     prot opt source\nDROP       all  --  anywhere\n', stderr: '' });
+          callback(null, {
+            stdout:
+              'Chain INPUT (policy ACCEPT)\ntarget     prot opt source\nDROP       all  --  anywhere\n',
+            stderr: ''
+          });
         } else {
           callback(new Error('Command not found'), null);
         }
@@ -306,7 +315,10 @@ describe('LinuxSecurityChecker', () => {
         callCount++;
         if (cmd.includes('dnf config-manager')) {
           callback(new Error('DNF not found'), null);
-        } else if (cmd.includes('apt-config dump') && cmd.includes('APT::Get::AllowUnauthenticated')) {
+        } else if (
+          cmd.includes('apt-config dump') &&
+          cmd.includes('APT::Get::AllowUnauthenticated')
+        ) {
           callback(null, { stdout: 'APT::Get::AllowUnauthenticated "false";\n', stderr: '' });
         } else {
           callback(new Error('Command not found'), null);
@@ -521,7 +533,10 @@ upgrade_type = security`);
   describe('checkRemoteManagement', () => {
     it('should detect enabled VNC service', async () => {
       mockExec.mockImplementation((cmd: any, callback: any) => {
-        if (cmd.includes('systemctl is-active vnc') || cmd.includes('systemctl is-active vncserver')) {
+        if (
+          cmd.includes('systemctl is-active vnc') ||
+          cmd.includes('systemctl is-active vncserver')
+        ) {
           callback(null, { stdout: 'active\n', stderr: '' });
         } else {
           callback(null, { stdout: 'inactive\n', stderr: '' });
@@ -676,7 +691,9 @@ upgrade_type = security`);
 
   describe('getCurrentLinuxDistribution', () => {
     it('should detect Ubuntu distribution', async () => {
-      mockReadFileSync.mockReturnValue('NAME="Ubuntu"\nVERSION="22.04.2 LTS (Jammy Jellyfish)"\nID=ubuntu\n');
+      mockReadFileSync.mockReturnValue(
+        'NAME="Ubuntu"\nVERSION="22.04.2 LTS (Jammy Jellyfish)"\nID=ubuntu\n'
+      );
       mockExistsSync.mockReturnValue(true);
 
       const result = await checker.getCurrentLinuxDistribution();
@@ -684,7 +701,9 @@ upgrade_type = security`);
     });
 
     it('should detect Red Hat distribution', async () => {
-      mockReadFileSync.mockReturnValue('NAME="Red Hat Enterprise Linux"\nVERSION="9.2 (Plow)"\nID="rhel"\n');
+      mockReadFileSync.mockReturnValue(
+        'NAME="Red Hat Enterprise Linux"\nVERSION="9.2 (Plow)"\nID="rhel"\n'
+      );
       mockExistsSync.mockReturnValue(true);
 
       const result = await checker.getCurrentLinuxDistribution();
@@ -692,7 +711,9 @@ upgrade_type = security`);
     });
 
     it('should detect Fedora distribution', async () => {
-      mockReadFileSync.mockReturnValue('NAME="Fedora Linux"\nVERSION="38 (Workstation Edition)"\nID=fedora\n');
+      mockReadFileSync.mockReturnValue(
+        'NAME="Fedora Linux"\nVERSION="38 (Workstation Edition)"\nID=fedora\n'
+      );
       mockExistsSync.mockReturnValue(true);
 
       const result = await checker.getCurrentLinuxDistribution();
@@ -817,10 +838,10 @@ upgrade_type = security`);
     });
 
     it('should handle system with KDE desktop environment', async () => {
-      mockExistsSync.mockImplementation((path) => {
+      mockExistsSync.mockImplementation(path => {
         return (path as string).includes('kscreenlockerrc');
       });
-      mockReadFileSync.mockImplementation((path) => {
+      mockReadFileSync.mockImplementation(path => {
         if ((path as string).includes('kscreenlockerrc')) {
           return '[ScreenLocker]\nTimeout=600\nAutolock=true\n';
         }
@@ -852,9 +873,10 @@ upgrade_type = security`);
     it('should handle firewall with stealth mode enabled', async () => {
       mockExec.mockImplementation((cmd: any, callback: any) => {
         if (cmd.includes('ufw status verbose')) {
-          callback(null, { 
-            stdout: 'Status: active\nLogging: on (low)\nDefault: deny (incoming), allow (outgoing), disabled (routed)\n', 
-            stderr: '' 
+          callback(null, {
+            stdout:
+              'Status: active\nLogging: on (low)\nDefault: deny (incoming), allow (outgoing), disabled (routed)\n',
+            stderr: ''
           });
         } else {
           callback(new Error('Command failed'), null);
@@ -870,9 +892,9 @@ upgrade_type = security`);
     it('should handle mixed LUKS and unencrypted partitions', async () => {
       mockExec.mockImplementation((cmd: any, callback: any) => {
         if (cmd.includes('lsblk -f')) {
-          callback(null, { 
-            stdout: 'NAME FSTYPE\nsda1 ext4\nsda2 crypto_LUKS\nsda3 swap\n', 
-            stderr: '' 
+          callback(null, {
+            stdout: 'NAME FSTYPE\nsda1 ext4\nsda2 crypto_LUKS\nsda3 swap\n',
+            stderr: ''
           });
         } else {
           callback(null, { stdout: '', stderr: '' });
@@ -906,7 +928,7 @@ upgrade_type = security`);
   describe('advanced scenarios', () => {
     it('should handle password-based sudo commands', async () => {
       const checkerWithPassword = new LinuxSecurityChecker('testpassword');
-      
+
       mockExec.mockImplementation((cmd: any, callback: any) => {
         if (cmd.includes('echo "testpassword" | sudo -S')) {
           callback(null, { stdout: 'active\n', stderr: '' });
@@ -923,9 +945,10 @@ upgrade_type = security`);
     it('should handle complex firewall configurations', async () => {
       mockExec.mockImplementation((cmd: any, callback: any) => {
         if (cmd.includes('ufw status')) {
-          callback(null, { 
-            stdout: 'Status: active\n\nTo                         Action      From\n--                         ------      ----\n22/tcp                     ALLOW       Anywhere\n', 
-            stderr: '' 
+          callback(null, {
+            stdout:
+              'Status: active\n\nTo                         Action      From\n--                         ------      ----\n22/tcp                     ALLOW       Anywhere\n',
+            stderr: ''
           });
         } else {
           callback(new Error('Command failed'), null);
@@ -940,9 +963,9 @@ upgrade_type = security`);
     it('should detect specific package managers correctly', async () => {
       mockExec.mockImplementation((cmd: any, callback: any) => {
         if (cmd.includes('dnf config-manager --dump')) {
-          callback(null, { 
-            stdout: '[main]\ngpgcheck = True\nrepo_gpgcheck = True\n', 
-            stderr: '' 
+          callback(null, {
+            stdout: '[main]\ngpgcheck = True\nrepo_gpgcheck = True\n',
+            stderr: ''
           });
         } else {
           callback(new Error('Command not found'), null);
@@ -957,7 +980,10 @@ upgrade_type = security`);
     it('should handle multiple security frameworks', async () => {
       mockExec.mockImplementation((cmd: any, callback: any) => {
         if (cmd.includes('sestatus')) {
-          callback(null, { stdout: 'SELinux status: enabled\nCurrent mode: enforcing\n', stderr: '' });
+          callback(null, {
+            stdout: 'SELinux status: enabled\nCurrent mode: enforcing\n',
+            stderr: ''
+          });
         } else if (cmd.includes('aa-status')) {
           callback(null, { stdout: 'apparmor module is loaded.\n', stderr: '' });
         } else {
@@ -1005,9 +1031,9 @@ upgrade_type = security`);
 
     it('should handle commands with special characters', async () => {
       mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(null, { 
-          stdout: 'Status: Special chars !@#$%^&*()_+{}|:"<>?`~\n', 
-          stderr: '' 
+        callback(null, {
+          stdout: 'Status: Special chars !@#$%^&*()_+{}|:"<>?`~\n',
+          stderr: ''
         });
         return {} as any;
       });
