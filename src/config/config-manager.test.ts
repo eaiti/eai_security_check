@@ -87,7 +87,7 @@ describe('ConfigManager', () => {
         return false;
       });
       mockedFs.mkdirSync.mockImplementation(() => undefined);
-      mockedFs.writeFileSync.mockImplementation(() => { });
+      mockedFs.writeFileSync.mockImplementation(() => {});
     });
 
     it('should create security config with default profile', () => {
@@ -130,10 +130,10 @@ describe('ConfigManager', () => {
         return false;
       });
       mockedFs.mkdirSync.mockImplementation(() => undefined);
-      mockedFs.writeFileSync.mockImplementation(() => { });
+      mockedFs.writeFileSync.mockImplementation(() => {});
 
       // Mock console.log to avoid test output
-      jest.spyOn(console, 'log').mockImplementation(() => { });
+      jest.spyOn(console, 'log').mockImplementation(() => {});
     });
 
     afterEach(() => {
