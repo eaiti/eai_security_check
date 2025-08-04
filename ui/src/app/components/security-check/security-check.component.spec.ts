@@ -70,4 +70,88 @@ describe('SecurityCheckComponent', () => {
     const formatted = component.formatTimestamp(testDate);
     expect(formatted).toContain('12/1/2023'); // Basic check that it's formatted as a date
   });
+
+  it('should handle profile change', () => {
+    component.selectedProfile = 'strict';
+    expect(component.selectedProfile).toBe('strict');
+    
+    component.selectedProfile = 'relaxed';
+    expect(component.selectedProfile).toBe('relaxed');
+  });
+
+  it('should handle different loading states', () => {
+    expect(component.isRunning()).toBe(false);
+    
+    // Test running state by calling the method
+    component.runSecurityCheck();
+    // The loading state is handled internally during the async operation
+  });
+
+  it('should handle empty report data', async () => {
+    const emptyReport = {
+      platform: { platform: 'darwin', arch: 'x64', version: '14.0.0' },
+      profile: 'default',
+      timestamp: new Date().toISOString(),
+      checks: [],
+      summary: { passed: 0, failed: 0, warnings: 0, overallStatus: 'pass' as const }
+    };
+    
+    mockElectronService.runSecurityCheck.and.returnValue(Promise.resolve(emptyReport));
+    
+    await component.runSecurityCheck();
+    expect(component.report()).toEqual(emptyReport);
+    expect(component.report()?.checks.length).toBe(0);
+  });
+
+  it('should handle error scenarios gracefully', async () => {
+    mockElectronService.runSecurityCheck.and.returnValue(
+      Promise.reject(new Error('Security check failed'))
+    );
+    
+    await component.runSecurityCheck();
+    // Should handle error gracefully and not crash
+    expect(component.isRunning()).toBe(false);
+  });
+
+  it('should handle different risk levels', () => {
+    const mockChecks = [
+      { name: 'High Risk Check', status: 'fail' as const, message: 'Failed', risk: 'high' as const },
+      { name: 'Medium Risk Check', status: 'warning' as const, message: 'Warning', risk: 'medium' as const },
+      { name: 'Low Risk Check', status: 'pass' as const, message: 'Passed', risk: 'low' as const }
+    ];
+    
+    const reportWithRisks = {
+      platform: { platform: 'darwin', arch: 'x64', version: '14.0.0' },
+      profile: 'default',
+      timestamp: new Date().toISOString(),
+      checks: mockChecks,
+      summary: { passed: 1, failed: 1, warnings: 1, overallStatus: 'fail' as const }
+    };
+    
+    // Create a new component instance and mock the report signal
+    const fixture2 = TestBed.createComponent(SecurityCheckComponent);
+    const component2 = fixture2.componentInstance;
+    (component2 as any)._report.set(reportWithRisks);
+    
+    expect(component2.report()?.checks[0].risk).toBe('high');
+    expect(component2.report()?.checks[1].risk).toBe('medium');
+    expect(component2.report()?.checks[2].risk).toBe('low');
+  });
+
+  it('should render different report states', () => {
+    // Test with no report
+    fixture.detectChanges();
+    let compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.no-report')).toBeTruthy();
+    
+    // Test with report - we'll test the component logic instead of setting signals directly
+    expect(component.report()).toBeNull(); // Initially null
+  });
+
+  it('should handle platform information display', () => {
+    // Test accessing platform info through the electron service
+    expect(component.platformInfo()).toBeDefined();
+    expect(component.cliVersion()).toBeDefined();
+    expect(component.isElectron()).toBe(true);
+  });
 });

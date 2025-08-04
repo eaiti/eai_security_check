@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { Component } from '@angular/core';
 import { App } from './app';
+import { of } from 'rxjs';
 
 @Component({
   template: ''
@@ -16,6 +17,14 @@ describe('App', () => {
         {
           provide: Router,
           useValue: jasmine.createSpyObj('Router', ['navigate'])
+        },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            params: of({}),
+            queryParams: of({}),
+            snapshot: { params: {}, queryParams: {} }
+          }
         }
       ]
     }).compileComponents();
