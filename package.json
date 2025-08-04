@@ -1,15 +1,18 @@
 {
   "name": "eai-security-check",
   "version": "1.1.0",
-  "description": "A cross-platform Node.js tool to check macOS, Linux, and Windows security settings against configurable profiles",
+  "description": "A cross-platform Node.js tool to check macOS, Linux, and Windows security settings with CLI and UI interfaces",
   "main": "dist/cli/index.js",
   "bin": {
     "eai-security-check": "./dist/cli/index.js"
   },
   "scripts": {
     "build": "node scripts/build.js",
+    "build:ui": "cd ui && npm run build",
     "start": "node dist/cli/index.js",
+    "start:ui": "cd ui && npm run electron:dev",
     "dev": "ts-node src/cli/index.ts",
+    "dev:ui": "cd ui && npm run start", 
     "check": "npm run build && npm start check",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",

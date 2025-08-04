@@ -2,6 +2,8 @@
 
 A cross-platform Node.js + TypeScript tool for auditing security settings on macOS, Linux, and Windows systems against configurable security profiles. The tool provides detailed reports with educational explanations and actionable recommendations.
 
+**🆕 NEW: Graphical User Interface available! See [UI Documentation](#-user-interface) below.**
+
 ## 🌟 Key Features
 
 ### 🖥️ Cross-Platform Support
@@ -33,7 +35,65 @@ A cross-platform Node.js + TypeScript tool for auditing security settings on mac
 
 ## 🚀 Quick Start
 
-### 1. Download & Install
+### Choose Your Interface
+
+**🖥️ Graphical User Interface (NEW)**
+```bash
+# Build the CLI first
+npm run build
+
+# Start the UI
+npm run start:ui
+```
+
+**⌨️ Command Line Interface**
+
+## 🎛️ User Interface
+
+### Modern Graphical Interface
+
+EAI Security Check now includes a lightweight, cross-platform GUI built with Electron:
+
+- **Cross-platform**: Runs on Windows, macOS, and Linux
+- **Intuitive**: Clean, modern interface with real-time results
+- **Integrated**: Uses the same security checking logic as the CLI
+- **Lightweight**: Minimal resource usage with Electron wrapper
+
+![UI Screenshot](https://github.com/user-attachments/assets/8507880e-d5ed-4ab9-8246-a4e73e1bf628)
+
+#### Starting the UI
+
+```bash
+# Quick start (from root directory)
+npm run build    # Build CLI first
+npm run start:ui # Launch graphical interface
+
+# Or from UI directory
+cd ui
+npm install     # First time only
+npm start       # Launch application
+```
+
+#### UI Features
+
+- **Profile Selection**: Choose from all security profiles (default, strict, relaxed, developer, eai)
+- **Real-time Results**: See security check results with clear pass/fail/warning indicators
+- **Detailed Information**: Each check includes explanations and remediation advice
+- **Cross-platform Detection**: Automatically shows platform and version information
+
+![Results Screenshot](https://github.com/user-attachments/assets/a178a5df-6e46-4314-8902-a744ae5f9068)
+
+#### Building Distributables
+
+```bash
+cd ui
+npm run dist        # Build for current platform
+npm run dist:mac    # Build for macOS
+npm run dist:win    # Build for Windows  
+npm run dist:linux  # Build for Linux
+```
+
+#### 1. Download & Install
 
 **For End Users (Standalone Executable - Recommended)**
 
@@ -58,7 +118,7 @@ Invoke-WebRequest -Uri https://github.com/eaiti/eai_security_check/releases/late
 npm install -g eai-security-check
 ```
 
-### 2. Setup Configuration
+#### 2. Setup Configuration
 
 ```bash
 # Interactive management mode - guides you through all configuration options
@@ -73,7 +133,7 @@ eai-security-check interactive
 # 6. System Status: View comprehensive system information and status
 ```
 
-### 3. Run Your First Security Audit
+#### 3. Run Your First Security Audit
 
 ```bash
 # Quick security check (uses centralized config)
@@ -86,7 +146,7 @@ eai-security-check check strict
 eai-security-check check --hash --format markdown -o ~/Documents/security-report.md
 ```
 
-### 4. Set Up Automated Monitoring (Optional)
+#### 4. Set Up Automated Monitoring (Optional)
 
 **Option A: Interactive Setup (Recommended)**
 ```bash
