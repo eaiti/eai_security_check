@@ -1,18 +1,12 @@
 import { CommandHandlers } from './command-handlers';
 import { SecurityOperations } from '../core/security-operations';
 import { InstallationOperations } from '../core/installation-operations';
-import { VerificationOperations } from '../core/verification-operations';
-import { SchedulingService } from '../services/scheduling-service';
-import { ConfigManager } from '../config/config-manager';
 import * as fs from 'fs';
 
 // Mock all dependencies
 jest.mock('fs');
 jest.mock('../core/security-operations');
 jest.mock('../core/installation-operations');
-jest.mock('../core/verification-operations');
-jest.mock('../services/scheduling-service');
-jest.mock('../config/config-manager');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 
@@ -232,31 +226,31 @@ describe('CommandHandlers', () => {
   });
 
   describe('handleDaemonCommand', () => {
-    it('should handle daemon command with start action', async () => {
+    it('should handle daemon command with setup option', async () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await CommandHandlers.handleDaemonCommand({
-        action: 'start'
+        setup: true
       });
 
       consoleSpy.mockRestore();
     });
 
-    it('should handle daemon command with stop action', async () => {
+    it('should handle daemon command with stop option', async () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await CommandHandlers.handleDaemonCommand({
-        action: 'stop'
+        stop: true
       });
 
       consoleSpy.mockRestore();
     });
 
-    it('should handle daemon command with status action', async () => {
+    it('should handle daemon command with status option', async () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await CommandHandlers.handleDaemonCommand({
-        action: 'status'
+        status: true
       });
 
       consoleSpy.mockRestore();
@@ -265,9 +259,8 @@ describe('CommandHandlers', () => {
     it('should handle daemon command errors', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      await CommandHandlers.handleDaemonCommand({
-        action: 'invalid' as any
-      });
+      // Test with empty options to trigger error handling
+      await CommandHandlers.handleDaemonCommand({});
 
       consoleSpy.mockRestore();
     });

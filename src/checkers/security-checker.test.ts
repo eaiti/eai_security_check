@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { MacOSSecurityChecker } from './security-checker';
 import { exec } from 'child_process';
 
@@ -145,10 +146,12 @@ describe('MacOSSecurityChecker', () => {
   describe('checkFirewall', () => {
     it('should detect enabled firewall', async () => {
       mockExec.mockImplementation((cmd: any, callback: any) => {
-        if (cmd.includes('globalstate')) {
-          callback(null, { stdout: '1', stderr: '' });
-        } else if (cmd.includes('stealthenabled')) {
-          callback(null, { stdout: '1', stderr: '' });
+        if (cmd.includes('getglobalstate')) {
+          callback(null, { stdout: 'enabled', stderr: '' });
+        } else if (cmd.includes('getstealthmode')) {
+          callback(null, { stdout: 'enabled', stderr: '' });
+        } else {
+          callback(null, { stdout: '', stderr: '' });
         }
         return {} as any;
       });
@@ -239,12 +242,18 @@ describe('MacOSSecurityChecker', () => {
   describe('checkAutomaticUpdates', () => {
     it('should detect enabled automatic updates', async () => {
       mockExec.mockImplementation((cmd: any, callback: any) => {
-        if (cmd.includes('AutomaticCheckEnabled')) {
-          callback(null, { stdout: '1', stderr: '' });
+        if (cmd.includes('softwareupdate --schedule')) {
+          callback(null, { stdout: 'Automatic checking for updates is turned on.', stderr: '' });
         } else if (cmd.includes('AutomaticDownload')) {
           callback(null, { stdout: '1', stderr: '' });
         } else if (cmd.includes('AutomaticallyInstallMacOSUpdates')) {
           callback(null, { stdout: '1', stderr: '' });
+        } else if (cmd.includes('CriticalUpdateInstall')) {
+          callback(null, { stdout: '1', stderr: '' });
+        } else if (cmd.includes('ConfigDataInstall')) {
+          callback(null, { stdout: '1', stderr: '' });
+        } else {
+          callback(null, { stdout: '', stderr: '' });
         }
         return {} as any;
       });
@@ -267,12 +276,22 @@ describe('MacOSSecurityChecker', () => {
   describe('checkSharingServices', () => {
     it('should detect enabled sharing services', async () => {
       mockExec.mockImplementation((cmd: any, callback: any) => {
-        if (cmd.includes('file sharing')) {
-          callback(null, { stdout: 'com.apple.smbd', stderr: '' });
-        } else if (cmd.includes('screen sharing')) {
-          callback(null, { stdout: 'com.apple.screensharing', stderr: '' });
-        } else if (cmd.includes('media sharing')) {
-          callback(null, { stdout: 'com.apple.MediaSharingService', stderr: '' });
+        if (cmd.includes('com.apple.smbd Disabled')) {
+          callback(null, { stdout: '0', stderr: '' });
+        } else if (cmd.includes('sharing -l')) {
+          callback(null, { stdout: 'name: TestShare', stderr: '' });
+        } else if (cmd.includes('com.apple.screensharing')) {
+          callback(null, { stdout: '0', stderr: '' });
+        } else if (cmd.includes('com.apple.Music sharingEnabled')) {
+          callback(null, { stdout: '1', stderr: '' });
+        } else if (cmd.includes('com.apple.Photos sharingEnabled')) {
+          callback(null, { stdout: '1', stderr: '' });
+        } else if (cmd.includes('AirplayRecieverEnabled')) {
+          callback(null, { stdout: '1', stderr: '' });
+        } else if (cmd.includes('launchctl print')) {
+          callback(null, { stdout: 'state = running', stderr: '' });
+        } else {
+          callback(null, { stdout: '', stderr: '' });
         }
         return {} as any;
       });
@@ -309,7 +328,7 @@ describe('MacOSSecurityChecker', () => {
   describe('getCurrentMacOSVersion', () => {
     it('should return macOS version', async () => {
       mockExec.mockImplementation((cmd: any, callback: any) => {
-        callback(null, { stdout: 'ProductVersion:\t14.2.1', stderr: '' });
+        callback(null, { stdout: '14.2.1', stderr: '' });
         return {} as any;
       });
 
@@ -324,7 +343,7 @@ describe('MacOSSecurityChecker', () => {
       });
 
       const result = await checker.getCurrentMacOSVersion();
-      expect(result).toBe('unknown');
+      expect(result).toBe('0.0.0');
     });
   });
 });

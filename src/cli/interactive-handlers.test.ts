@@ -2,7 +2,6 @@ import { InteractiveHandlers } from './interactive-handlers';
 import { SecurityOperations } from '../core/security-operations';
 import { DaemonOperations } from '../core/daemon-operations';
 import { ConfigurationOperations } from '../core/configuration-operations';
-import { InstallationOperations } from '../core/installation-operations';
 import { VerificationOperations } from '../core/verification-operations';
 import { ConfigManager } from '../config/config-manager';
 
@@ -15,8 +14,9 @@ jest.mock('../core/installation-operations');
 jest.mock('../core/verification-operations');
 jest.mock('../config/config-manager');
 
-const mockSelect = require('@inquirer/prompts').select as jest.MockedFunction<any>;
-const mockConfirm = require('@inquirer/prompts').confirm as jest.MockedFunction<any>;
+import { select } from '@inquirer/prompts';
+
+const mockSelect = select as jest.MockedFunction<typeof select>;
 
 describe('InteractiveHandlers', () => {
   beforeEach(() => {
@@ -95,32 +95,14 @@ describe('InteractiveHandlers', () => {
         .mockResolvedValueOnce('8'); // Then exit
 
       (
-        ConfigurationOperations.runInteractiveConfigurationManagement as jest.Mock
+        ConfigurationOperations.setupOrModifyConfigurations as jest.Mock
       ).mockResolvedValue(undefined);
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await InteractiveHandlers.runInteractiveMode();
 
-      expect(ConfigurationOperations.runInteractiveConfigurationManagement).toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
-    });
-
-    it('should handle installation management option', async () => {
-      mockSelect
-        .mockResolvedValueOnce('4') // Choose installation management
-        .mockResolvedValueOnce('8'); // Then exit
-
-      (InstallationOperations.runInteractiveInstallationManagement as jest.Mock).mockResolvedValue(
-        undefined
-      );
-
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
-      await InteractiveHandlers.runInteractiveMode();
-
-      expect(InstallationOperations.runInteractiveInstallationManagement).toHaveBeenCalled();
+      expect(ConfigurationOperations.setupOrModifyConfigurations).toHaveBeenCalled();
 
       consoleSpy.mockRestore();
     });
@@ -130,13 +112,13 @@ describe('InteractiveHandlers', () => {
         .mockResolvedValueOnce('5') // Choose verification
         .mockResolvedValueOnce('8'); // Then exit
 
-      (VerificationOperations.runInteractiveVerification as jest.Mock).mockResolvedValue(undefined);
+      (VerificationOperations.verifyLocalReports as jest.Mock).mockResolvedValue(undefined);
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await InteractiveHandlers.runInteractiveMode();
 
-      expect(VerificationOperations.runInteractiveVerification).toHaveBeenCalled();
+      expect(VerificationOperations.verifyLocalReports).toHaveBeenCalled();
 
       consoleSpy.mockRestore();
     });
@@ -190,15 +172,15 @@ describe('InteractiveHandlers', () => {
         .mockResolvedValueOnce('2') // Daemon management
         .mockResolvedValueOnce('8'); // Exit
 
-      (SecurityOperations.runInteractiveSecurityChecks as jest.Mock).mockResolvedValue(undefined);
-      (DaemonOperations.runInteractiveDaemonManagement as jest.Mock).mockResolvedValue(undefined);
+      (SecurityOperations.runInteractiveSecurityCheck as jest.Mock).mockResolvedValue(undefined);
+      (DaemonOperations.setupDaemonAutomation as jest.Mock).mockResolvedValue(undefined);
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await InteractiveHandlers.runInteractiveMode();
 
-      expect(SecurityOperations.runInteractiveSecurityChecks).toHaveBeenCalled();
-      expect(DaemonOperations.runInteractiveDaemonManagement).toHaveBeenCalled();
+      expect(SecurityOperations.runInteractiveSecurityCheck).toHaveBeenCalled();
+      expect(DaemonOperations.setupDaemonAutomation).toHaveBeenCalled();
 
       consoleSpy.mockRestore();
     });

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { LinuxSecurityChecker } from './linux-security-checker';
 import { exec } from 'child_process';
 import * as fs from 'fs';
@@ -254,9 +255,7 @@ describe('LinuxSecurityChecker', () => {
     });
 
     it('should detect enabled firewalld', async () => {
-      let callCount = 0;
       mockExec.mockImplementation((cmd: any, callback: any) => {
-        callCount++;
         if (cmd.includes('ufw status')) {
           callback(new Error('UFW not found'), null);
         } else if (cmd.includes('firewall-cmd --state')) {
@@ -272,9 +271,7 @@ describe('LinuxSecurityChecker', () => {
     });
 
     it('should fallback to iptables check', async () => {
-      let callCount = 0;
       mockExec.mockImplementation((cmd: any, callback: any) => {
-        callCount++;
         if (cmd.includes('ufw status') || cmd.includes('firewall-cmd --state')) {
           callback(new Error('Command not found'), null);
         } else if (cmd.includes('iptables -L')) {
@@ -310,9 +307,7 @@ describe('LinuxSecurityChecker', () => {
     });
 
     it('should detect APT GPG verification enabled', async () => {
-      let callCount = 0;
       mockExec.mockImplementation((cmd: any, callback: any) => {
-        callCount++;
         if (cmd.includes('dnf config-manager')) {
           callback(new Error('DNF not found'), null);
         } else if (
@@ -361,9 +356,7 @@ describe('LinuxSecurityChecker', () => {
     });
 
     it('should detect enabled AppArmor', async () => {
-      let callCount = 0;
       mockExec.mockImplementation((cmd: any, callback: any) => {
-        callCount++;
         if (cmd.includes('getenforce')) {
           callback(new Error('SELinux not found'), null);
         } else if (cmd.includes('aa-status')) {
@@ -405,9 +398,7 @@ describe('LinuxSecurityChecker', () => {
     });
 
     it('should detect SSHD service running', async () => {
-      let callCount = 0;
       mockExec.mockImplementation((cmd: any, callback: any) => {
-        callCount++;
         if (cmd.includes('systemctl is-active ssh')) {
           callback(new Error('SSH not found'), null);
         } else if (cmd.includes('systemctl is-active sshd')) {

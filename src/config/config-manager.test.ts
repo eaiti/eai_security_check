@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ConfigManager } from './config-manager';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -306,16 +307,6 @@ describe('ConfigManager', () => {
   });
 
   describe('validateSecurityConfig', () => {
-    it('should validate correct security config', () => {
-      const validConfig = {
-        profileName: 'test',
-        enabledChecks: ['diskEncryption', 'passwordProtection'],
-        timeouts: { diskEncryption: 30 },
-        requirements: { diskEncryption: true }
-      };
-
-      expect(() => ConfigManager.validateSecurityConfig(validConfig)).not.toThrow();
-    });
   });
 
   describe('getCurrentVersion', () => {

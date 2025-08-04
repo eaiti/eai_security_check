@@ -85,22 +85,29 @@ export class LinuxSecurityChecker implements ISecurityChecker {
           'gsettings get org.gnome.desktop.screensaver lock-delay 2>/dev/null || echo "not-found"'
         );
         if (!gnomeTimeout.includes('not-found')) {
-          const delay = parseInt(gnomeTimeout.replace(/[^0-9]/g, ''));
+          const delayMatch = gnomeTimeout.trim().match(/\d+$/);
+          const delay = delayMatch ? parseInt(delayMatch[0]) : -1;
           requirePasswordImmediately = delay === 0;
           passwordRequiredAfterLock = true;
+        } else {
+          // GNOME not available, try KDE settings
+          try {
+            const kdeConfigPath = `${process.env.HOME}/.config/kscreenlockerrc`;
+            if (fs.existsSync(kdeConfigPath)) {
+              const kdeConfig = fs.readFileSync(kdeConfigPath, 'utf-8');
+              passwordRequiredAfterLock = !kdeConfig.includes('Autolock=false');
+            } else {
+              // Default to requiring password for screen lock
+              passwordRequiredAfterLock = true;
+            }
+          } catch {
+            // Default to requiring password for screen lock
+            passwordRequiredAfterLock = true;
+          }
         }
       } catch {
-        // Try KDE settings
-        try {
-          const kdeConfigPath = `${process.env.HOME}/.config/kscreenlockerrc`;
-          if (fs.existsSync(kdeConfigPath)) {
-            const kdeConfig = fs.readFileSync(kdeConfigPath, 'utf-8');
-            passwordRequiredAfterLock = !kdeConfig.includes('Autolock=false');
-          }
-        } catch {
-          // Default to requiring password for screen lock
-          passwordRequiredAfterLock = true;
-        }
+        // Default to requiring password for screen lock
+        passwordRequiredAfterLock = true;
       }
 
       return {
@@ -128,7 +135,8 @@ export class LinuxSecurityChecker implements ISecurityChecker {
       const { stdout } = await execAsync(
         'gsettings get org.gnome.desktop.session idle-delay 2>/dev/null'
       );
-      const seconds = parseInt(stdout.replace(/[^0-9]/g, ''));
+      const delayMatch = stdout.trim().match(/\d+$/);
+      const seconds = delayMatch ? parseInt(delayMatch[0]) : NaN;
       if (!isNaN(seconds)) {
         return Math.round(seconds / 60); // Convert to minutes
       }
