@@ -449,4 +449,4 @@ jobs:
           - **Detailed reporting**: Actionable recommendations with educational content
           - **Daemon mode**: Scheduled automated security audits with email notifications
           - **Signed executables**: Reduced security warnings on supported platforms" \
-            \${RELEASE_FILES[@]}
+            "${RELEASE_FILES[@]}"
