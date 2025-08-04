@@ -306,11 +306,27 @@ describe('ConfigManager', () => {
     });
   });
 
-  describe('validateSecurityConfig', () => {});
-
   describe('getCurrentVersion', () => {
+    beforeEach(() => {
+      // Clear all mocks before each test
+      jest.clearAllMocks();
+    });
+
     it('should return current version from package.json', () => {
-      mockedFs.readFileSync.mockReturnValue(JSON.stringify({ version: '1.1.0' }));
+      // Mock existsSync to return true for specific paths and false for others
+      mockedFs.existsSync.mockImplementation((path: any) => {
+        const pathStr = String(path);
+        return pathStr.includes('package.json');
+      });
+
+      // Mock readFileSync to return the expected version
+      mockedFs.readFileSync.mockImplementation((path: any) => {
+        const pathStr = String(path);
+        if (pathStr.includes('package.json')) {
+          return JSON.stringify({ version: '1.1.0' });
+        }
+        throw new Error('File not found');
+      });
 
       const version = ConfigManager.getCurrentVersion();
 
@@ -318,10 +334,25 @@ describe('ConfigManager', () => {
     });
 
     it('should handle missing package.json', () => {
+      // Mock existsSync to return false for all paths
+      mockedFs.existsSync.mockReturnValue(false);
+
+      // Mock readFileSync to throw for any path
       mockedFs.readFileSync.mockImplementation(() => {
         throw new Error('File not found');
       });
-      mockedFs.existsSync.mockReturnValue(false);
+
+      const version = ConfigManager.getCurrentVersion();
+
+      expect(version).toBe('1.1.0'); // Hard-coded fallback
+    });
+
+    it('should handle invalid JSON in package.json', () => {
+      // Mock existsSync to return true
+      mockedFs.existsSync.mockReturnValue(true);
+
+      // Mock readFileSync to return invalid JSON
+      mockedFs.readFileSync.mockReturnValue('invalid json');
 
       const version = ConfigManager.getCurrentVersion();
 
@@ -392,15 +423,6 @@ describe('ConfigManager', () => {
       });
 
       expect(() => ConfigManager.ensureCentralizedDirectories()).toThrow('Permission denied');
-    });
-
-    it('should handle invalid JSON in package.json', () => {
-      mockedFs.readFileSync.mockReturnValue('invalid json');
-      mockedFs.existsSync.mockReturnValue(true);
-
-      const version = ConfigManager.getCurrentVersion();
-
-      expect(version).toBe('1.1.0'); // Hard-coded fallback
     });
   });
 });
