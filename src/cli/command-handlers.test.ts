@@ -224,7 +224,21 @@ describe('CommandHandlers', () => {
       // Mock fs.existsSync to return true for config path
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
 
-      // Mock SchedulingService
+      // Mock static methods on SchedulingService
+      mockSchedulingService.stopDaemon = jest.fn().mockResolvedValue({
+        success: true,
+        message: 'Daemon stopped successfully'
+      });
+
+      mockSchedulingService.getDaemonPlatformInfo = jest.fn().mockReturnValue({
+        platform: 'linux',
+        supportsScheduling: true,
+        supportsRestart: true,
+        supportsAutoStart: true,
+        limitations: []
+      });
+
+      // Mock SchedulingService instance
       mockSchedulingService.mockImplementation(
         () =>
           ({
@@ -239,16 +253,13 @@ describe('CommandHandlers', () => {
               config: {
                 intervalDays: 7,
                 email: { to: [] },
-                scp: { enabled: false }
+                scp: { enabled: false },
+                securityProfile: 'relaxed'
               }
             }),
-            stopDaemon: jest.fn(),
-            startDaemon: jest.fn()
+            startDaemon: jest.fn().mockResolvedValue(undefined)
           }) as unknown as InstanceType<typeof SchedulingService>
       );
-      mockSchedulingService.getDaemonPlatformInfo = jest.fn().mockReturnValue({
-        platform: 'linux'
-      });
     });
 
     it('should handle daemon command with stop option', async () => {
