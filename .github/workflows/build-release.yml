@@ -79,6 +79,9 @@ jobs:
             bin/index-linux.sig
             bin/index-linux.sha256
           retention-days: 30
+        # Note: GitHub Actions artifacts are automatically zipped for
+        # intermediate storage. The final release will extract and upload
+        # these as individual executable files
 
       - name: Upload macOS artifacts (unsigned)
         uses: actions/upload-artifact@v4
@@ -86,6 +89,10 @@ jobs:
           name: macos-executables-unsigned
           path: bin/index-macos
           retention-days: 30
+        # Note: GitHub Actions artifacts are automatically zipped for
+        # intermediate storage
+        # The final release will extract and upload these as individual
+        # executable files
 
   build-windows:
     runs-on: windows-latest
@@ -149,7 +156,11 @@ jobs:
             bin/index.exe
             bin/index.exe.sha256
           retention-days: 30
-        
+        # Note: GitHub Actions artifacts are automatically zipped for
+        # intermediate storage
+        # The final release will extract and upload these as individual
+        # executable files
+
       - name: Upload unsigned Windows executable (fallback)
         if: ${{ !hashFiles('bin/index.exe.sha256') }}
         uses: actions/upload-artifact@v4
@@ -157,6 +168,7 @@ jobs:
           name: windows-executables-unsigned
           path: bin/index.exe
           retention-days: 30
+        # Note: Fallback for unsigned executables - final release will still be individual files
 
   sign-macos:
     runs-on: macos-latest
@@ -191,16 +203,16 @@ jobs:
         run: |
           # Create certificate file
           echo "$APPLE_CERTIFICATE_P12" | base64 -d > certificate.p12
-          
+
           # Create temporary keychain
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
-          
+
           # Import certificate
           security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
-          
+
           # Clean up certificate file
           rm certificate.p12
 
@@ -221,6 +233,10 @@ jobs:
           name: macos-executables-signed
           path: bin/index-macos
           retention-days: 30
+        # Note: GitHub Actions artifacts are automatically zipped for
+        # intermediate storage
+        # The final release will extract and upload these as individual
+        # executable files
 
   release:
     needs: [build-linux-macos, build-windows, sign-macos]
@@ -276,49 +292,23 @@ jobs:
           name: macos-executables-unsigned
           path: bin/
 
-      - name: List files for debugging
-        run: ls -la bin/
-
-      - name: Check signing status
+      - name: List downloaded artifacts
         run: |
-          echo "Checking signing status for release notes..."
-          
-          # Check macOS signing
-          MACOS_SIGNED="⚠️  Unsigned"
-          if [ -f "bin/eai-security-check-macos-${VERSION}" ]; then
-            if codesign -dv "bin/eai-security-check-macos-${VERSION}" 2>&1 | grep -q 'Authority='; then
-              MACOS_SIGNED="✅ **Code Signed**"
-            fi
-          fi
-          echo "MACOS_SIGNED=${MACOS_SIGNED}" >> $GITHUB_ENV
-          
-          # Check Linux signing
-          LINUX_SIGNED="⚠️  Unsigned"
-          if [ -f "bin/eai-security-check-linux-${VERSION}.sig" ]; then
-            LINUX_SIGNED="✅ **GPG Signed**"
-          fi
-          echo "LINUX_SIGNED=${LINUX_SIGNED}" >> $GITHUB_ENV
-          
-          # Check Windows checksum
-          WINDOWS_CHECKSUM="⚠️  No checksum"
-          if [ -f "bin/eai-security-check-windows-${VERSION}.exe.sha256" ]; then
-            WINDOWS_CHECKSUM="✅ **Checksum Available**"
-          fi
-          echo "WINDOWS_CHECKSUM=${WINDOWS_CHECKSUM}" >> $GITHUB_ENV
-          
-          echo "Signing status: macOS=${MACOS_SIGNED}, Linux=${LINUX_SIGNED}, Windows=${WINDOWS_CHECKSUM}"
-        env:
-          VERSION: ${{ github.ref_name }}
+          echo "📦 Downloaded artifacts from build jobs:"
+          ls -la bin/
+          echo "These will be renamed with version and uploaded as individual executable files to the release."
 
       - name: Rename executables with version
         run: |
           VERSION=${{ github.ref_name }}
-          
+
+          echo "🏷️  Renaming executables with version ${VERSION}"
+
           # Rename executables
           mv bin/index-macos bin/eai-security-check-macos-${VERSION}
           mv bin/index-linux bin/eai-security-check-linux-${VERSION}
           mv bin/index.exe bin/eai-security-check-windows-${VERSION}.exe
-          
+
           # Rename signature and checksum files
           if [ -f bin/index-linux.sig ]; then
             mv bin/index-linux.sig bin/eai-security-check-linux-${VERSION}.sig
@@ -329,38 +319,85 @@ jobs:
           if [ -f bin/index.exe.sha256 ]; then
             mv bin/index.exe.sha256 bin/eai-security-check-windows-${VERSION}.exe.sha256
           fi
-          
+
+          echo "✅ Final release files ready:"
           ls -la bin/
 
-      - name: Create Release
+      - name: Check signing status
+        run: |
+          VERSION=${{ github.ref_name }}
+          echo "🔍 Checking signing status for release notes..."
+
+          # Check macOS signing
+          MACOS_SIGNED="⚠️  Unsigned"
+          if [ -f "bin/eai-security-check-macos-${VERSION}" ]; then
+            if command -v codesign >/dev/null 2>&1; then
+              if codesign -dv "bin/eai-security-check-macos-${VERSION}" 2>&1 | grep -q 'Authority='; then
+                MACOS_SIGNED="✅ **Code Signed**"
+              fi
+            fi
+          fi
+          echo "MACOS_SIGNED=${MACOS_SIGNED}" >> $GITHUB_ENV
+
+          # Check Linux signing
+          LINUX_SIGNED="⚠️  Unsigned"
+          if [ -f "bin/eai-security-check-linux-${VERSION}.sig" ]; then
+            LINUX_SIGNED="✅ **GPG Signed**"
+          fi
+          echo "LINUX_SIGNED=${LINUX_SIGNED}" >> $GITHUB_ENV
+
+          # Check Windows checksum
+          WINDOWS_CHECKSUM="⚠️  No checksum"
+          if [ -f "bin/eai-security-check-windows-${VERSION}.exe.sha256" ]; then
+            WINDOWS_CHECKSUM="✅ **Checksum Available**"
+          fi
+          echo "WINDOWS_CHECKSUM=${WINDOWS_CHECKSUM}" >> $GITHUB_ENV
+
+          echo "📊 Signing status: macOS=${MACOS_SIGNED}, Linux=${LINUX_SIGNED}, Windows=${WINDOWS_CHECKSUM}"
+
+      - name: Create GitHub Release with Individual Executables
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=${{ github.ref_name }}
-          
-          # Build file list for release
+
+          echo "🚀 Creating GitHub release with individual executable files (not zipped)"
+
+          # Build file list for release - these will be uploaded as individual files
           RELEASE_FILES=()
           RELEASE_FILES+=("./bin/eai-security-check-macos-${VERSION}")
           RELEASE_FILES+=("./bin/eai-security-check-linux-${VERSION}")
           RELEASE_FILES+=("./bin/eai-security-check-windows-${VERSION}.exe")
-          
+
           # Add signature files if they exist
           if [ -f "./bin/eai-security-check-linux-${VERSION}.sig" ]; then
             RELEASE_FILES+=("./bin/eai-security-check-linux-${VERSION}.sig")
+            echo "📝 Adding Linux GPG signature file"
           fi
           if [ -f "./bin/eai-security-check-linux-${VERSION}.sha256" ]; then
             RELEASE_FILES+=("./bin/eai-security-check-linux-${VERSION}.sha256")
+            echo "🔍 Adding Linux checksum file"
           fi
           if [ -f "./bin/eai-security-check-windows-${VERSION}.exe.sha256" ]; then
             RELEASE_FILES+=("./bin/eai-security-check-windows-${VERSION}.exe.sha256")
+            echo "🔍 Adding Windows checksum file"
           fi
-          
+
+          echo "📋 Files to be uploaded as individual downloads:"
+          for file in "${RELEASE_FILES[@]}"; do
+            if [ -f "$file" ]; then
+              echo "  ✅ $file ($(stat -c %s "$file" 2>/dev/null || stat -f %z "$file" 2>/dev/null || echo "unknown size") bytes)"
+            else
+              echo "  ❌ $file (missing)"
+            fi
+          done
+
           gh release create ${{ github.ref_name }} \
             --title "Release ${{ github.ref_name }}" \
             --notes "## EAI Security Check Release
 
           ### 📦 Standalone Executables
-          Download the executables for your platform:
+          **Direct download individual executable files (not zipped):**
           - **macOS**: \`eai-security-check-macos-${VERSION}\` ${{ env.MACOS_SIGNED }}
           - **Linux**: \`eai-security-check-linux-${VERSION}\` ${{ env.LINUX_SIGNED }}
           - **Windows**: \`eai-security-check-windows-${VERSION}.exe\` ${{ env.WINDOWS_CHECKSUM }}
@@ -391,7 +428,7 @@ jobs:
           \`\`\`bash
           # Import signing key (first time only)
           curl -fsSL https://github.com/eaiti/eai_security_check/releases/download/${VERSION}/signing-key.pub | gpg --import
-          
+
           # Verify signature
           gpg --verify eai-security-check-linux-${VERSION}.sig eai-security-check-linux-${VERSION}
           \`\`\`
@@ -400,7 +437,7 @@ jobs:
           \`\`\`bash
           # Linux/macOS
           sha256sum -c eai-security-check-linux-${VERSION}.sha256
-          
+
           # Windows (PowerShell)
           Get-FileHash eai-security-check-windows-${VERSION}.exe -Algorithm SHA256
           \`\`\`
