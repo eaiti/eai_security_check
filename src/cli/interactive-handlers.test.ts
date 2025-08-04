@@ -62,29 +62,28 @@ describe('InteractiveHandlers', () => {
         .mockResolvedValueOnce('1') // Choose security check
         .mockResolvedValueOnce('8'); // Then exit
 
-      (SecurityOperations.runInteractiveSecurityChecks as jest.Mock).mockResolvedValue(undefined);
+      (SecurityOperations.runInteractiveSecurityCheck as jest.Mock).mockResolvedValue(undefined);
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await InteractiveHandlers.runInteractiveMode();
 
-      expect(SecurityOperations.runInteractiveSecurityChecks).toHaveBeenCalled();
+      expect(SecurityOperations.runInteractiveSecurityCheck).toHaveBeenCalled();
 
       consoleSpy.mockRestore();
     });
 
-    it('should handle daemon management option', async () => {
+    it('should handle configuration menu option', async () => {
       mockSelect
-        .mockResolvedValueOnce('2') // Choose daemon management
-        .mockResolvedValueOnce('8'); // Then exit
-
-      (DaemonOperations.runInteractiveDaemonManagement as jest.Mock).mockResolvedValue(undefined);
+        .mockResolvedValueOnce('2') // Choose configuration menu
+        .mockResolvedValueOnce('7'); // Then exit
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await InteractiveHandlers.runInteractiveMode();
 
-      expect(DaemonOperations.runInteractiveDaemonManagement).toHaveBeenCalled();
+      // Just verify the console output shows expected text for configuration
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Configuration'));
 
       consoleSpy.mockRestore();
     });

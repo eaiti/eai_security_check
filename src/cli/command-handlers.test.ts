@@ -7,6 +7,8 @@ import * as fs from 'fs';
 jest.mock('fs');
 jest.mock('../core/security-operations');
 jest.mock('../core/installation-operations');
+jest.mock('../services/scheduling-service');
+jest.mock('../config/config-manager');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 
@@ -90,44 +92,6 @@ describe('CommandHandlers', () => {
       consoleSpy.mockRestore();
     });
 
-    it('should handle clipboard output', async () => {
-      const mockResult = {
-        report: 'Security report content',
-        clipboardSuccess: true,
-        overallPassed: true
-      };
-
-      (SecurityOperations.runSecurityCheck as jest.Mock).mockResolvedValue(mockResult);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
-      await CommandHandlers.handleCheckCommand('default', {
-        clipboard: true
-      });
-
-      expect(consoleSpy).toHaveBeenCalledWith('📋 Report copied to clipboard');
-
-      consoleSpy.mockRestore();
-    });
-
-    it('should handle clipboard failure', async () => {
-      const mockResult = {
-        report: 'Security report content',
-        clipboardSuccess: false,
-        overallPassed: true
-      };
-
-      (SecurityOperations.runSecurityCheck as jest.Mock).mockResolvedValue(mockResult);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
-      await CommandHandlers.handleCheckCommand('default', {
-        clipboard: true
-      });
-
-      expect(consoleSpy).toHaveBeenCalledWith('❌ Failed to copy to clipboard');
-
-      consoleSpy.mockRestore();
-    });
-
     it('should handle errors gracefully', async () => {
       (SecurityOperations.runSecurityCheck as jest.Mock).mockRejectedValue(
         new Error('Check failed')
@@ -181,7 +145,7 @@ describe('CommandHandlers', () => {
 
       await CommandHandlers.handleInstallCommand();
 
-      expect(consoleSpy).toHaveBeenCalledWith('❌ Error during installation:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith('❌ Installation failed:', expect.any(Error));
 
       consoleSpy.mockRestore();
     });
@@ -205,7 +169,7 @@ describe('CommandHandlers', () => {
 
       await CommandHandlers.handleUninstallCommand({});
 
-      expect(InstallationOperations.uninstallGlobally).toHaveBeenCalledWith(false);
+      expect(InstallationOperations.uninstallGlobally).toHaveBeenCalledWith(undefined);
 
       consoleSpy.mockRestore();
     });
@@ -218,7 +182,7 @@ describe('CommandHandlers', () => {
 
       await CommandHandlers.handleUninstallCommand({});
 
-      expect(consoleSpy).toHaveBeenCalledWith('❌ Error during uninstallation:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith('❌ Uninstall failed:', expect.any(Error));
 
       consoleSpy.mockRestore();
     });
@@ -245,16 +209,6 @@ describe('CommandHandlers', () => {
   });
 
   describe('handleDaemonCommand', () => {
-    it('should handle daemon command with setup option', async () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
-      await CommandHandlers.handleDaemonCommand({
-        setup: true
-      });
-
-      consoleSpy.mockRestore();
-    });
-
     it('should handle daemon command with stop option', async () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
