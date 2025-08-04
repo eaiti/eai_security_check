@@ -94,8 +94,20 @@ class ElectronMain {
     });
 
     ipcMain.handle('manage-daemon', async (event, action, config) => {
-      const configArg = config ? `--config "${JSON.stringify(config).replace(/"/g, '\\"')}"` : '';
-      return this.runCliCommand(`daemon ${action} ${configArg}`);
+      if (action === 'configure') {
+        // Handle configuration save
+        try {
+          const configPath = path.join(app.getPath('userData'), 'daemon-config.json');
+          fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+          return { success: true };
+        } catch (error) {
+          console.error('Failed to save daemon config:', error);
+          return { success: false, error: error.message };
+        }
+      } else {
+        const configArg = config ? `--config "${JSON.stringify(config).replace(/"/g, '\\"')}"` : '';
+        return this.runCliCommand(`daemon ${action} ${configArg}`);
+      }
     });
 
     ipcMain.handle('install-globally', async () => {

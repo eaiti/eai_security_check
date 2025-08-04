@@ -33,7 +33,7 @@ declare global {
       runSecurityCheck: (profile: string, config?: string) => Promise<SecurityCheckReport>;
       runInteractive: () => Promise<void>;
       verifyReport: (path: string) => Promise<boolean>;
-      manageDaemon: (action: 'start' | 'stop' | 'status', config?: any) => Promise<any>;
+      manageDaemon: (action: 'start' | 'stop' | 'status' | 'configure', config?: any) => Promise<any>;
       installGlobally: () => Promise<boolean>;
       uninstallGlobally: (removeConfig?: boolean) => Promise<boolean>;
       updateApp: () => Promise<boolean>;
@@ -108,7 +108,7 @@ export class ElectronService {
     return window.electronAPI!.verifyReport(path);
   }
 
-  async manageDaemon(action: 'start' | 'stop' | 'status', config?: any): Promise<any> {
+  async manageDaemon(action: 'start' | 'stop' | 'status' | 'configure', config?: any): Promise<any> {
     if (!this._isElectron()) {
       throw new Error('Daemon management requires Electron');
     }

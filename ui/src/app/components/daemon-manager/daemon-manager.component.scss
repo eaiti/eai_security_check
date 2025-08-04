@@ -1,0 +1,243 @@
+.daemon-manager-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #eee;
+
+  h1 {
+    color: #333;
+    margin: 0;
+    font-size: 2.5em;
+  }
+
+  p {
+    color: #666;
+    margin: 10px 0 0 0;
+    font-size: 1.1em;
+  }
+}
+
+.status-card {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+  h2 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.3em;
+  }
+
+  .status-info {
+    display: grid;
+    gap: 15px;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+
+    .label {
+      font-weight: 600;
+      color: #666;
+      min-width: 100px;
+    }
+
+    .value {
+      color: #333;
+
+      &.status-running {
+        color: #28a745;
+        font-weight: 600;
+      }
+
+      &.status-stopped {
+        color: #dc3545;
+        font-weight: 600;
+      }
+    }
+  }
+
+  .loading {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+  }
+}
+
+.controls {
+  margin-bottom: 30px;
+
+  .control-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+.btn {
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.2s;
+
+  &.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    &:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+
+  &.btn-secondary {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+
+    &:hover:not(:disabled) {
+      background: #e9ecef;
+    }
+
+    &:disabled {
+      background: #f8f9fa;
+      color: #adb5bd;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.configuration {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 25px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+  h2 {
+    margin: 0 0 25px 0;
+    color: #333;
+    font-size: 1.3em;
+  }
+
+  .config-form {
+    display: grid;
+    gap: 20px;
+  }
+
+  .form-group {
+    display: grid;
+    gap: 8px;
+
+    label {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 16px;
+
+      &:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+      }
+    }
+
+    .help-text {
+      color: #666;
+      font-size: 14px;
+    }
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-start;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+}
+
+.message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  border-radius: 6px;
+  font-weight: 500;
+  z-index: 1000;
+  max-width: 400px;
+  animation: slideIn 0.3s ease-out;
+
+  &.message-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  &.message-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+
+  &.message-info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .control-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+    max-width: 300px;
+  }
+}
