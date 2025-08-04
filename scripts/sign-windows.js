@@ -20,7 +20,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const EXECUTABLE_NAME = 'index.exe';
+const EXECUTABLE_NAME = 'index-win.exe';
 const BIN_DIR = path.join(__dirname, '..', 'bin');
 const EXECUTABLE_PATH = path.join(BIN_DIR, EXECUTABLE_NAME);
 

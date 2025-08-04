@@ -487,7 +487,7 @@ export class CommandHandlers {
       console.log(`Help for command: ${command}`);
     } else {
       console.log(`
-🔒 EAI Security Check - Cross-Platform Security Audit Tool v1.1.0
+🔒 EAI Security Check - Cross-Platform Security Audit Tool v1.0.0
 
 OVERVIEW:
 This tool performs comprehensive security audits of macOS and Linux systems against

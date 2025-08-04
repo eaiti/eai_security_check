@@ -627,9 +627,9 @@ export class ConfigManager {
       }
 
       // Fallback to command line version if available
-      return '1.1.0'; // Hard-coded fallback
+      return '1.0.0'; // Hard-coded fallback
     } catch {
-      return '1.1.0'; // Hard-coded fallback
+      return '1.0.0'; // Hard-coded fallback
     }
   }
 

@@ -54,7 +54,7 @@ npm run pkg:build  # Created index-macos, index-linux
 
 ### After  
 ```bash
-npm run pkg:build  # Creates index-macos, index-linux, index.exe
+npm run pkg:build  # Creates index-macos, index-linux, index-win.exe
 npm run sign:all   # Signs all executables (with appropriate certs)
 ```
 

@@ -121,7 +121,10 @@ describe('CLI Index', () => {
         return;
       }
       // Command should exit with error code, that's expected
-      expect((error as any)?.stderr || (error as any)?.stdout).toContain('unknown command');
+      expect(
+        (error as { stderr?: string; stdout?: string })?.stderr ||
+          (error as { stderr?: string; stdout?: string })?.stdout
+      ).toContain('unknown command');
     }
   });
 });
