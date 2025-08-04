@@ -16,7 +16,7 @@ describe('CommandHandlers', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Mock process.exit to prevent test termination
     originalExit = process.exit;
     mockExit = jest.fn();
