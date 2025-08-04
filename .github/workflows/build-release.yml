@@ -47,10 +47,22 @@ jobs:
       - name: Build TypeScript
         run: npm run build
 
-      - name: Build Linux and macOS executables
+      - name: Build Linux and macOS CLI executables
         run: |
           npm run pkg:linux
           npm run pkg:macos
+
+      - name: Install UI dependencies and build UI
+        run: |
+          cd ui
+          npm ci
+          npm run build:prod
+
+      - name: Build UI Linux and macOS executables
+        run: |
+          cd ui
+          npm run dist:linux
+          npm run dist:mac
 
       - name: Install osslsigncode for cross-platform Windows signing
         run: sudo apt-get update && sudo apt-get install -y osslsigncode
@@ -70,21 +82,35 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: npm run sign:linux
 
-      - name: Upload Linux artifacts
+      - name: Upload Linux CLI artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-executables
+          name: linux-cli-executables
           path: |
             bin/index-linux
             bin/index-linux.sig
             bin/index-linux.sha256
           retention-days: 30
 
-      - name: Upload macOS artifacts (unsigned)
+      - name: Upload Linux UI artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-executables-unsigned
+          name: linux-ui-executables
+          path: ui/release/*.AppImage
+          retention-days: 30
+
+      - name: Upload macOS CLI artifacts (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-cli-executables-unsigned
           path: bin/index-macos
+          retention-days: 30
+
+      - name: Upload macOS UI artifacts (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-ui-executables-unsigned
+          path: ui/release/*.dmg
           retention-days: 30
 
   build-windows:
@@ -121,8 +147,19 @@ jobs:
       - name: Build TypeScript
         run: npm run build
 
-      - name: Build Windows executable
+      - name: Build Windows CLI executable
         run: npm run pkg:windows
+
+      - name: Install UI dependencies and build UI
+        run: |
+          cd ui
+          npm ci
+          npm run build:prod
+
+      - name: Build UI Windows executable
+        run: |
+          cd ui
+          npm run dist:win
 
       - name: Setup certificate for Windows signing
         if: env.WINDOWS_CERT_FILE != ''
@@ -134,19 +171,26 @@ jobs:
           [System.IO.File]::WriteAllBytes("$env:TEMP\certificate.p12", $certBytes)
           echo "WINDOWS_CERT_FILE_PATH=$env:TEMP\certificate.p12" >> $env:GITHUB_ENV
 
-      - name: Sign Windows executable
+      - name: Sign Windows CLI executable
         env:
           WINDOWS_CERT_FILE: ${{ env.WINDOWS_CERT_FILE_PATH }}
           WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
         run: npm run sign:windows
 
-      - name: Upload Windows artifacts
+      - name: Upload Windows CLI artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-executables
+          name: windows-cli-executables
           path: |
             bin/index.exe
             bin/index.exe.sha256
+          retention-days: 30
+
+      - name: Upload Windows UI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-ui-executables
+          path: ui/release/*.exe
           retention-days: 30
 
   sign-macos:
@@ -168,11 +212,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download unsigned macOS executable
+      - name: Download unsigned macOS CLI executable
         uses: actions/download-artifact@v4
         with:
-          name: macos-executables-unsigned
+          name: macos-cli-executables-unsigned
           path: bin/
+
+      - name: Download unsigned macOS UI executable
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-ui-executables-unsigned
+          path: ui/release/
 
       - name: Setup Apple certificates
         if: env.APPLE_CERTIFICATE_P12 != ''
@@ -195,7 +245,7 @@ jobs:
           # Clean up certificate file
           rm certificate.p12
 
-      - name: Sign macOS executable
+      - name: Sign macOS CLI executable
         env:
           APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
           APPLE_NOTARIZATION_USERNAME: ${{ secrets.APPLE_NOTARIZATION_USERNAME }}
@@ -206,11 +256,18 @@ jobs:
           export PATH="/usr/local/bin:$PATH"
           node scripts/sign-macos.js
 
-      - name: Upload signed macOS artifacts
+      - name: Upload signed macOS CLI artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-executables-signed
+          name: macos-cli-executables-signed
           path: bin/index-macos
+          retention-days: 30
+
+      - name: Upload signed macOS UI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-ui-executables-signed
+          path: ui/release/*.dmg
           retention-days: 30
 
   release:
@@ -233,53 +290,88 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Linux artifacts
+      - name: Download Linux CLI artifacts
         uses: actions/download-artifact@v4
         with:
-          name: linux-executables
+          name: linux-cli-executables
           path: bin/
 
-      - name: Download Windows artifacts
+      - name: Download Linux UI artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-executables
+          name: linux-ui-executables
+          path: ui-bin/
+
+      - name: Download Windows CLI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-cli-executables
           path: bin/
 
-      - name: Download signed macOS artifacts
+      - name: Download Windows UI artifacts
         uses: actions/download-artifact@v4
         with:
-          name: macos-executables-signed
+          name: windows-ui-executables
+          path: ui-bin/
+
+      - name: Download signed macOS CLI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-cli-executables-signed
           path: bin/
         continue-on-error: true
 
-      - name: Download unsigned macOS artifacts (fallback)
+      - name: Download unsigned macOS CLI artifacts (fallback)
         if: ${{ hashFiles('bin/index-macos') == '' }}
         uses: actions/download-artifact@v4
         with:
-          name: macos-executables-unsigned
+          name: macos-cli-executables-unsigned
           path: bin/
 
+      - name: Download signed macOS UI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-ui-executables-signed
+          path: ui-bin/
+        continue-on-error: true
+
+      - name: Download unsigned macOS UI artifacts (fallback)
+        if: ${{ hashFiles('ui-bin/*.dmg') == '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-ui-executables-unsigned
+          path: ui-bin/
+
       - name: List files for debugging
-        run: ls -la bin/
+        run: |
+          echo "CLI executables:"
+          ls -la bin/
+          echo "UI executables:"
+          ls -la ui-bin/
 
       - name: Rename executables with version
         run: |
           VERSION=${{ github.ref_name }}
           
-          # Rename executables
-          mv bin/index-macos bin/eai-security-check-macos-${VERSION}
-          mv bin/index-linux bin/eai-security-check-linux-${VERSION}
-          mv bin/index.exe bin/eai-security-check-windows-${VERSION}.exe
+          # Rename CLI executables
+          mv bin/index-macos bin/eai-security-check-cli-macos-${VERSION}
+          mv bin/index-linux bin/eai-security-check-cli-linux-${VERSION}
+          mv bin/index.exe bin/eai-security-check-cli-windows-${VERSION}.exe
+          
+          # Rename UI executables (find and rename dynamically)
+          find ui-bin -name "*.AppImage" -exec mv {} bin/eai-security-check-ui-linux-${VERSION}.AppImage \;
+          find ui-bin -name "*.dmg" -exec mv {} bin/eai-security-check-ui-macos-${VERSION}.dmg \;
+          find ui-bin -name "*.exe" -exec mv {} bin/eai-security-check-ui-windows-${VERSION}.exe \;
           
           # Rename signature and checksum files
           if [ -f bin/index-linux.sig ]; then
-            mv bin/index-linux.sig bin/eai-security-check-linux-${VERSION}.sig
+            mv bin/index-linux.sig bin/eai-security-check-cli-linux-${VERSION}.sig
           fi
           if [ -f bin/index-linux.sha256 ]; then
-            mv bin/index-linux.sha256 bin/eai-security-check-linux-${VERSION}.sha256
+            mv bin/index-linux.sha256 bin/eai-security-check-cli-linux-${VERSION}.sha256
           fi
           if [ -f bin/index.exe.sha256 ]; then
-            mv bin/index.exe.sha256 bin/eai-security-check-windows-${VERSION}.exe.sha256
+            mv bin/index.exe.sha256 bin/eai-security-check-cli-windows-${VERSION}.exe.sha256
           fi
           
           ls -la bin/
@@ -292,30 +384,64 @@ jobs:
           
           # Build file list for release
           RELEASE_FILES=()
-          RELEASE_FILES+=("./bin/eai-security-check-macos-${VERSION}")
-          RELEASE_FILES+=("./bin/eai-security-check-linux-${VERSION}")
-          RELEASE_FILES+=("./bin/eai-security-check-windows-${VERSION}.exe")
+          
+          # CLI executables
+          RELEASE_FILES+=("./bin/eai-security-check-cli-macos-${VERSION}")
+          RELEASE_FILES+=("./bin/eai-security-check-cli-linux-${VERSION}")
+          RELEASE_FILES+=("./bin/eai-security-check-cli-windows-${VERSION}.exe")
+          
+          # UI executables  
+          if [ -f "./bin/eai-security-check-ui-macos-${VERSION}.dmg" ]; then
+            RELEASE_FILES+=("./bin/eai-security-check-ui-macos-${VERSION}.dmg")
+          fi
+          if [ -f "./bin/eai-security-check-ui-linux-${VERSION}.AppImage" ]; then
+            RELEASE_FILES+=("./bin/eai-security-check-ui-linux-${VERSION}.AppImage")
+          fi
+          if [ -f "./bin/eai-security-check-ui-windows-${VERSION}.exe" ]; then
+            RELEASE_FILES+=("./bin/eai-security-check-ui-windows-${VERSION}.exe")
+          fi
           
           # Add signature files if they exist
-          if [ -f "./bin/eai-security-check-linux-${VERSION}.sig" ]; then
-            RELEASE_FILES+=("./bin/eai-security-check-linux-${VERSION}.sig")
+          if [ -f "./bin/eai-security-check-cli-linux-${VERSION}.sig" ]; then
+            RELEASE_FILES+=("./bin/eai-security-check-cli-linux-${VERSION}.sig")
           fi
-          if [ -f "./bin/eai-security-check-linux-${VERSION}.sha256" ]; then
-            RELEASE_FILES+=("./bin/eai-security-check-linux-${VERSION}.sha256")
+          if [ -f "./bin/eai-security-check-cli-linux-${VERSION}.sha256" ]; then
+            RELEASE_FILES+=("./bin/eai-security-check-cli-linux-${VERSION}.sha256")
           fi
-          if [ -f "./bin/eai-security-check-windows-${VERSION}.exe.sha256" ]; then
-            RELEASE_FILES+=("./bin/eai-security-check-windows-${VERSION}.exe.sha256")
+          if [ -f "./bin/eai-security-check-cli-windows-${VERSION}.exe.sha256" ]; then
+            RELEASE_FILES+=("./bin/eai-security-check-cli-windows-${VERSION}.exe.sha256")
           fi
           
           gh release create ${{ github.ref_name }} \
             --title "Release ${{ github.ref_name }}" \
             --notes "## EAI Security Check Release
 
-          ### 📦 Standalone Executables
-          Download the executables for your platform:
-          - **macOS**: \`eai-security-check-macos-${VERSION}\` $([ -f ./bin/eai-security-check-macos-${VERSION} ] && codesign -dv ./bin/eai-security-check-macos-${VERSION} 2>&1 | grep -q 'Authority=' && echo '✅ **Code Signed**' || echo '⚠️  Unsigned')
-          - **Linux**: \`eai-security-check-linux-${VERSION}\` $([ -f ./bin/eai-security-check-linux-${VERSION}.sig ] && echo '✅ **GPG Signed**' || echo '⚠️  Unsigned')
-          - **Windows**: \`eai-security-check-windows-${VERSION}.exe\` $([ -f ./bin/eai-security-check-windows-${VERSION}.exe.sha256 ] && echo '✅ **Checksum Available**' || echo '⚠️  No checksum')
+          ### 📦 Available Versions
+          This release includes both **Command Line Interface (CLI)** and **Graphical User Interface (UI)** versions:
+
+          #### 🖥️ Command Line Interface (CLI)
+          - **macOS**: \`eai-security-check-cli-macos-${VERSION}\` $([ -f ./bin/eai-security-check-cli-macos-${VERSION} ] && codesign -dv ./bin/eai-security-check-cli-macos-${VERSION} 2>&1 | grep -q 'Authority=' && echo '✅ **Code Signed**' || echo '⚠️  Unsigned')
+          - **Linux**: \`eai-security-check-cli-linux-${VERSION}\` $([ -f ./bin/eai-security-check-cli-linux-${VERSION}.sig ] && echo '✅ **GPG Signed**' || echo '⚠️  Unsigned')
+          - **Windows**: \`eai-security-check-cli-windows-${VERSION}.exe\` $([ -f ./bin/eai-security-check-cli-windows-${VERSION}.exe.sha256 ] && echo '✅ **Checksum Available**' || echo '⚠️  No checksum')
+
+          #### 🖱️ Graphical User Interface (UI)
+          - **macOS**: \`eai-security-check-ui-macos-${VERSION}.dmg\` - Desktop application with modern Angular interface
+          - **Linux**: \`eai-security-check-ui-linux-${VERSION}.AppImage\` - Portable desktop application
+          - **Windows**: \`eai-security-check-ui-windows-${VERSION}.exe\` - Desktop installer with modern interface
+
+          ### 🆚 CLI vs UI - Choose Your Experience
+
+          **Use CLI if you:**
+          - Prefer command-line tools
+          - Want to integrate with scripts/automation
+          - Need minimal resource usage
+          - Are running on servers/headless systems
+
+          **Use UI if you:**
+          - Prefer graphical interfaces
+          - Want visual dashboard and report viewing
+          - Need report format conversion (JSON, HTML, Markdown, CSV)
+          - Want point-and-click configuration management
 
           ### 🔐 Security & Verification
           - All executables are built from source with reproducible builds
@@ -324,18 +450,41 @@ jobs:
           - Code signing certificates used where available
 
           ### 🚀 Quick Start
+
+          **CLI Quick Start:**
           \`\`\`bash
           # macOS
-          chmod +x eai-security-check-macos-${VERSION}
-          ./eai-security-check-macos-${VERSION} check eai
+          chmod +x eai-security-check-cli-macos-${VERSION}
+          ./eai-security-check-cli-macos-${VERSION} check eai
 
           # Linux
-          chmod +x eai-security-check-linux-${VERSION}
-          ./eai-security-check-linux-${VERSION} check eai
+          chmod +x eai-security-check-cli-linux-${VERSION}
+          ./eai-security-check-cli-linux-${VERSION} check eai
 
           # Windows (PowerShell)
-          ./eai-security-check-windows-${VERSION}.exe check eai
+          ./eai-security-check-cli-windows-${VERSION}.exe check eai
           \`\`\`
+
+          **UI Quick Start:**
+          \`\`\`bash
+          # macOS
+          open eai-security-check-ui-macos-${VERSION}.dmg
+
+          # Linux
+          chmod +x eai-security-check-ui-linux-${VERSION}.AppImage
+          ./eai-security-check-ui-linux-${VERSION}.AppImage
+
+          # Windows
+          ./eai-security-check-ui-windows-${VERSION}.exe
+          \`\`\`
+
+          ### 🎯 New UI Features
+          - **Dashboard**: Overview of system status and recent security checks
+          - **Report Viewer**: View, convert, and copy reports in multiple formats (JSON, HTML, Markdown, CSV, Plain Text)
+          - **Configuration Editor**: Visual interface for managing security profiles
+          - **Daemon Manager**: Setup automated security monitoring with email notifications
+          - **Interactive Mode**: Step-by-step guided security management
+          - **Cross-Platform**: Runs natively on Windows, macOS, and Linux
 
           ### 🔍 Signature Verification
 
@@ -345,23 +494,26 @@ jobs:
           curl -fsSL https://github.com/eaiti/eai_security_check/releases/download/${VERSION}/signing-key.pub | gpg --import
           
           # Verify signature
-          gpg --verify eai-security-check-linux-${VERSION}.sig eai-security-check-linux-${VERSION}
+          gpg --verify eai-security-check-cli-linux-${VERSION}.sig eai-security-check-cli-linux-${VERSION}
           \`\`\`
 
           **Checksum Verification:**
           \`\`\`bash
           # Linux/macOS
-          sha256sum -c eai-security-check-linux-${VERSION}.sha256
+          sha256sum -c eai-security-check-cli-linux-${VERSION}.sha256
           
           # Windows (PowerShell)
-          Get-FileHash eai-security-check-windows-${VERSION}.exe -Algorithm SHA256
+          Get-FileHash eai-security-check-cli-windows-${VERSION}.exe -Algorithm SHA256
           \`\`\`
 
           ### 📋 Features
           - **Cross-platform**: Now supports macOS, Linux, and Windows
+          - **Dual interface**: Both CLI and GUI options available
           - **Security-focused**: FileVault, disk encryption, firewall, and access control checks
           - **Multiple profiles**: default, strict, relaxed, developer, eai configurations
           - **Detailed reporting**: Actionable recommendations with educational content
+          - **Report conversion**: Convert reports between JSON, HTML, Markdown, CSV, and Plain Text
           - **Daemon mode**: Scheduled automated security audits with email notifications
-          - **Signed executables**: Reduced security warnings on supported platforms" \
+          - **Signed executables**: Reduced security warnings on supported platforms
+          - **Modern UI**: Angular-based desktop application with responsive design" \
             \${RELEASE_FILES[@]}

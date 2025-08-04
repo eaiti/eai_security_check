@@ -2,7 +2,7 @@
 
 A cross-platform Node.js + TypeScript tool for auditing security settings on macOS, Linux, and Windows systems against configurable security profiles. The tool provides detailed reports with educational explanations and actionable recommendations.
 
-**🆕 NEW: Graphical User Interface available! See [UI Documentation](#-user-interface) below.**
+**🆕 NEW: Modern Angular-based Graphical User Interface with advanced report management! See [UI Documentation](#-user-interface) below.**
 
 ## 🌟 Key Features
 
@@ -28,6 +28,7 @@ A cross-platform Node.js + TypeScript tool for auditing security settings on mac
 
 ### 📊 Advanced Features
 - **Multiple Output Formats**: Console, plain, markdown, JSON, email
+- **Report Format Conversion**: Convert between JSON, HTML, Markdown, CSV, and Plain Text
 - **Clipboard Integration**: Copy results directly to clipboard
 - **Cryptographic Verification**: Enhanced tamper detection with HMAC-SHA256 signatures
 - **Scheduled Audits**: Automated daemon mode with email notifications
@@ -37,7 +38,7 @@ A cross-platform Node.js + TypeScript tool for auditing security settings on mac
 
 ### Choose Your Interface
 
-**🖥️ Graphical User Interface (NEW)**
+**🖱️ Graphical User Interface (Recommended for New Users)**
 ```bash
 # Build the CLI first
 npm run build
@@ -46,52 +47,113 @@ npm run build
 npm run start:ui
 ```
 
-**⌨️ Command Line Interface**
+**⌨️ Command Line Interface (For Automation & Scripts)**
 
 ## 🎛️ User Interface
 
-### Modern Graphical Interface
+### Modern Angular-Based Desktop Application
 
-EAI Security Check now includes a lightweight, cross-platform GUI built with Electron:
+EAI Security Check now includes a powerful, modern GUI built with Angular and Electron:
 
-- **Cross-platform**: Runs on Windows, macOS, and Linux
-- **Intuitive**: Clean, modern interface with real-time results
-- **Integrated**: Uses the same security checking logic as the CLI
-- **Lightweight**: Minimal resource usage with Electron wrapper
+- **Cross-platform Desktop App**: Native executables for Windows, macOS, and Linux
+- **Modern Angular Architecture**: Built with Angular 20+ using signals and OnPush change detection
+- **Comprehensive Features**: Complete mirror of CLI functionality plus advanced UI-only features
+- **Professional Design**: Responsive, accessible interface with consistent theming
 
-![UI Screenshot](https://github.com/user-attachments/assets/8507880e-d5ed-4ab9-8246-a4e73e1bf628)
+### 🏠 Dashboard Overview
+
+The main dashboard provides a comprehensive view of your system's security status:
+
+- **System Status**: Current version, global installation status, daemon status, and configuration status
+- **Last Security Check**: Quick summary of your most recent audit with pass/fail/warning counts
+- **Report History**: Timeline of recent security checks with quick access to view or copy reports
+- **Feature Overview**: Direct access to all major features with descriptions
+
+### 📊 Advanced Report Management
+
+The enhanced Report Viewer provides powerful report management capabilities:
+
+- **Multiple Format Support**: View reports in JSON, HTML, Markdown, CSV, or Plain Text
+- **Format Conversion**: Convert any report between all supported formats
+- **Copy to Clipboard**: One-click copying of reports in any format
+- **Download Reports**: Save reports locally in your preferred format
+- **Report Verification**: Verify tamper-evident report integrity
+- **Report History**: Browse and manage historical security audit reports
+
+### ⚙️ Configuration Management
+
+Visual configuration editor with full CLI feature parity:
+
+- **Profile Editor**: Create, edit, and manage security profiles
+- **Real-time Validation**: Immediate feedback on configuration changes
+- **Import/Export**: Load configurations from files or save custom profiles
+- **Profile Templates**: Start with predefined profiles and customize as needed
+
+### 🔄 Daemon Management
+
+Comprehensive daemon management interface:
+
+- **Setup Wizard**: Step-by-step configuration of automated security monitoring
+- **Schedule Configuration**: Visual cron-style scheduling with preset options
+- **Email Integration**: Configure SMTP settings for automated report delivery
+- **Status Monitoring**: Real-time daemon status and last execution information
+- **Log Viewer**: Access daemon execution logs and troubleshooting information
+
+### 🎛️ Interactive Mode
+
+Guided security management interface:
+
+- **Step-by-Step Wizards**: Guided setup for all major features
+- **System Information**: Comprehensive view of platform and security status
+- **Global Installation**: Manage system-wide installation with visual feedback
+- **Help and Documentation**: Contextual help throughout the interface
 
 #### Starting the UI
 
 ```bash
 # Quick start (from root directory)
-npm run build    # Build CLI first
-npm run start:ui # Launch graphical interface
+npm run build      # Build CLI first
+npm run start:ui   # Launch graphical interface
 
 # Or from UI directory
 cd ui
-npm install     # First time only
-npm start       # Launch application
+npm install       # First time only
+npm start         # Launch application
 ```
 
-#### UI Features
+#### UI-Specific Features
 
-- **Profile Selection**: Choose from all security profiles (default, strict, relaxed, developer, eai)
-- **Real-time Results**: See security check results with clear pass/fail/warning indicators
-- **Detailed Information**: Each check includes explanations and remediation advice
-- **Cross-platform Detection**: Automatically shows platform and version information
-
-![Results Screenshot](https://github.com/user-attachments/assets/a178a5df-6e46-4314-8902-a744ae5f9068)
+- **Dashboard**: System overview with recent security check history
+- **Report Converter**: Convert reports between JSON, HTML, Markdown, CSV, and Plain Text
+- **Copy Functionality**: One-click copying to clipboard for any report format
+- **Visual Status Indicators**: Clear pass/fail/warning indicators with color coding
+- **Responsive Design**: Works on various screen sizes and resolutions
+- **Real-time Updates**: Live status updates and progress indicators
+- **Export Options**: Download reports in multiple formats with proper file extensions
 
 #### Building Distributables
 
 ```bash
 cd ui
 npm run dist        # Build for current platform
-npm run dist:mac    # Build for macOS
-npm run dist:win    # Build for Windows  
-npm run dist:linux  # Build for Linux
+npm run dist:mac    # Build for macOS (.dmg)
+npm run dist:win    # Build for Windows (.exe installer)  
+npm run dist:linux  # Build for Linux (.AppImage)
 ```
+
+### Downloads
+
+When releases are available, you can download both CLI and UI versions:
+
+**CLI Executables:**
+- `eai-security-check-cli-[platform]-[version]` - Command line interface
+
+**UI Executables:**  
+- `eai-security-check-ui-[platform]-[version]` - Desktop application with graphical interface
+
+Choose the version that best fits your workflow:
+- **Use CLI** for automation, scripting, servers, and integration
+- **Use UI** for interactive use, report management, and visual configuration
 
 #### 1. Download & Install
 

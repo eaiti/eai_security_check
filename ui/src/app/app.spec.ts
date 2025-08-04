@@ -30,7 +30,10 @@ describe('App', () => {
   it('should have correct title', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
-    expect(app.title()).toBe('EAI Security Check UI');
+    // Access title through the DOM since it's protected
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('h1')?.textContent).toContain('EAI Security Check');
   });
 
   it('should render navigation', () => {

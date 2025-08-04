@@ -52,16 +52,14 @@ describe('ReportViewerComponent', () => {
     expect(component.verificationResult()).toBeFalse();
   });
 
-  it('should detect JSON reports correctly', () => {
-    component['_reportContent'].set('{"test": "data"}');
-    expect(component.isJsonReport()).toBeTrue();
-
-    component['_reportContent'].set('plain text');
-    expect(component.isJsonReport()).toBeFalse();
-  });
-
-  it('should get filename from path', () => {
+  it('should detect file name correctly', () => {
     expect(component.getFileName('/path/to/file.json')).toBe('file.json');
     expect(component.getFileName('file.json')).toBe('file.json');
+  });
+
+  it('should format JSON correctly', () => {
+    const jsonString = '{"test":"data"}';
+    const formatted = component.formatJson(jsonString);
+    expect(formatted).toContain('"test": "data"');
   });
 });
