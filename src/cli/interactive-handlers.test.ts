@@ -94,9 +94,9 @@ describe('InteractiveHandlers', () => {
         .mockResolvedValueOnce('3') // Choose configuration management
         .mockResolvedValueOnce('8'); // Then exit
 
-      (
-        ConfigurationOperations.setupOrModifyConfigurations as jest.Mock
-      ).mockResolvedValue(undefined);
+      (ConfigurationOperations.setupOrModifyConfigurations as jest.Mock).mockResolvedValue(
+        undefined
+      );
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 

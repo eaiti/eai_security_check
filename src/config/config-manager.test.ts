@@ -306,8 +306,7 @@ describe('ConfigManager', () => {
     });
   });
 
-  describe('validateSecurityConfig', () => {
-  });
+  describe('validateSecurityConfig', () => {});
 
   describe('getCurrentVersion', () => {
     it('should return current version from package.json', () => {

@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
-import { ISecurityChecker } from './security-checker-interface';
+import { ISecurityChecker } from '../types';
 
 const execAsync = promisify(exec);
 
