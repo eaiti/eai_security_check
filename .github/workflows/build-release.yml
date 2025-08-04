@@ -139,6 +139,7 @@ jobs:
           WINDOWS_CERT_FILE: ${{ env.WINDOWS_CERT_FILE_PATH }}
           WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
         run: npm run sign:windows
+        continue-on-error: true
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -147,6 +148,14 @@ jobs:
           path: |
             bin/index.exe
             bin/index.exe.sha256
+          retention-days: 30
+        
+      - name: Upload unsigned Windows executable (fallback)
+        if: ${{ !hashFiles('bin/index.exe.sha256') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-executables-unsigned
+          path: bin/index.exe
           retention-days: 30
 
   sign-macos:
@@ -219,7 +228,7 @@ jobs:
     environment: production
     env:
       EAI_BUILD_SECRET: ${{ secrets.EAI_BUILD_SECRET }}
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: always() && startsWith(github.ref, 'refs/tags/v') && (needs.build-linux-macos.result == 'success' && needs.build-windows.result == 'success')
 
     steps:
       - name: Verify build authorization
@@ -244,6 +253,14 @@ jobs:
         with:
           name: windows-executables
           path: bin/
+        continue-on-error: true
+
+      - name: Download unsigned Windows artifacts (fallback)
+        if: ${{ hashFiles('bin/index.exe') == '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-executables-unsigned
+          path: bin/
 
       - name: Download signed macOS artifacts
         uses: actions/download-artifact@v4
@@ -261,6 +278,37 @@ jobs:
 
       - name: List files for debugging
         run: ls -la bin/
+
+      - name: Check signing status
+        run: |
+          echo "Checking signing status for release notes..."
+          
+          # Check macOS signing
+          MACOS_SIGNED="⚠️  Unsigned"
+          if [ -f "bin/eai-security-check-macos-${VERSION}" ]; then
+            if codesign -dv "bin/eai-security-check-macos-${VERSION}" 2>&1 | grep -q 'Authority='; then
+              MACOS_SIGNED="✅ **Code Signed**"
+            fi
+          fi
+          echo "MACOS_SIGNED=${MACOS_SIGNED}" >> $GITHUB_ENV
+          
+          # Check Linux signing
+          LINUX_SIGNED="⚠️  Unsigned"
+          if [ -f "bin/eai-security-check-linux-${VERSION}.sig" ]; then
+            LINUX_SIGNED="✅ **GPG Signed**"
+          fi
+          echo "LINUX_SIGNED=${LINUX_SIGNED}" >> $GITHUB_ENV
+          
+          # Check Windows checksum
+          WINDOWS_CHECKSUM="⚠️  No checksum"
+          if [ -f "bin/eai-security-check-windows-${VERSION}.exe.sha256" ]; then
+            WINDOWS_CHECKSUM="✅ **Checksum Available**"
+          fi
+          echo "WINDOWS_CHECKSUM=${WINDOWS_CHECKSUM}" >> $GITHUB_ENV
+          
+          echo "Signing status: macOS=${MACOS_SIGNED}, Linux=${LINUX_SIGNED}, Windows=${WINDOWS_CHECKSUM}"
+        env:
+          VERSION: ${{ github.ref_name }}
 
       - name: Rename executables with version
         run: |
@@ -313,14 +361,14 @@ jobs:
 
           ### 📦 Standalone Executables
           Download the executables for your platform:
-          - **macOS**: \`eai-security-check-macos-${VERSION}\` $([ -f ./bin/eai-security-check-macos-${VERSION} ] && codesign -dv ./bin/eai-security-check-macos-${VERSION} 2>&1 | grep -q 'Authority=' && echo '✅ **Code Signed**' || echo '⚠️  Unsigned')
-          - **Linux**: \`eai-security-check-linux-${VERSION}\` $([ -f ./bin/eai-security-check-linux-${VERSION}.sig ] && echo '✅ **GPG Signed**' || echo '⚠️  Unsigned')
-          - **Windows**: \`eai-security-check-windows-${VERSION}.exe\` $([ -f ./bin/eai-security-check-windows-${VERSION}.exe.sha256 ] && echo '✅ **Checksum Available**' || echo '⚠️  No checksum')
+          - **macOS**: \`eai-security-check-macos-${VERSION}\` ${{ env.MACOS_SIGNED }}
+          - **Linux**: \`eai-security-check-linux-${VERSION}\` ${{ env.LINUX_SIGNED }}
+          - **Windows**: \`eai-security-check-windows-${VERSION}.exe\` ${{ env.WINDOWS_CHECKSUM }}
 
           ### 🔐 Security & Verification
           - All executables are built from source with reproducible builds
-          - GPG signatures provided for Linux executables (verify with \`.sig\` files)
-          - SHA256 checksums provided for integrity verification
+          - GPG signatures provided for Linux executables when available (verify with \`.sig\` files)
+          - SHA256 checksums provided for integrity verification when available
           - Code signing certificates used where available
 
           ### 🚀 Quick Start
