@@ -22,7 +22,7 @@ describe('InteractiveHandlers', () => {
       reportsDir: '/home/user/.config/eai-security-check/reports'
     });
 
-    (ConfigManager.getCurrentVersion as jest.Mock).mockReturnValue('1.1.0');
+    (ConfigManager.getCurrentVersion as jest.Mock).mockReturnValue('1.0.0');
 
     (ConfigManager.getSystemStatus as jest.Mock).mockResolvedValue({
       globalInstall: { exists: false },
@@ -49,7 +49,7 @@ describe('InteractiveHandlers', () => {
         '🎛️  Welcome to EAI Security Check Interactive Management!\n'
       );
       expect(consoleSpy).toHaveBeenCalledWith('📊 Current System Status:');
-      expect(consoleSpy).toHaveBeenCalledWith('📦 Version: 1.1.0');
+      expect(consoleSpy).toHaveBeenCalledWith('📦 Version: 1.0.0');
 
       consoleSpy.mockRestore();
     });
@@ -84,7 +84,7 @@ describe('InteractiveHandlers', () => {
         globalInstall: { exists: false },
         config: { schedulingConfigExists: false, securityConfigExists: false }
       });
-      (ConfigManager.getCurrentVersion as jest.Mock).mockReturnValue('1.1.0');
+      (ConfigManager.getCurrentVersion as jest.Mock).mockReturnValue('1.0.0');
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 

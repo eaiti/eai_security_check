@@ -41,8 +41,8 @@ describe('Installation Operations', () => {
       const mockStatus = {
         globalInstall: {
           exists: true,
-          globalVersion: '1.1.0',
-          currentVersion: '1.1.0',
+          globalVersion: '1.0.0',
+          currentVersion: '1.0.0',
           isDifferentVersion: false
         },
         config: {
@@ -56,7 +56,7 @@ describe('Installation Operations', () => {
         daemon: {
           isRunning: false,
           daemonVersion: null,
-          currentVersion: '1.1.0',
+          currentVersion: '1.0.0',
           needsUpdate: false
         }
       };

@@ -87,7 +87,7 @@ describe('ConfigManager', () => {
         return false;
       });
       mockedFs.mkdirSync.mockImplementation(() => undefined);
-      mockedFs.writeFileSync.mockImplementation(() => {});
+      mockedFs.writeFileSync.mockImplementation(() => { });
     });
 
     it('should create security config with default profile', () => {
@@ -130,10 +130,10 @@ describe('ConfigManager', () => {
         return false;
       });
       mockedFs.mkdirSync.mockImplementation(() => undefined);
-      mockedFs.writeFileSync.mockImplementation(() => {});
+      mockedFs.writeFileSync.mockImplementation(() => { });
 
       // Mock console.log to avoid test output
-      jest.spyOn(console, 'log').mockImplementation(() => {});
+      jest.spyOn(console, 'log').mockImplementation(() => { });
     });
 
     afterEach(() => {
@@ -323,14 +323,14 @@ describe('ConfigManager', () => {
       mockedFs.readFileSync.mockImplementation((path: any) => {
         const pathStr = String(path);
         if (pathStr.includes('package.json')) {
-          return JSON.stringify({ version: '1.1.0' });
+          return JSON.stringify({ version: '1.0.0' });
         }
         throw new Error('File not found');
       });
 
       const version = ConfigManager.getCurrentVersion();
 
-      expect(version).toBe('1.1.0');
+      expect(version).toBe('1.0.0');
     });
 
     it('should handle missing package.json', () => {
@@ -344,7 +344,7 @@ describe('ConfigManager', () => {
 
       const version = ConfigManager.getCurrentVersion();
 
-      expect(version).toBe('1.1.0'); // Hard-coded fallback
+      expect(version).toBe('1.0.0'); // Hard-coded fallback
     });
 
     it('should handle invalid JSON in package.json', () => {
@@ -356,7 +356,7 @@ describe('ConfigManager', () => {
 
       const version = ConfigManager.getCurrentVersion();
 
-      expect(version).toBe('1.1.0'); // Hard-coded fallback
+      expect(version).toBe('1.0.0'); // Hard-coded fallback
     });
   });
 

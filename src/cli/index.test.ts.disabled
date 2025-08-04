@@ -135,7 +135,7 @@ describe('CLI Interactive Mode', () => {
         exists: false,
         isDifferentVersion: false,
         globalVersion: null,
-        currentVersion: '1.1.0'
+        currentVersion: '1.0.0'
       },
       config: {
         configDirectory: '/test/config',
@@ -149,10 +149,10 @@ describe('CLI Interactive Mode', () => {
         isRunning: false,
         needsUpdate: false,
         daemonVersion: null,
-        currentVersion: '1.1.0'
+        currentVersion: '1.0.0'
       }
     });
-    mockConfigManager.getCurrentVersion.mockReturnValue('1.1.0');
+    mockConfigManager.getCurrentVersion.mockReturnValue('1.0.0');
     mockConfigManager.promptForSecurityProfile.mockResolvedValue('default');
     mockConfigManager.hasSecurityConfig.mockReturnValue(true);
     mockConfigManager.loadSecurityConfig.mockReturnValue({
@@ -242,7 +242,7 @@ describe('CLI Interactive Mode', () => {
       success: true,
       message: 'Successfully updated',
       oldVersion: '1.0.0',
-      newVersion: '1.1.0'
+      newVersion: '1.0.0'
     });
 
     // @ts-expect-error - Mock implementation complexity requires casting
@@ -255,7 +255,7 @@ describe('CLI Interactive Mode', () => {
     ) => {
       // Mock successful version check for global installation compatibility
       if (command.includes('--version')) {
-        callback?.(null, '1.1.0', '');
+        callback?.(null, '1.0.0', '');
       } else {
         callback?.(new Error('Command not found'), '', '');
       }
@@ -762,7 +762,7 @@ describe('CLI Interactive Mode', () => {
       mockConfigManager.hasSchedulingConfig.mockReturnValue(false);
       mockConfigManager.hasSecurityConfig.mockReturnValue(false);
       mockConfigManager.promptForDaemonSetup.mockResolvedValue(true); // User wants service setup
-      mockConfigManager.getCurrentVersion.mockReturnValue('1.1.0');
+      mockConfigManager.getCurrentVersion.mockReturnValue('1.0.0');
 
       // Mock that global installation is compatible
       mockExec.mockImplementation(((
@@ -770,7 +770,7 @@ describe('CLI Interactive Mode', () => {
         callback?: (error: Error | null, stdout: string, stderr: string) => void
       ) => {
         if (command.includes('--version')) {
-          callback?.(null, '1.1.0', ''); // Same version as current
+          callback?.(null, '1.0.0', ''); // Same version as current
         } else {
           callback?.(new Error('Command not found'), '', '');
         }
