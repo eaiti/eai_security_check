@@ -22,7 +22,7 @@ describe('CommandHandlers', () => {
     // Mock process.exit to prevent test termination
     originalExit = process.exit;
     mockExit = jest.fn();
-    process.exit = mockExit as any;
+    process.exit = mockExit as unknown as typeof process.exit;
   });
 
   afterEach(() => {

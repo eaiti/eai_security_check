@@ -245,13 +245,11 @@ describe('MacOSSecurityChecker', () => {
   describe('checkSharingServices', () => {
     it('should detect enabled sharing services', async () => {
       mockExecAsync
-        .mockResolvedValueOnce({ stdout: '0', stderr: '' }) // smbd disabled check
-        .mockResolvedValueOnce({ stdout: 'name: TestShare', stderr: '' }) // sharing list
-        .mockResolvedValueOnce({ stdout: '0', stderr: '' }) // screen sharing
-        .mockResolvedValueOnce({ stdout: '1', stderr: '' }) // music sharing
-        .mockResolvedValueOnce({ stdout: '1', stderr: '' }) // photos sharing
-        .mockResolvedValueOnce({ stdout: '1', stderr: '' }) // airplay receiver
-        .mockResolvedValueOnce({ stdout: 'state = running', stderr: '' }); // launchctl
+        .mockResolvedValueOnce({ stdout: '0', stderr: '' }) // smbd enabled (0 = enabled)
+        .mockResolvedValueOnce({ stdout: '0', stderr: '' }) // screen sharing enabled
+        .mockResolvedValueOnce({ stdout: '1', stderr: '' }) // music sharing enabled
+        .mockResolvedValueOnce({ stdout: '1', stderr: '' }) // photos sharing enabled
+        .mockResolvedValueOnce({ stdout: '1', stderr: '' }); // airplay receiver enabled
 
       const result = await checker.checkSharingServices();
       expect(result.fileSharing).toBe(true);
