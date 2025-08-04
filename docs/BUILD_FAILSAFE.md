@@ -58,11 +58,11 @@ The build and release workflow has been enhanced with failsafe mechanisms to ens
 2. **Artifact Upload Fallback**:
    ```yaml
    - name: Upload unsigned Windows executable (fallback)
-     if: ${{ !hashFiles('bin/index.exe.sha256') }}
+     if: ${{ !hashFiles('bin/index-win.exe.sha256') }}
      uses: actions/upload-artifact@v4
      with:
        name: windows-executables-unsigned
-       path: bin/index.exe
+       path: bin/index-win.exe
    ```
 
 3. **Release Job Dependencies**:
@@ -108,7 +108,7 @@ To test the failsafe behavior locally:
 npm run pkg:windows
 node scripts/sign-windows.js
 
-# Should create index.exe and index.exe.sha256 even without signing tools
+# Should create index-win.exe and index-win.exe.sha256 even without signing tools
 ```
 
 The workflow will automatically handle failsafe scenarios during releases without any manual intervention.

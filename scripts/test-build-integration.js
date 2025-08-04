@@ -32,7 +32,7 @@ function testWindowsBuild() {
   try {
     execSync('npm run pkg:windows', { stdio: 'inherit' });
     
-    const expectedPath = path.join(BIN_DIR, 'index.exe');
+    const expectedPath = path.join(BIN_DIR, 'index-win.exe');
     if (!fs.existsSync(expectedPath)) {
       throw new Error(`Windows executable not found at expected path: ${expectedPath}`);
     }
@@ -57,13 +57,13 @@ function testWindowsSigning() {
     // This should fail gracefully and still create checksum
     execSync('node scripts/sign-windows.js', { stdio: 'inherit' });
     
-    const checksumPath = path.join(BIN_DIR, 'index.exe.sha256');
+    const checksumPath = path.join(BIN_DIR, 'index-win.exe.sha256');
     if (!fs.existsSync(checksumPath)) {
       throw new Error('Checksum file was not created during failsafe signing');
     }
     
     const checksumContent = fs.readFileSync(checksumPath, 'utf8');
-    if (!checksumContent.includes('index.exe')) {
+    if (!checksumContent.includes('index-win.exe')) {
       throw new Error('Checksum file has incorrect format');
     }
     

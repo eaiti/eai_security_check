@@ -153,8 +153,8 @@ jobs:
         with:
           name: windows-executables
           path: |
-            bin/index.exe
-            bin/index.exe.sha256
+            bin/index-win.exe
+            bin/index-win.exe.sha256
           retention-days: 30
         # Note: GitHub Actions artifacts are automatically zipped for
         # intermediate storage
@@ -162,11 +162,11 @@ jobs:
         # executable files
 
       - name: Upload unsigned Windows executable (fallback)
-        if: ${{ !hashFiles('bin/index.exe.sha256') }}
+        if: ${{ !hashFiles('bin/index-win.exe.sha256') }}
         uses: actions/upload-artifact@v4
         with:
           name: windows-executables-unsigned
-          path: bin/index.exe
+          path: bin/index-win.exe
           retention-days: 30
         # Note: Fallback for unsigned executables - final release will still be individual files
 
@@ -272,7 +272,7 @@ jobs:
         continue-on-error: true
 
       - name: Download unsigned Windows artifacts (fallback)
-        if: ${{ hashFiles('bin/index.exe') == '' }}
+        if: ${{ hashFiles('bin/index-win.exe') == '' }}
         uses: actions/download-artifact@v4
         with:
           name: windows-executables-unsigned
@@ -307,7 +307,7 @@ jobs:
           # Rename executables
           mv bin/index-macos bin/eai-security-check-macos-${VERSION}
           mv bin/index-linux bin/eai-security-check-linux-${VERSION}
-          mv bin/index.exe bin/eai-security-check-windows-${VERSION}.exe
+          mv bin/index-win.exe bin/eai-security-check-windows-${VERSION}.exe
 
           # Rename signature and checksum files
           if [ -f bin/index-linux.sig ]; then
@@ -316,8 +316,8 @@ jobs:
           if [ -f bin/index-linux.sha256 ]; then
             mv bin/index-linux.sha256 bin/eai-security-check-linux-${VERSION}.sha256
           fi
-          if [ -f bin/index.exe.sha256 ]; then
-            mv bin/index.exe.sha256 bin/eai-security-check-windows-${VERSION}.exe.sha256
+          if [ -f bin/index-win.exe.sha256 ]; then
+            mv bin/index-win.exe.sha256 bin/eai-security-check-windows-${VERSION}.exe.sha256
           fi
 
           echo "✅ Final release files ready:"
