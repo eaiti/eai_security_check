@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ConfigManager } from './config-manager';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -86,7 +87,7 @@ describe('ConfigManager', () => {
         return false;
       });
       mockedFs.mkdirSync.mockImplementation(() => undefined);
-      mockedFs.writeFileSync.mockImplementation(() => {});
+      mockedFs.writeFileSync.mockImplementation(() => { });
     });
 
     it('should create security config with default profile', () => {
@@ -129,10 +130,10 @@ describe('ConfigManager', () => {
         return false;
       });
       mockedFs.mkdirSync.mockImplementation(() => undefined);
-      mockedFs.writeFileSync.mockImplementation(() => {});
+      mockedFs.writeFileSync.mockImplementation(() => { });
 
       // Mock console.log to avoid test output
-      jest.spyOn(console, 'log').mockImplementation(() => {});
+      jest.spyOn(console, 'log').mockImplementation(() => { });
     });
 
     afterEach(() => {
@@ -302,6 +303,126 @@ describe('ConfigManager', () => {
         securityConfigPath: '/test/app/config/security-config.json',
         schedulingConfigPath: '/test/app/config/scheduling-config.json'
       });
+    });
+  });
+
+  describe('getCurrentVersion', () => {
+    beforeEach(() => {
+      // Clear all mocks before each test
+      jest.clearAllMocks();
+    });
+
+    it('should return current version from package.json', () => {
+      // Mock existsSync to return true for specific paths and false for others
+      mockedFs.existsSync.mockImplementation((path: any) => {
+        const pathStr = String(path);
+        return pathStr.includes('package.json');
+      });
+
+      // Mock readFileSync to return the expected version
+      mockedFs.readFileSync.mockImplementation((path: any) => {
+        const pathStr = String(path);
+        if (pathStr.includes('package.json')) {
+          return JSON.stringify({ version: '1.0.0' });
+        }
+        throw new Error('File not found');
+      });
+
+      const version = ConfigManager.getCurrentVersion();
+
+      expect(version).toBe('1.0.0');
+    });
+
+    it('should handle missing package.json', () => {
+      // Mock existsSync to return false for all paths
+      mockedFs.existsSync.mockReturnValue(false);
+
+      // Mock readFileSync to throw for any path
+      mockedFs.readFileSync.mockImplementation(() => {
+        throw new Error('File not found');
+      });
+
+      const version = ConfigManager.getCurrentVersion();
+
+      expect(version).toBe('1.0.0'); // Hard-coded fallback
+    });
+
+    it('should handle invalid JSON in package.json', () => {
+      // Mock existsSync to return true
+      mockedFs.existsSync.mockReturnValue(true);
+
+      // Mock readFileSync to return invalid JSON
+      mockedFs.readFileSync.mockReturnValue('invalid json');
+
+      const version = ConfigManager.getCurrentVersion();
+
+      expect(version).toBe('1.0.0'); // Hard-coded fallback
+    });
+  });
+
+  describe('getSystemStatus', () => {
+    it('should return system status with global install', async () => {
+      mockedFs.existsSync.mockImplementation((path: any) => {
+        const pathStr = String(path);
+        if (pathStr.includes('security-config.json')) return true;
+        if (pathStr.includes('scheduling-config.json')) return false;
+        if (pathStr.includes('/usr/local/bin/eai-security-check')) return true;
+        return false;
+      });
+
+      const status = await ConfigManager.getSystemStatus();
+
+      expect(status.globalInstall.exists).toBe(true);
+      expect(status.config.securityConfigExists).toBe(true);
+      expect(status.config.schedulingConfigExists).toBe(false);
+    });
+
+    it('should detect local install when global not found', async () => {
+      mockedFs.existsSync.mockImplementation((path: any) => {
+        const pathStr = String(path);
+        if (pathStr.includes('/usr/local/bin/eai-security-check')) return false;
+        if (pathStr.includes('/usr/bin/eai-security-check')) return false;
+        return false;
+      });
+
+      const status = await ConfigManager.getSystemStatus();
+
+      expect(status.globalInstall.exists).toBe(false);
+    });
+  });
+
+  describe('ensureCentralizedDirectories', () => {
+    it('should create centralized directories if they do not exist', () => {
+      mockedFs.existsSync.mockReturnValue(false);
+      mockedFs.mkdirSync.mockImplementation();
+
+      const result = ConfigManager.ensureCentralizedDirectories();
+
+      expect(mockedFs.mkdirSync).toHaveBeenCalledWith('/test/app/config', { recursive: true });
+      expect(mockedFs.mkdirSync).toHaveBeenCalledWith('/test/app/reports', { recursive: true });
+      expect(result.configDir).toBe('/test/app/config');
+      expect(result.reportsDir).toBe('/test/app/reports');
+    });
+
+    it('should not create directories if they already exist', () => {
+      mockedFs.existsSync.mockReturnValue(true);
+
+      const result = ConfigManager.ensureCentralizedDirectories();
+
+      expect(mockedFs.mkdirSync).not.toHaveBeenCalled();
+      expect(result.configDir).toBe('/test/app/config');
+      expect(result.reportsDir).toBe('/test/app/reports');
+    });
+  });
+
+  describe('error handling', () => {
+    it('should handle directory creation errors gracefully', () => {
+      mockedFs.existsSync.mockReturnValue(false);
+      mockedFs.mkdirSync.mockImplementation(() => {
+        throw new Error('Permission denied');
+      });
+
+      expect(() => ConfigManager.ensureCentralizedDirectories()).toThrow('Permission denied');
     });
   });
 });

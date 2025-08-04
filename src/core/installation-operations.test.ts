@@ -56,7 +56,7 @@ describe('Installation Operations', () => {
         daemon: {
           isRunning: false,
           daemonVersion: null,
-          currentVersion: '1.1.0',
+          currentVersion: '1.0.0',
           needsUpdate: false
         }
       };
