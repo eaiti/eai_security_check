@@ -1,38 +1,46 @@
 /* You can add global styles to this file, and also import other style files */
 
 :root {
-  /* Color Palette */
-  --color-primary: #667eea;
-  --color-primary-dark: #5a6fd8;
-  --color-secondary: #f8f9fa;
-  --color-secondary-dark: #e9ecef;
+  /* Color Palette - Enhanced for better contrast */
+  --color-primary: #4f46e5;
+  --color-primary-dark: #3730a3;
+  --color-primary-light: #6366f1;
+  --color-secondary: #f8fafc;
+  --color-secondary-dark: #e2e8f0;
 
-  --color-success: #28a745;
-  --color-success-light: #d4edda;
-  --color-success-dark: #155724;
+  --color-success: #059669;
+  --color-success-light: #dcfce7;
+  --color-success-dark: #064e3b;
 
-  --color-error: #dc3545;
-  --color-error-light: #f8d7da;
-  --color-error-dark: #721c24;
+  --color-error: #dc2626;
+  --color-error-light: #fef2f2;
+  --color-error-dark: #7f1d1d;
 
-  --color-warning: #ffc107;
-  --color-warning-light: #fff3cd;
-  --color-warning-dark: #856404;
+  --color-warning: #d97706;
+  --color-warning-light: #fef3c7;
+  --color-warning-dark: #92400e;
 
-  /* Text Colors */
-  --text-primary: #1a1a1a;
-  --text-secondary: #4a4a4a;
-  --text-muted: #777777;
+  /* Text Colors - Improved contrast */
+  --text-primary: #1f2937;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --text-light: #9ca3af;
 
   /* Background Colors */
   --background-primary: #ffffff;
-  --background-secondary: #f8f9fa;
-  --background-tertiary: #e9ecef;
+  --background-secondary: #f9fafb;
+  --background-tertiary: #f3f4f6;
 
   /* Card Styles */
   --card-background: #ffffff;
-  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  --card-border: #e9ecef;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --card-shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --card-border: #e5e7eb;
+
+  /* Enterprise styling */
+  --header-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --button-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  --button-gradient-hover: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
 
   /* Spacing */
   --spacing-xs: 0.25rem;
@@ -40,15 +48,28 @@
   --spacing-md: 1rem;
   --spacing-lg: 1.5rem;
   --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
 
   /* Border Radius */
   --border-radius-sm: 4px;
   --border-radius-md: 8px;
   --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
 
   /* Transitions */
-  --transition-fast: 0.2s ease;
-  --transition-medium: 0.3s ease;
+  --transition-fast: 0.15s ease-out;
+  --transition-medium: 0.3s ease-out;
+  --transition-slow: 0.5s ease-out;
+
+  /* Typography */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
 }
 
 /* Global Reset */

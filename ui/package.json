@@ -9,6 +9,7 @@
     "build:prod": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "lint": "ng lint",
     "electron": "electron .",
     "electron:dev": "concurrently \"npm start\" \"wait-on http://localhost:4200 && NODE_ENV=development electron .\"",
     "electron:build": "npm run build:prod && electron .",
