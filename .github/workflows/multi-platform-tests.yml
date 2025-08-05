@@ -58,10 +58,15 @@ jobs:
         run: npm test
 
       - name: Install UI dependencies and run UI tests
+        timeout-minutes: 15
         run: |
           cd ui
           npm ci
-          npm test -- --watch=false --browsers=ChromeHeadless
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            npm test -- --watch=false --browsers=ChromeHeadlessCIWindows --single-run=true
+          else
+            npm test -- --watch=false --browsers=ChromeHeadlessCI --single-run=true
+          fi
 
       - name: Build pkg executable
         run: npm run ${{ matrix.pkg-target }}
