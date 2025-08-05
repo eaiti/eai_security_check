@@ -34,7 +34,7 @@ describe('DaemonManagerComponent', () => {
 
   it('should start daemon with configuration', async () => {
     mockElectronService.manageDaemon.and.returnValue(
-      Promise.resolve({ success: true }),
+      Promise.resolve('Daemon started successfully'),
     );
 
     await component.startDaemon();
@@ -45,9 +45,19 @@ describe('DaemonManagerComponent', () => {
     );
   });
 
-  it('should validate cron expression', () => {
-    const validConfig = { schedule: '0 2 * * *' }; // 2 AM daily
-    const invalidConfig = { schedule: 'invalid' };
+  it('should validate daemon configuration', () => {
+    const validConfig = { 
+      enabled: true,
+      intervalDays: 7,
+      securityProfile: 'strict',
+      reportFormat: 'email'
+    };
+    const invalidConfig = { 
+      enabled: true,
+      intervalDays: 0, // Invalid: less than 1
+      securityProfile: 'strict',
+      reportFormat: 'email'
+    };
 
     expect(component['validateConfig'](validConfig)).toBeTrue();
     expect(component['validateConfig'](invalidConfig)).toBeFalse();

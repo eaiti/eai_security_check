@@ -105,8 +105,8 @@ describe('ElectronService', () => {
 
     const config = await newService.loadConfig();
     expect(config).toBeDefined();
-    expect(config.diskEncryption).toBeDefined();
-    expect(config.passwordProtection).toBeDefined();
+    expect(config['diskEncryption']).toBeDefined();
+    expect(config['passwordProtection']).toBeDefined();
 
     const configs = await newService.listConfigs();
     expect(configs).toContain('default');
@@ -206,7 +206,12 @@ describe('ElectronService', () => {
       undefined,
     );
 
-    const config = { schedule: '0 2 * * *' };
+    const config = { 
+      enabled: true,
+      intervalDays: 1,
+      securityProfile: 'strict',
+      reportFormat: 'email'
+    };
     await service.manageDaemon('configure', config);
     expect((window as any).electronAPI.manageDaemon).toHaveBeenCalledWith(
       'configure',
