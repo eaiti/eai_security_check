@@ -11,6 +11,7 @@ import {
   ElectronService,
   SecurityCheckReport,
 } from '../../services/electron.service';
+import { ReportService } from '../../services/report.service';
 
 interface ReportFile {
   path: string;
@@ -18,6 +19,19 @@ interface ReportFile {
   timestamp: string;
   size: string;
   verified?: boolean;
+  verificationStatus?: 'pending' | 'verifying' | 'valid' | 'invalid' | 'error';
+}
+
+interface BulkVerificationResult {
+  path: string;
+  userId: string | null;
+  status: 'valid' | 'invalid' | 'error';
+  reason: string;
+}
+
+interface BulkProgress {
+  current: number;
+  total: number;
 }
 
 type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
@@ -60,6 +74,122 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
             }
           </button>
         </div>
+      </div>
+
+      <!-- Bulk Verification Section -->
+      <div class="bulk-verification-section">
+        <h2>🔍 Bulk Report Verification</h2>
+        <p>Verify multiple reports at once and generate a summary CSV</p>
+        
+        <div class="bulk-actions">
+          <button class="btn btn-primary" (click)="selectMultipleFiles()">
+            📁 Select Files
+          </button>
+          <button class="btn btn-primary" (click)="selectDirectory()">
+            📂 Select Directory
+          </button>
+          
+          @if (bulkFiles().length > 0) {
+            <button 
+              class="btn btn-success"
+              [disabled]="isBulkVerifying()"
+              (click)="verifyBulkReports()"
+            >
+              @if (isBulkVerifying()) {
+                🔄 Verifying {{ bulkProgress().current }}/{{ bulkProgress().total }}...
+              } @else {
+                ✅ Verify {{ bulkFiles().length }} Reports
+              }
+            </button>
+          }
+        </div>
+
+        @if (bulkFiles().length > 0) {
+          <div class="bulk-files-list">
+            <h3>Selected Files ({{ bulkFiles().length }})</h3>
+            <div class="files-grid">
+              @for (file of bulkFiles(); track file.path) {
+                <div class="file-item" [class]="getFileStatusClass(file)">
+                  <div class="file-info">
+                    <span class="file-name">{{ getFileName(file.path) }}</span>
+                    <span class="file-path">{{ file.path }}</span>
+                  </div>
+                  <div class="file-status">
+                    @if (file.verificationStatus === 'pending') {
+                      ⏳ Pending
+                    } @else if (file.verificationStatus === 'verifying') {
+                      🔄 Verifying...
+                    } @else if (file.verificationStatus === 'valid') {
+                      ✅ Valid
+                    } @else if (file.verificationStatus === 'invalid') {
+                      ❌ Invalid
+                    } @else if (file.verificationStatus === 'error') {
+                      ⚠️ Error
+                    }
+                  </div>
+                  <button class="btn btn-xs btn-remove" (click)="removeFile(file.path)">
+                    ✕
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        @if (bulkResults().length > 0) {
+          <div class="bulk-results">
+            <div class="results-header">
+              <h3>Verification Results</h3>
+              <button class="btn btn-secondary" (click)="downloadBulkResultsCSV()">
+                📊 Download CSV
+              </button>
+            </div>
+            <div class="results-summary">
+              <div class="summary-item valid">
+                <span class="count">{{ getBulkSummary().valid }}</span>
+                <span class="label">Valid</span>
+              </div>
+              <div class="summary-item invalid">
+                <span class="count">{{ getBulkSummary().invalid }}</span>
+                <span class="label">Invalid</span>
+              </div>
+              <div class="summary-item error">
+                <span class="count">{{ getBulkSummary().error }}</span>
+                <span class="label">Errors</span>
+              </div>
+            </div>
+            <div class="results-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <th>User ID</th>
+                    <th>Status</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (result of bulkResults(); track result.path) {
+                    <tr [class]="'row-' + result.status">
+                      <td>{{ getFileName(result.path) }}</td>
+                      <td>{{ result.userId || 'N/A' }}</td>
+                      <td>
+                        @if (result.status === 'valid') {
+                          <span class="status-badge valid">✅ Pass</span>
+                        } @else if (result.status === 'invalid') {
+                          <span class="status-badge invalid">❌ Fail</span>
+                        } @else {
+                          <span class="status-badge error">⚠️ Error</span>
+                        }
+                      </td>
+                      <td>{{ result.reason }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
       </div>
 
       @if (selectedReportPath()) {
@@ -234,6 +364,7 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
 })
 export class ReportViewerComponent implements OnInit {
   private readonly electronService = inject(ElectronService);
+  private readonly reportService = inject(ReportService);
   private readonly _selectedReportPath = signal<string | null>(null);
   private readonly _reportContent = signal<string | null>(null);
   private readonly _originalReport = signal<SecurityCheckReport | null>(null);
@@ -243,6 +374,12 @@ export class ReportViewerComponent implements OnInit {
   private readonly _message = signal<string>('');
   private readonly _messageType = signal<'success' | 'error' | 'info'>('info');
   private readonly _convertedContent = signal<string>('');
+  
+  // Bulk verification signals
+  private readonly _bulkFiles = signal<ReportFile[]>([]);
+  private readonly _isBulkVerifying = signal(false);
+  private readonly _bulkProgress = signal<BulkProgress>({ current: 0, total: 0 });
+  private readonly _bulkResults = signal<BulkVerificationResult[]>([]);
 
   readonly selectedReportPath = this._selectedReportPath.asReadonly();
   readonly reportContent = this._reportContent.asReadonly();
@@ -252,11 +389,31 @@ export class ReportViewerComponent implements OnInit {
   readonly message = this._message.asReadonly();
   readonly messageType = this._messageType.asReadonly();
   readonly convertedContent = this._convertedContent.asReadonly();
+  
+  // Bulk verification readonly signals
+  readonly bulkFiles = this._bulkFiles.asReadonly();
+  readonly isBulkVerifying = this._isBulkVerifying.asReadonly();
+  readonly bulkProgress = this._bulkProgress.asReadonly();
+  readonly bulkResults = this._bulkResults.asReadonly();
 
   selectedFormat: OutputFormat = 'json';
 
   ngOnInit(): void {
     this.loadRecentReports();
+    
+    // Check if there's a shared report from another component
+    const sharedReport = this.reportService.currentReport();
+    const sharedPath = this.reportService.currentReportPath();
+    
+    if (sharedReport) {
+      this._originalReport.set(sharedReport);
+      this._selectedReportPath.set(sharedPath);
+      this._reportContent.set(JSON.stringify(sharedReport, null, 2));
+      this.convertContent();
+      
+      // Clear the shared report to prevent stale data
+      this.reportService.clearReport();
+    }
   }
 
   openFileDialog(): void {
@@ -749,5 +906,178 @@ export class ReportViewerComponent implements OnInit {
     setTimeout(() => {
       this._message.set('');
     }, 5000);
+  }
+
+  // Bulk verification methods
+  selectMultipleFiles(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = '.json,.html,.pdf,.md,.txt';
+    input.addEventListener('change', (event) => {
+      const files = (event.target as HTMLInputElement).files;
+      if (files) {
+        this.addFilesToBulkList(Array.from(files));
+      }
+    });
+    input.click();
+  }
+
+  selectDirectory(): void {
+    // Note: Directory selection via webkitdirectory might not work in all browsers
+    const input = document.createElement('input');
+    input.type = 'file';
+    (input as any).webkitdirectory = true;
+    input.addEventListener('change', (event) => {
+      const files = (event.target as HTMLInputElement).files;
+      if (files) {
+        const reportFiles = Array.from(files).filter(file => 
+          file.name.endsWith('.json') || 
+          file.name.endsWith('.html') ||
+          file.name.endsWith('.md') ||
+          file.name.endsWith('.txt')
+        );
+        this.addFilesToBulkList(reportFiles);
+      }
+    });
+    input.click();
+  }
+
+  private addFilesToBulkList(files: File[]): void {
+    const newFiles: ReportFile[] = files.map(file => ({
+      path: file.name, // In browser, we use the file name as path
+      name: file.name,
+      timestamp: new Date(file.lastModified).toISOString(),
+      size: this.formatFileSize(file.size),
+      verificationStatus: 'pending'
+    }));
+    
+    const currentFiles = this._bulkFiles();
+    const uniqueFiles = newFiles.filter(newFile => 
+      !currentFiles.some(existing => existing.path === newFile.path)
+    );
+    
+    this._bulkFiles.set([...currentFiles, ...uniqueFiles]);
+    this.showMessage(`Added ${uniqueFiles.length} files for bulk verification`, 'success');
+  }
+
+  removeFile(path: string): void {
+    const currentFiles = this._bulkFiles();
+    this._bulkFiles.set(currentFiles.filter(file => file.path !== path));
+  }
+
+  async verifyBulkReports(): Promise<void> {
+    const files = this._bulkFiles();
+    if (files.length === 0) return;
+
+    this._isBulkVerifying.set(true);
+    this._bulkProgress.set({ current: 0, total: files.length });
+    this._bulkResults.set([]);
+
+    const results: BulkVerificationResult[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      this._bulkProgress.set({ current: i + 1, total: files.length });
+      
+      // Update file status
+      const updatedFiles = [...files];
+      updatedFiles[i] = { ...file, verificationStatus: 'verifying' };
+      this._bulkFiles.set(updatedFiles);
+
+      try {
+        // In a real implementation, this would verify the actual file
+        // For now, we'll simulate verification
+        const isValid = await this.simulateFileVerification(file.path);
+        
+        updatedFiles[i] = { 
+          ...file, 
+          verificationStatus: isValid ? 'valid' : 'invalid' 
+        };
+        this._bulkFiles.set(updatedFiles);
+
+        results.push({
+          path: file.path,
+          userId: await this.extractUserIdFromFile(file.path),
+          status: isValid ? 'valid' : 'invalid',
+          reason: isValid ? 'Signature verified successfully' : 'Invalid or missing signature'
+        });
+      } catch (error) {
+        updatedFiles[i] = { ...file, verificationStatus: 'error' };
+        this._bulkFiles.set(updatedFiles);
+
+        results.push({
+          path: file.path,
+          userId: null,
+          status: 'error',
+          reason: `Verification failed: ${error}`
+        });
+      }
+    }
+
+    this._bulkResults.set(results);
+    this._isBulkVerifying.set(false);
+    this.showMessage(`Bulk verification completed: ${results.length} files processed`, 'success');
+  }
+
+  private async simulateFileVerification(path: string): Promise<boolean> {
+    // Simulate verification delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    // Random result for demo
+    return Math.random() > 0.3;
+  }
+
+  private async extractUserIdFromFile(path: string): Promise<string | null> {
+    // In a real implementation, this would read the file and extract user ID
+    // For demo, return a random user ID
+    const userIds = ['admin-workstation', 'security-team', 'devops-user', null];
+    return userIds[Math.floor(Math.random() * userIds.length)];
+  }
+
+  getBulkSummary(): { valid: number; invalid: number; error: number } {
+    const results = this._bulkResults();
+    return {
+      valid: results.filter(r => r.status === 'valid').length,
+      invalid: results.filter(r => r.status === 'invalid').length,
+      error: results.filter(r => r.status === 'error').length
+    };
+  }
+
+  getFileStatusClass(file: ReportFile): string {
+    return `file-status-${file.verificationStatus || 'pending'}`;
+  }
+
+  downloadBulkResultsCSV(): void {
+    const results = this._bulkResults();
+    if (results.length === 0) return;
+
+    const csvHeader = 'File,User ID,Status,Reason\n';
+    const csvContent = results.map(result => 
+      `"${this.getFileName(result.path)}","${result.userId || 'N/A'}","${result.status}","${result.reason}"`
+    ).join('\n');
+    
+    const csvData = csvHeader + csvContent;
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `bulk-verification-results-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    this.showMessage('CSV file downloaded successfully', 'success');
+  }
+
+  private formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 }

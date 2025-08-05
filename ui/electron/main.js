@@ -195,6 +195,15 @@ class ElectronMain {
     ipcMain.handle("list-configs", async () => {
       return ["default", "strict", "relaxed", "developer", "eai"];
     });
+
+    ipcMain.handle("load-report-file", async (event, filePath) => {
+      try {
+        return fs.readFileSync(filePath, 'utf8');
+      } catch (error) {
+        console.error('Failed to load report file:', error);
+        throw error;
+      }
+    });
   }
 
   async runSecurityCheck(profile, config, password) {

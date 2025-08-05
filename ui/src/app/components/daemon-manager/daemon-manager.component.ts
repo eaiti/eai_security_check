@@ -129,6 +129,50 @@ interface DaemonStatus {
           </div>
 
           <div class="form-group">
+            <label for="userId">User ID</label>
+            <input
+              type="text"
+              id="userId"
+              [(ngModel)]="userIdInput"
+              placeholder="admin-workstation"
+              class="form-control"
+            />
+            <small class="help-text"
+              >Identifier included in reports and emails</small
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="intervalDays">Check Interval (Days)</label>
+            <input
+              type="number"
+              id="intervalDays"
+              [(ngModel)]="intervalDaysInput"
+              min="1"
+              max="365"
+              placeholder="7"
+              class="form-control"
+            />
+            <small class="help-text"
+              >How often to run security checks (1-365 days)</small
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="reportFormat">Report Format</label>
+            <select
+              id="reportFormat"
+              [(ngModel)]="reportFormatInput"
+              class="form-control"
+            >
+              <option value="email">Email (HTML)</option>
+              <option value="plain">Plain Text</option>
+              <option value="markdown">Markdown</option>
+              <option value="json">JSON</option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label for="email">Email Notifications</label>
             <input
               type="email"
@@ -140,6 +184,82 @@ interface DaemonStatus {
             <small class="help-text"
               >Email address for security report notifications</small
             >
+          </div>
+
+          <!-- SMTP Configuration (expandable) -->
+          <div class="form-group">
+            <div class="collapsible-section">
+              <button
+                type="button"
+                class="btn btn-link collapsible-toggle"
+                (click)="toggleSmtpSection()"
+              >
+                📧 SMTP Configuration
+                <span class="toggle-icon">{{
+                  showSmtpConfig() ? '−' : '+'
+                }}</span>
+              </button>
+              
+              @if (showSmtpConfig()) {
+                <div class="collapsible-content">
+                  <div class="form-row">
+                    <div class="form-group half-width">
+                      <label for="smtpHost">SMTP Host</label>
+                      <input
+                        type="text"
+                        id="smtpHost"
+                        [(ngModel)]="smtpHostInput"
+                        placeholder="smtp.gmail.com"
+                        class="form-control"
+                      />
+                    </div>
+                    <div class="form-group half-width">
+                      <label for="smtpPort">Port</label>
+                      <input
+                        type="number"
+                        id="smtpPort"
+                        [(ngModel)]="smtpPortInput"
+                        placeholder="587"
+                        class="form-control"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div class="form-row">
+                    <div class="form-group half-width">
+                      <label for="smtpUser">Username</label>
+                      <input
+                        type="text"
+                        id="smtpUser"
+                        [(ngModel)]="smtpUserInput"
+                        placeholder="your-email@gmail.com"
+                        class="form-control"
+                      />
+                    </div>
+                    <div class="form-group half-width">
+                      <label for="smtpPass">Password</label>
+                      <input
+                        type="password"
+                        id="smtpPass"
+                        [(ngModel)]="smtpPassInput"
+                        placeholder="app-password"
+                        class="form-control"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label class="checkbox-label">
+                      <input
+                        type="checkbox"
+                        [(ngModel)]="smtpSecureInput"
+                      />
+                      Use SSL/TLS (recommended)
+                    </label>
+                  </div>
+                </div>
+              }
+            </div>
           </div>
 
           <div class="form-group">
@@ -193,11 +313,21 @@ export class DaemonManagerComponent implements OnInit {
   readonly isOperating = this._isOperating.asReadonly();
   readonly message = this._message.asReadonly();
   readonly messageType = this._messageType.asReadonly();
+  private readonly _showSmtpConfig = signal(false);
+  readonly showSmtpConfig = this._showSmtpConfig.asReadonly();
 
   scheduleInput = '0 */6 * * *';
   profileInput = 'default';
   emailInput = '';
   outputDirInput = '';
+  userIdInput = '';
+  intervalDaysInput = 7;
+  reportFormatInput = 'email';
+  smtpHostInput = '';
+  smtpPortInput = 587;
+  smtpUserInput = '';
+  smtpPassInput = '';
+  smtpSecureInput = true;
 
   ngOnInit(): void {
     this.refreshStatus();
@@ -279,16 +409,48 @@ export class DaemonManagerComponent implements OnInit {
     this.profileInput = 'default';
     this.emailInput = '';
     this.outputDirInput = '';
+    this.userIdInput = '';
+    this.intervalDaysInput = 7;
+    this.reportFormatInput = 'email';
+    this.smtpHostInput = '';
+    this.smtpPortInput = 587;
+    this.smtpUserInput = '';
+    this.smtpPassInput = '';
+    this.smtpSecureInput = true;
     this.showMessage('Form reset to defaults', 'info');
   }
 
+  toggleSmtpSection(): void {
+    this._showSmtpConfig.set(!this._showSmtpConfig());
+  }
+
   private buildDaemonConfig(): any {
-    return {
-      schedule: this.scheduleInput,
-      profile: this.profileInput,
-      email: this.emailInput || undefined,
-      outputDir: this.outputDirInput || undefined,
+    const config: any = {
+      enabled: true,
+      intervalDays: this.intervalDaysInput,
+      securityProfile: this.profileInput,
+      reportFormat: this.reportFormatInput as 'email' | 'plain' | 'markdown' | 'json',
+      userId: this.userIdInput || undefined,
     };
+
+    // Add email configuration if provided
+    if (this.emailInput && this.smtpHostInput) {
+      config.email = {
+        smtp: {
+          host: this.smtpHostInput,
+          port: this.smtpPortInput,
+          secure: this.smtpSecureInput,
+          auth: {
+            user: this.smtpUserInput,
+            pass: this.smtpPassInput,
+          },
+        },
+        from: this.smtpUserInput,
+        to: [this.emailInput],
+      };
+    }
+
+    return config;
   }
 
   private validateConfig(config: any): boolean {

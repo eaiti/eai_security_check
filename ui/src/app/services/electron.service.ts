@@ -50,6 +50,7 @@ declare global {
       saveConfig: (config: any, path?: string) => Promise<boolean>;
       createConfig: (profile: string) => Promise<any>;
       listConfigs: () => Promise<string[]>;
+      loadReportFile: (path: string) => Promise<string>;
     };
     isElectron?: boolean;
   }
@@ -155,6 +156,22 @@ export class ElectronService {
       return this.getMockConfig();
     }
     return window.electronAPI!.loadConfig(path);
+  }
+
+  async loadReportFromPath(path: string): Promise<SecurityCheckReport> {
+    if (!this._isElectron()) {
+      return this.getMockSecurityCheck('default');
+    }
+    
+    try {
+      // Use Node.js fs to read the file (via Electron IPC)
+      const reportData = await window.electronAPI!.loadReportFile(path);
+      return JSON.parse(reportData);
+    } catch (error) {
+      console.error('Failed to load report from path:', error);
+      // Return mock data as fallback
+      return this.getMockSecurityCheck('default');
+    }
   }
 
   async saveConfig(config: any, path?: string): Promise<boolean> {

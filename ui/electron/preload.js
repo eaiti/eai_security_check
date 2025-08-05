@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   saveConfig: (config, path) => ipcRenderer.invoke("save-config", config, path),
   createConfig: (profile) => ipcRenderer.invoke("create-config", profile),
   listConfigs: () => ipcRenderer.invoke("list-configs"),
+  loadReportFile: (path) => ipcRenderer.invoke("load-report-file", path),
 });
 
 contextBridge.exposeInMainWorld("isElectron", true);

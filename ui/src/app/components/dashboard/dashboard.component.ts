@@ -7,11 +7,12 @@ import {
   OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import {
   ElectronService,
   SecurityCheckReport,
 } from '../../services/electron.service';
+import { ReportService } from '../../services/report.service';
 
 export interface ReportHistory {
   id: string;
@@ -269,6 +270,8 @@ export interface SystemStatus {
 })
 export class DashboardComponent implements OnInit {
   private readonly electronService = inject(ElectronService);
+  private readonly router = inject(Router);
+  private readonly reportService = inject(ReportService);
   private readonly _systemStatus = signal<SystemStatus>({
     version: '1.0.0',
     globalInstall: false,
@@ -425,9 +428,36 @@ export class DashboardComponent implements OnInit {
     await this.loadSystemStatus();
   }
 
-  viewReport(report: ReportHistory): void {
-    // In real implementation, this would navigate to report viewer with specific report
-    console.log('View report:', report);
+  async viewReport(report: ReportHistory): Promise<void> {
+    try {
+      // If we have a report path, load the actual report data
+      if (report.reportPath) {
+        const reportData = await this.electronService.loadReportFromPath(report.reportPath);
+        this.reportService.setReport(reportData, report.reportPath);
+      } else {
+        // Create a mock report from the history data
+        const mockReport: SecurityCheckReport = {
+          platform: { platform: 'unknown', arch: 'unknown', version: 'unknown' },
+          profile: report.profile,
+          timestamp: report.timestamp,
+          checks: [],
+          summary: {
+            passed: report.passed,
+            failed: report.failed,
+            warnings: report.warnings,
+            overallStatus: report.status,
+          },
+        };
+        this.reportService.setReport(mockReport);
+      }
+      
+      // Navigate to report viewer
+      this.router.navigate(['/report-viewer']);
+    } catch (error) {
+      console.error('Failed to load report:', error);
+      // Still navigate to show error state
+      this.router.navigate(['/report-viewer']);
+    }
   }
 
   copyReport(report: ReportHistory): void {
