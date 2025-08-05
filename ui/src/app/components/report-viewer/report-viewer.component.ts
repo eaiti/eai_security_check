@@ -91,10 +91,10 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
                       <span class="value user-id">{{ currentReportData()!.userId }}</span>
                     </div>
                   }
-                  @if (currentReportData()!.hash) {
+                  @if (currentReportData()?.hash) {
                     <div class="detail-item">
                       <span class="label">Tamper Hash:</span>
-                      <span class="value hash">{{ currentReportData()!.hash.substring(0, 32) }}...</span>
+                      <span class="value hash">{{ currentReportData()!.hash!.substring(0, 32) }}...</span>
                     </div>
                   }
                 }
@@ -911,5 +911,138 @@ export class ReportViewerComponent implements OnInit {
     setTimeout(() => {
       this._message.set('');
     }, 5000);
+  }
+
+  async selectMultipleFiles(): Promise<void> {
+    try {
+      const files = await this.electronService.selectFiles([
+        { name: 'JSON Files', extensions: ['json'] },
+        { name: 'All Files', extensions: ['*'] }
+      ], true);
+      
+      if (files && files.length > 0) {
+        const reportFiles: ReportFile[] = files.map((filePath: string) => ({
+          path: filePath,
+          name: filePath.split('/').pop() || filePath,
+          timestamp: new Date().toISOString(),
+          size: 'Unknown',
+          verificationStatus: 'pending' as const
+        }));
+        
+        this._bulkFiles.set([...this._bulkFiles(), ...reportFiles]);
+        this.showMessage(`Added ${files.length} files for bulk verification`, 'success');
+      }
+    } catch (error) {
+      console.error('Failed to select files:', error);
+      this.showMessage('Failed to select files', 'error');
+    }
+  }
+
+  async selectDirectory(): Promise<void> {
+    try {
+      const directory = await this.electronService.selectDirectory();
+      
+      if (directory) {
+        // Get all JSON files from the directory
+        const files = await this.electronService.getFilesFromDirectory(directory, '.json');
+        
+        if (files && files.length > 0) {
+          const reportFiles: ReportFile[] = files.map((filePath: string) => ({
+            path: filePath,
+            name: filePath.split('/').pop() || filePath,
+            timestamp: new Date().toISOString(),
+            size: 'Unknown',
+            verificationStatus: 'pending' as const
+          }));
+          
+          this._bulkFiles.set([...this._bulkFiles(), ...reportFiles]);
+          this.showMessage(`Added ${files.length} files from directory for bulk verification`, 'success');
+        } else {
+          this.showMessage('No JSON files found in selected directory', 'info');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to select directory:', error);
+      this.showMessage('Failed to select directory', 'error');
+    }
+  }
+
+  async verifyBulkReports(): Promise<void> {
+    const files = this._bulkFiles();
+    if (files.length === 0) {
+      this.showMessage('No files selected for verification', 'error');
+      return;
+    }
+
+    this._isBulkVerifying.set(true);
+    this._bulkProgress.set({ current: 0, total: files.length });
+    this._bulkResults.set([]);
+
+    const results: BulkVerificationResult[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      this._bulkProgress.set({ current: i + 1, total: files.length });
+      
+      // Update file status
+      const updatedFiles = [...files];
+      updatedFiles[i] = { ...file, verificationStatus: 'verifying' };
+      this._bulkFiles.set(updatedFiles);
+
+      try {
+        const isVerified = await this.electronService.verifyReport(file.path);
+        const report = await this.electronService.loadReport(file.path);
+        
+        const bulkResult: BulkVerificationResult = {
+          path: file.path,
+          userId: report?.metadata?.userId || report?.userId || null,
+          status: isVerified ? 'valid' : 'invalid',
+          reason: isVerified ? 'Signature valid' : 'Invalid signature'
+        };
+        
+        results.push(bulkResult);
+        
+        // Update file status
+        updatedFiles[i] = { 
+          ...file, 
+          verificationStatus: isVerified ? 'valid' : 'invalid',
+          verified: isVerified 
+        };
+        this._bulkFiles.set([...updatedFiles]);
+
+      } catch (error) {
+        const bulkResult: BulkVerificationResult = {
+          path: file.path,
+          userId: null,
+          status: 'error',
+          reason: error instanceof Error ? error.message : 'Unknown error'
+        };
+        
+        results.push(bulkResult);
+        
+        // Update file status
+        updatedFiles[i] = { ...file, verificationStatus: 'error' };
+        this._bulkFiles.set([...updatedFiles]);
+      }
+    }
+
+    this._bulkResults.set(results);
+    this._isBulkVerifying.set(false);
+    
+    const validCount = results.filter(r => r.status === 'valid').length;
+    const invalidCount = results.filter(r => r.status === 'invalid').length;
+    const errorCount = results.filter(r => r.status === 'error').length;
+    
+    this.showMessage(
+      `Bulk verification completed: ${validCount} valid, ${invalidCount} invalid, ${errorCount} errors`,
+      validCount === results.length ? 'success' : 'info'
+    );
+  }
+
+  removeFile(filePath: string): void {
+    const currentFiles = this._bulkFiles();
+    const updatedFiles = currentFiles.filter(file => file.path !== filePath);
+    this._bulkFiles.set(updatedFiles);
+    this.showMessage('File removed from bulk verification list', 'info');
   }
 }

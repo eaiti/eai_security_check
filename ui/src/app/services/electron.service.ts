@@ -31,6 +31,7 @@ export interface SecurityCheckReport {
   metadata?: {
     hostname?: string;
     version?: string;
+    userId?: string;
   };
 }
 
@@ -61,6 +62,10 @@ declare global {
       loadRecentReports: () => Promise<any[]>;
       getConfigDirectory: () => Promise<string>;
       getReportsDirectory: () => Promise<string>;
+      selectFiles: (filters: any[], multiple?: boolean) => Promise<string[]>;
+      selectDirectory: () => Promise<string>;
+      getFilesFromDirectory: (directory: string, extension: string) => Promise<string[]>;
+      loadReport: (path: string) => Promise<SecurityCheckReport>;
     };
     isElectron?: boolean;
   }
@@ -357,5 +362,37 @@ export class ElectronService {
       return '~/reports';
     }
     return window.electronAPI!.getReportsDirectory();
+  }
+
+  async selectFiles(filters: any[], multiple = false): Promise<string[]> {
+    if (!this.isElectron()) {
+      // Mock for non-electron environment
+      return [];
+    }
+    return window.electronAPI!.selectFiles(filters, multiple);
+  }
+
+  async selectDirectory(): Promise<string> {
+    if (!this.isElectron()) {
+      // Mock for non-electron environment
+      return '';
+    }
+    return window.electronAPI!.selectDirectory();
+  }
+
+  async getFilesFromDirectory(directory: string, extension: string): Promise<string[]> {
+    if (!this.isElectron()) {
+      // Mock for non-electron environment
+      return [];
+    }
+    return window.electronAPI!.getFilesFromDirectory(directory, extension);
+  }
+
+  async loadReport(path: string): Promise<SecurityCheckReport> {
+    if (!this.isElectron()) {
+      // Mock for non-electron environment
+      throw new Error('Not in Electron environment');
+    }
+    return window.electronAPI!.loadReport(path);
   }
 }

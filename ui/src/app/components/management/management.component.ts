@@ -130,25 +130,25 @@ sudo crontab -e
                   <h4>LaunchDaemon Installation:</h4>
                   <pre class="code-block">
 # Create launch daemon plist
-sudo tee /Library/LaunchDaemons/com.eaiti.security-check.plist << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.eaiti.security-check</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/usr/local/bin/eai-security-check</string>
-        <string>daemon</string>
-        <string>start</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-</dict>
-</plist>
+sudo tee /Library/LaunchDaemons/com.eaiti.security-check.plist &lt;&lt; EOF
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+&lt;plist version="1.0"&gt;
+&lt;dict&gt;
+    &lt;key&gt;Label&lt;/key&gt;
+    &lt;string&gt;com.eaiti.security-check&lt;/string&gt;
+    &lt;key&gt;ProgramArguments&lt;/key&gt;
+    &lt;array&gt;
+        &lt;string&gt;/usr/local/bin/eai-security-check&lt;/string&gt;
+        &lt;string&gt;daemon&lt;/string&gt;
+        &lt;string&gt;start&lt;/string&gt;
+    &lt;/array&gt;
+    &lt;key&gt;RunAtLoad&lt;/key&gt;
+    &lt;true/&gt;
+    &lt;key&gt;KeepAlive&lt;/key&gt;
+    &lt;true/&gt;
+&lt;/dict&gt;
+&lt;/plist&gt;
 EOF
 
 # Load and start the daemon

@@ -187,7 +187,7 @@ describe('SecurityCheckComponent', () => {
   it('should render different report states', () => {
     // Test with no report and not running - should show empty state
     fixture.detectChanges();
-    let compiled = fixture.nativeElement as HTMLElement;
+    const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.empty-state')).toBeTruthy();
 
     // Test component logic
