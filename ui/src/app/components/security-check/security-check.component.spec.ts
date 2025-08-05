@@ -40,7 +40,7 @@ describe('SecurityCheckComponent', () => {
   });
 
   it('should have default profile selected', () => {
-    expect(component.selectedProfile).toBe('default');
+    expect(component.selectedProfile).toBe('eai');
   });
 
   it('should show loading state when running security check', async () => {
