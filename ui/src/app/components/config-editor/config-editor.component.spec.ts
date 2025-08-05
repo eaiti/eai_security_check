@@ -1,11 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { ConfigEditorComponent } from './config-editor.component';
 import { ElectronService } from '../../services/electron.service';
-import { signal } from '@angular/core';
 
 describe('ConfigEditorComponent', () => {
   let component: ConfigEditorComponent;
-  let fixture: any;
+  let fixture: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   let mockElectronService: jasmine.SpyObj<ElectronService>;
 
   beforeEach(async () => {

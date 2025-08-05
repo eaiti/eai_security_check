@@ -15,12 +15,12 @@ describe('InteractiveModeComponent', () => {
     hostname: 'test-machine',
   };
 
-  const mockVersionInfo = {
-    cli: '1.1.0',
-    ui: '1.1.0',
-    electron: '37.2.5',
-    node: '18.0.0',
-  };
+  // const mockVersionInfo = {
+  //   cli: '1.1.0',
+  //   ui: '1.1.0',
+  //   electron: '37.2.5',
+  //   node: '18.0.0',
+  // };
 
   beforeEach(async () => {
     mockElectronService = jasmine.createSpyObj('ElectronService', [

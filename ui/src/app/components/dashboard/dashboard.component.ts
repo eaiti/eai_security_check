@@ -364,7 +364,7 @@ export class DashboardComponent implements OnInit {
     ];
   }
 
-  saveReportToHistory(_report: SecurityCheckReport): void {
+  saveReportToHistory(): void {
     // This is now handled automatically by the ReportService
     // Just refresh the dashboard to show the new report
     this.loadSystemStatus();
