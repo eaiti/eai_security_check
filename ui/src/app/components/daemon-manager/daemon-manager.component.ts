@@ -248,6 +248,29 @@ interface DaemonStatus {
                     </div>
                   </div>
                   
+                  <div class="form-row">
+                    <div class="form-group half-width">
+                      <label for="emailFrom">From Address</label>
+                      <input
+                        type="email"
+                        id="emailFrom"
+                        [(ngModel)]="emailFromInput"
+                        placeholder="EAI Security <security@company.com>"
+                        class="form-control"
+                      />
+                    </div>
+                    <div class="form-group half-width">
+                      <label for="emailSubject">Email Subject</label>
+                      <input
+                        type="text"
+                        id="emailSubject"
+                        [(ngModel)]="emailSubjectInput"
+                        placeholder="Security Audit Report"
+                        class="form-control"
+                      />
+                    </div>
+                  </div>
+                  
                   <div class="form-group">
                     <label class="checkbox-label">
                       <input
@@ -328,6 +351,8 @@ export class DaemonManagerComponent implements OnInit {
   smtpUserInput = '';
   smtpPassInput = '';
   smtpSecureInput = true;
+  emailFromInput = '';
+  emailSubjectInput = '';
 
   ngOnInit(): void {
     this.refreshStatus();
@@ -417,6 +442,8 @@ export class DaemonManagerComponent implements OnInit {
     this.smtpUserInput = '';
     this.smtpPassInput = '';
     this.smtpSecureInput = true;
+    this.emailFromInput = '';
+    this.emailSubjectInput = '';
     this.showMessage('Form reset to defaults', 'info');
   }
 
@@ -445,8 +472,9 @@ export class DaemonManagerComponent implements OnInit {
             pass: this.smtpPassInput,
           },
         },
-        from: this.smtpUserInput,
+        from: this.emailFromInput || this.smtpUserInput,
         to: [this.emailInput],
+        subject: this.emailSubjectInput || 'Security Audit Report',
       };
     }
 

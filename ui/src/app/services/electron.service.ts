@@ -58,6 +58,8 @@ declare global {
       createConfig: (profile: string) => Promise<any>;
       listConfigs: () => Promise<string[]>;
       loadReportFile: (path: string) => Promise<string>;
+      getConfigDirectory: () => Promise<string>;
+      getReportsDirectory: () => Promise<string>;
     };
     isElectron?: boolean;
   }
@@ -328,5 +330,19 @@ export class ElectronService {
       remoteLogin: { enabled: false },
       automaticUpdates: { enabled: true, automaticInstall: false },
     };
+  }
+
+  async getConfigDirectory(): Promise<string> {
+    if (!this.isElectron()) {
+      return '~/.config/eai-security-check';
+    }
+    return window.electronAPI!.getConfigDirectory();
+  }
+
+  async getReportsDirectory(): Promise<string> {
+    if (!this.isElectron()) {
+      return '~/reports';
+    }
+    return window.electronAPI!.getReportsDirectory();
   }
 }

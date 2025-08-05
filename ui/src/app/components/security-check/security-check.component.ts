@@ -11,6 +11,7 @@ import {
   ElectronService,
   SecurityCheckReport,
 } from '../../services/electron.service';
+import { ReportService } from '../../services/report.service';
 import { PasswordDialogComponent } from '../password-dialog/password-dialog.component';
 
 @Component({
@@ -154,6 +155,7 @@ import { PasswordDialogComponent } from '../password-dialog/password-dialog.comp
 })
 export class SecurityCheckComponent {
   private readonly electronService = inject(ElectronService);
+  private readonly reportService = inject(ReportService);
   private readonly _isRunning = signal(false);
   private readonly _report = signal<SecurityCheckReport | null>(null);
   private readonly _showPasswordDialog = signal(false);
@@ -193,6 +195,9 @@ export class SecurityCheckComponent {
         password,
       );
       this._report.set(report);
+      
+      // Save to report service (which automatically updates history)
+      this.reportService.setReport(report);
     } catch (error) {
       console.error('Security check failed:', error);
       // Handle error state

@@ -12,18 +12,7 @@ import {
   ElectronService,
   SecurityCheckReport,
 } from '../../services/electron.service';
-import { ReportService } from '../../services/report.service';
-
-export interface ReportHistory {
-  id: string;
-  timestamp: string;
-  profile: string;
-  status: 'pass' | 'fail' | 'warning';
-  passed: number;
-  failed: number;
-  warnings: number;
-  reportPath?: string;
-}
+import { ReportService, ReportHistory } from '../../services/report.service';
 
 export interface SystemStatus {
   version: string;
@@ -33,6 +22,9 @@ export interface SystemStatus {
   recentReports: ReportHistory[];
   configExists: boolean;
   schedulingConfigExists: boolean;
+  configDirectory: string;
+  reportsDirectory: string;
+  reportSource: 'localStorage' | 'fileSystem' | 'mock';
 }
 
 @Component({
@@ -85,6 +77,14 @@ export interface SystemStatus {
             >
               {{ systemStatus().configExists ? '✅ Found' : '⚠️ Missing' }}
             </span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Config Directory:</span>
+            <span class="status-value config-path">{{ systemStatus().configDirectory }}</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Reports Directory:</span>
+            <span class="status-value config-path">{{ systemStatus().reportsDirectory }}</span>
           </div>
         </div>
 
@@ -157,6 +157,10 @@ export interface SystemStatus {
       <div class="history-card">
         <div class="history-header">
           <h2>📋 Recent Reports</h2>
+          <div class="report-source-status">
+            <span class="source-label">Source:</span>
+            <span class="source-value">{{ getReportSourceText() }}</span>
+          </div>
           <div class="history-controls">
             <button class="btn btn-sm" (click)="refreshHistory()">
               🔄 Refresh
@@ -261,6 +265,9 @@ export class DashboardComponent implements OnInit {
     recentReports: [],
     configExists: false,
     schedulingConfigExists: false,
+    configDirectory: '~/.config/eai-security-check',
+    reportsDirectory: '~/reports',
+    reportSource: 'mock',
   });
 
   readonly systemStatus = this._systemStatus.asReadonly();
@@ -275,7 +282,7 @@ export class DashboardComponent implements OnInit {
       const version = this.electronService.cliVersion() || '1.0.0';
 
       // Load recent reports from local storage or electron service
-      const recentReports = this.loadRecentReports();
+      const { recentReports, reportSource } = this.loadRecentReports();
 
       // Mock system status for now - in real implementation this would come from CLI
       const status: SystemStatus = {
@@ -286,6 +293,9 @@ export class DashboardComponent implements OnInit {
         lastCheck: recentReports[0],
         configExists: true, // Mock for now
         schedulingConfigExists: false, // Mock for now
+        configDirectory: await this.getConfigDirectory(),
+        reportsDirectory: await this.getReportsDirectory(),
+        reportSource,
       };
 
       this._systemStatus.set(status);
@@ -316,18 +326,41 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  private loadRecentReports(): ReportHistory[] {
-    try {
-      const stored = localStorage.getItem('eai-security-reports');
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (error) {
-      console.error('Failed to load report history:', error);
+  private loadRecentReports(): { recentReports: ReportHistory[]; reportSource: 'localStorage' | 'fileSystem' | 'mock' } {
+    const reports = this.reportService.getReportHistory();
+    if (reports.length > 0) {
+      return { recentReports: reports, reportSource: 'localStorage' };
     }
 
     // Return mock data if no history exists
-    return this.getMockReportHistory();
+    return { 
+      recentReports: this.getMockReportHistory(), 
+      reportSource: 'mock' 
+    };
+  }
+
+  private async getConfigDirectory(): Promise<string> {
+    try {
+      if (this.electronService.isElectron()) {
+        // In real implementation, this would come from electron service
+        return await this.electronService.getConfigDirectory?.() || '~/.config/eai-security-check';
+      }
+    } catch (error) {
+      console.error('Failed to get config directory:', error);
+    }
+    return '~/.config/eai-security-check';
+  }
+
+  private async getReportsDirectory(): Promise<string> {
+    try {
+      if (this.electronService.isElectron()) {
+        // In real implementation, this would come from electron service
+        return await this.electronService.getReportsDirectory?.() || '~/reports';
+      }
+    } catch (error) {
+      console.error('Failed to get reports directory:', error);
+    }
+    return '~/reports';
   }
 
   private getMockReportHistory(): ReportHistory[] {
@@ -366,29 +399,9 @@ export class DashboardComponent implements OnInit {
   }
 
   saveReportToHistory(report: SecurityCheckReport): void {
-    const historyItem: ReportHistory = {
-      id: Date.now().toString(),
-      timestamp: report.timestamp,
-      profile: report.profile,
-      status: report.summary.overallStatus,
-      passed: report.summary.passed,
-      failed: report.summary.failed,
-      warnings: report.summary.warnings,
-    };
-
-    const current = this.systemStatus();
-    const updated = [historyItem, ...current.recentReports].slice(0, 10); // Keep last 10
-
-    try {
-      localStorage.setItem('eai-security-reports', JSON.stringify(updated));
-      this._systemStatus.set({
-        ...current,
-        recentReports: updated,
-        lastCheck: historyItem,
-      });
-    } catch (error) {
-      console.error('Failed to save report history:', error);
-    }
+    // This is now handled automatically by the ReportService
+    // Just refresh the dashboard to show the new report
+    this.loadSystemStatus();
   }
 
   async installGlobally(): Promise<void> {
@@ -499,5 +512,18 @@ export class DashboardComponent implements OnInit {
     if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
     if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
     return 'Just now';
+  }
+
+  getReportSourceText(): string {
+    switch (this.systemStatus().reportSource) {
+      case 'localStorage':
+        return '💾 Browser Storage';
+      case 'fileSystem':
+        return '📁 File System';
+      case 'mock':
+        return '🧪 Demo Data';
+      default:
+        return '❓ Unknown';
+    }
   }
 }

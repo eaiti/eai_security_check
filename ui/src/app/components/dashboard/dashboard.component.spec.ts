@@ -3,11 +3,10 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
 import {
   DashboardComponent,
-  ReportHistory,
   SystemStatus,
 } from './dashboard.component';
 import { ElectronService } from '../../services/electron.service';
-import { ReportService } from '../../services/report.service';
+import { ReportService, ReportHistory } from '../../services/report.service';
 
 describe('DashboardComponent', () => {
   let component: DashboardComponent;
@@ -47,6 +46,9 @@ describe('DashboardComponent', () => {
     recentReports: mockReportHistory,
     configExists: true,
     schedulingConfigExists: true,
+    configDirectory: '~/.config/eai-security-check',
+    reportsDirectory: '~/reports',
+    reportSource: 'localStorage',
   };
 
   beforeEach(async () => {
@@ -74,7 +76,8 @@ describe('DashboardComponent', () => {
     });
     
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
-    mockReportService = jasmine.createSpyObj('ReportService', ['setReport']);
+    mockReportService = jasmine.createSpyObj('ReportService', ['setReport', 'getReportHistory']);
+    mockReportService.getReportHistory.and.returnValue(mockReportHistory);
 
     mockElectronService.installGlobally.and.returnValue(Promise.resolve(true));
     mockElectronService.manageDaemon.and.returnValue(Promise.resolve('stopped'));

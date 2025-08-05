@@ -49,6 +49,10 @@ module.exports = function (config) {
     // Force browser termination on Windows CI
     processKillTimeout: process.env.CI === 'true' ? 5000 : 2000,
     
+    // Additional Windows-specific settings
+    retryLimit: 0,
+    concurrency: 1,
+    
     // Custom launcher for CI
     customLaunchers: {
       ChromeHeadlessCI: {
@@ -88,21 +92,45 @@ module.exports = function (config) {
           '--disable-breakpad',
           '--disable-client-side-phishing-detection',
           '--disable-component-update',
-          '--disable-default-apps',
           '--disable-hang-monitor',
           '--disable-ipc-flooding-protection',
           '--disable-prompt-on-repost',
-          '--disable-background-timer-throttling',
-          '--disable-renderer-backgrounding',
           '--disable-backgrounding-occluded-windows',
           '--force-fieldtrials=*BackgroundTracing/default/',
           '--no-first-run',
           '--no-default-browser-check',
           '--disable-logging',
           '--disable-gl-drawing-for-tests',
-          '--disable-accelerated-2d-canvas'
+          '--disable-accelerated-2d-canvas',
+          '--aggressive',
+          '--disable-features=TranslateUI',
+          '--disable-features=MediaRouter',
+          '--disable-domain-reliability',
+          '--disable-features=AudioServiceOutOfProcess',
+          '--disable-print-preview',
+          '--disable-speech-api',
+          '--exit-on-forward-failure'
         ]
+      }
+    },
+
+    // Windows-specific process cleanup
+    beforeDisconnect: function() {
+      // Force cleanup on Windows
+      if (process.platform === 'win32') {
+        console.log('Forcing browser cleanup on Windows...');
       }
     }
   });
+
+  // Platform-specific browser selection
+  if (process.env.CI && process.platform === 'win32') {
+    config.set({
+      browsers: ['ChromeHeadlessCIWindows'],
+      processKillTimeout: 2000,
+      browserDisconnectTimeout: 5000,
+      browserNoActivityTimeout: 15000,
+      captureTimeout: 15000
+    });
+  }
 };
