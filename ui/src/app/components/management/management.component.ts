@@ -36,6 +36,11 @@ interface ManagementCard {
             class="management-card" 
             [class]="'card-' + card.color"
             (click)="navigateToCard(card.route)"
+            (keyup.enter)="navigateToCard(card.route)"
+            (keyup.space)="navigateToCard(card.route)"
+            tabindex="0"
+            role="button"
+            [attr.aria-label]="'Navigate to ' + card.title"
           >
             <div class="card-icon">{{ card.icon }}</div>
             <div class="card-content">

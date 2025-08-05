@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   signal,
   inject,
   OnInit,
@@ -365,7 +364,7 @@ export class DashboardComponent implements OnInit {
     ];
   }
 
-  saveReportToHistory(report: SecurityCheckReport): void {
+  saveReportToHistory(_report: SecurityCheckReport): void {
     // This is now handled automatically by the ReportService
     // Just refresh the dashboard to show the new report
     this.loadSystemStatus();
