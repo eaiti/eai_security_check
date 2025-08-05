@@ -54,6 +54,9 @@ describe('DashboardComponent', () => {
     mockElectronService = jasmine.createSpyObj('ElectronService', [
       'manageDaemon',
       'loadReportFromPath',
+      'loadRecentReports',
+      'getConfigDirectory',
+      'getReportsDirectory',
     ]);
     // Add signal properties
     Object.defineProperty(mockElectronService, 'isElectron', {
@@ -78,6 +81,9 @@ describe('DashboardComponent', () => {
     mockReportService.getReportHistory.and.returnValue(mockReportHistory);
 
     mockElectronService.manageDaemon.and.returnValue(Promise.resolve('stopped'));
+    mockElectronService.loadRecentReports.and.returnValue(Promise.resolve([]));
+    mockElectronService.getConfigDirectory.and.returnValue(Promise.resolve('~/.config/eai-security-check'));
+    mockElectronService.getReportsDirectory.and.returnValue(Promise.resolve('~/reports'));
     mockElectronService.loadReportFromPath.and.returnValue(Promise.resolve({
       platform: { platform: 'darwin', arch: 'x64', version: '14.0.0' },
       profile: 'default',

@@ -8,10 +8,10 @@
   },
   "scripts": {
     "build": "node scripts/build.js",
-    "build:ui": "cd ui && npm install && npm run build",
+    "build:ui": "npm run build && cd ui && npm install && npm run build",
     "build:all": "npm run build && npm run build:ui",
     "start": "node dist/cli/index.js",
-    "start:ui": "cd ui && npm run electron:build",
+    "start:ui": "npm run build && cd ui && npm run electron:build",
     "dev": "ts-node src/cli/index.ts",
     "dev:ui": "cd ui && npm run electron:dev",
     "check": "npm run build && npm start check",

@@ -106,6 +106,8 @@ declare global {
       selectDirectory: () => Promise<string>;
       getFilesFromDirectory: (directory: string, extension: string) => Promise<string[]>;
       loadReport: (path: string) => Promise<SecurityCheckReport>;
+      loadApplicationConfig: () => Promise<any>;
+      saveApplicationConfig: (config: any) => Promise<boolean>;
     };
     isElectron?: boolean;
   }
@@ -434,5 +436,19 @@ export class ElectronService {
       throw new Error('Not in Electron environment');
     }
     return window.electronAPI!.loadReport(path);
+  }
+
+  async loadApplicationConfig(): Promise<any> {
+    if (!this.isElectron()) {
+      return null;
+    }
+    return window.electronAPI!.loadApplicationConfig();
+  }
+
+  async saveApplicationConfig(config: any): Promise<boolean> {
+    if (!this.isElectron()) {
+      return false;
+    }
+    return window.electronAPI!.saveApplicationConfig(config);
   }
 }

@@ -82,7 +82,19 @@ class ElectronMain {
 
   setupIpcHandlers() {
     ipcMain.handle("run-security-check", async (event, profile, config, password) => {
-      return this.runSecurityCheck(profile, config, password);
+      // Load user ID from application config
+      let userId = null;
+      try {
+        const configPath = path.join(app.getPath("userData"), "application-config.json");
+        if (fs.existsSync(configPath)) {
+          const appConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
+          userId = appConfig?.userIdentifier || null;
+        }
+      } catch (error) {
+        console.log("Could not load user ID from config:", error.message);
+      }
+      
+      return this.runSecurityCheck(profile, config, password, userId);
     });
 
     ipcMain.handle("run-interactive", async () => {
@@ -273,9 +285,34 @@ class ElectronMain {
     ipcMain.handle("get-reports-directory", async () => {
       return path.join(app.getPath("userData"), "reports");
     });
+
+    ipcMain.handle("load-application-config", async () => {
+      try {
+        const configPath = path.join(app.getPath("userData"), "application-config.json");
+        if (fs.existsSync(configPath)) {
+          const content = fs.readFileSync(configPath, "utf8");
+          return JSON.parse(content);
+        }
+        return null; // Return null if file doesn't exist
+      } catch (error) {
+        console.error("Failed to load application config:", error);
+        return null;
+      }
+    });
+
+    ipcMain.handle("save-application-config", async (event, config) => {
+      try {
+        const configPath = path.join(app.getPath("userData"), "application-config.json");
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+        return true;
+      } catch (error) {
+        console.error("Failed to save application config:", error);
+        return false;
+      }
+    });
   }
 
-  async runSecurityCheck(profile, config, password) {
+  async runSecurityCheck(profile, config, password, userId) {
     try {
       if (!this.cliPath) {
         throw new Error("CLI not available - cannot run real security checks");
@@ -299,18 +336,18 @@ class ElectronMain {
 
       // Generate output filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const outputFile = path.join(__dirname, `../../reports/security-report-${profile}-${timestamp}.json`);
+      const reportsDir = path.join(app.getPath("userData"), "reports");
+      const outputFile = path.join(reportsDir, `security-report-${profile}-${timestamp}.json`);
 
       // Ensure reports directory exists
-      const reportsDir = path.dirname(outputFile);
       if (!fs.existsSync(reportsDir)) {
         fs.mkdirSync(reportsDir, { recursive: true });
       }
 
-      const command = `node "${this.cliPath}" check ${configArg} ${passwordArg} --format json --output "${outputFile}" --quiet`;
+      const command = `node "${this.cliPath}" check ${configArg} ${passwordArg} --format json --hash --output "${outputFile}" --quiet`;
 
       console.log(`Running security check: ${command}`);
-      const result = await this.executeCommand(command);
+      const result = await this.executeCommand(command, password);
 
       if (result.error) {
         console.error("CLI command failed:", result.stderr || result.error.message);
@@ -319,16 +356,25 @@ class ElectronMain {
 
       // Read the saved report file
       try {
-        const report = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
+        const reportContent = fs.readFileSync(outputFile, 'utf8');
+        const report = JSON.parse(reportContent);
+        
+        // Convert CLI format to UI format and add user ID
+        const convertedReport = this.convertCliReportToUIFormat(report, profile, userId);
+        
+        // Save the converted report back to file
+        fs.writeFileSync(outputFile, JSON.stringify(convertedReport, null, 2));
+        
         console.log(`Security check completed successfully for profile: ${profile}, saved to: ${outputFile}`);
-        return report;
+        return convertedReport;
       } catch (parseError) {
         console.warn("Failed to read saved report:", parseError.message);
         // Fallback to parsing stdout
         try {
           const report = JSON.parse(result.stdout);
+          const convertedReport = this.convertCliReportToUIFormat(report, profile, userId);
           console.log(`Security check completed successfully for profile: ${profile} (fallback mode)`);
-          return report;
+          return convertedReport;
         } catch (fallbackError) {
           console.warn("CLI stdout:", result.stdout);
           throw new Error("Failed to parse security check results");
@@ -349,11 +395,17 @@ class ElectronMain {
     return this.executeCommand(fullCommand);
   }
 
-  executeCommand(command) {
+  executeCommand(command, password = null) {
     return new Promise((resolve) => {
-      exec(command, { timeout: 30000 }, (error, stdout, stderr) => {
+      const process = exec(command, { timeout: 30000 }, (error, stdout, stderr) => {
         resolve({ error, stdout, stderr });
       });
+      
+      // If password is provided, send it to stdin when prompted
+      if (password && process.stdin) {
+        process.stdin.write(password + '\n');
+        process.stdin.end();
+      }
     });
   }
 
@@ -428,6 +480,76 @@ class ElectronMain {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  convertCliReportToUIFormat(cliReport, profile, userId) {
+    // Convert CLI format to UI SecurityCheckReport format
+    const checks = cliReport.results?.map(result => ({
+      name: this.extractCheckName(result.message),
+      status: this.mapCliStatus(result.status),
+      message: result.message,
+      details: result.details || '',
+      risk: this.mapToRiskLevel(result.status)
+    })) || [];
+
+    const summary = {
+      passed: cliReport.passedChecks || 0,
+      failed: cliReport.failedChecks || 0,
+      warnings: cliReport.warningChecks || 0,
+      overallStatus: this.mapCliStatus(cliReport.overallPassed ? 'passed' : 'failed')
+    };
+
+    return {
+      platform: {
+        platform: process.platform,
+        arch: process.arch,
+        version: require('os').release()
+      },
+      profile: profile,
+      timestamp: cliReport.timestamp || new Date().toISOString(),
+      checks: checks,
+      summary: summary,
+      hash: cliReport.hash || undefined,
+      userId: userId || undefined,
+      metadata: {
+        hostname: require('os').hostname(),
+        version: '1.1.0',
+        userId: userId || undefined
+      }
+    };
+  }
+
+  extractCheckName(message) {
+    // Extract check name from message like "PASS Password Configuration"
+    const match = message.match(/^(?:PASS|FAIL|WARNING)\s+(.+)$/);
+    return match ? match[1] : message.replace(/^(✅|❌|⚠️)\s*/, '');
+  }
+
+  mapCliStatus(status) {
+    switch(status?.toLowerCase()) {
+      case 'passed':
+      case 'pass':
+        return 'pass';
+      case 'failed':
+      case 'fail':
+        return 'fail';
+      case 'warning':
+        return 'warning';
+      default:
+        return 'fail';
+    }
+  }
+
+  mapToRiskLevel(status) {
+    switch(status?.toLowerCase()) {
+      case 'failed':
+      case 'fail':
+        return 'high';
+      case 'warning':
+        return 'medium';
+      default:
+        return 'low';
+    }
   }
 }
 

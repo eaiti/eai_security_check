@@ -259,7 +259,7 @@ export class DashboardComponent implements OnInit {
       const version = this.electronService.cliVersion() || '1.0.0';
 
       // Load recent reports from local storage or electron service
-      const { recentReports, reportSource } = this.loadRecentReports();
+      const { recentReports, reportSource } = await this.loadRecentReports();
 
       // Mock system status for now - in real implementation this would come from CLI
       const status: SystemStatus = {
@@ -292,7 +292,30 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  private loadRecentReports(): { recentReports: ReportHistory[]; reportSource: 'localStorage' | 'fileSystem' | 'mock' } {
+  private async loadRecentReports(): Promise<{ recentReports: ReportHistory[]; reportSource: 'localStorage' | 'fileSystem' | 'mock' }> {
+    // First try to load from electron service (file system)
+    if (this.electronService.isElectron()) {
+      try {
+        const recentReportFiles = await this.electronService.loadRecentReports();
+        if (recentReportFiles.length > 0) {
+          const reports: ReportHistory[] = recentReportFiles.slice(0, 10).map(file => ({
+            id: file.path,
+            timestamp: file.timestamp,
+            profile: this.extractProfileFromFileName(file.name),
+            status: 'pass' as const, // Default - would need to parse file to get actual status
+            passed: 0, // Would need to parse file
+            failed: 0,
+            warnings: 0,
+            reportPath: file.path
+          }));
+          return { recentReports: reports, reportSource: 'fileSystem' };
+        }
+      } catch (error) {
+        console.error('Failed to load recent reports from file system:', error);
+      }
+    }
+
+    // Fallback to localStorage
     const reports = this.reportService.getReportHistory();
     if (reports.length > 0) {
       return { recentReports: reports, reportSource: 'localStorage' };
@@ -303,6 +326,12 @@ export class DashboardComponent implements OnInit {
       recentReports: this.getMockReportHistory(), 
       reportSource: 'mock' 
     };
+  }
+
+  private extractProfileFromFileName(fileName: string): string {
+    // Extract profile from filename like "security-report-eai-2025-01-01.json"
+    const match = fileName.match(/security-report-([^-]+)-/);
+    return match ? match[1] : 'default';
   }
 
   private async getConfigDirectory(): Promise<string> {

@@ -7,9 +7,11 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import {
   ElectronService,
 } from '../../services/electron.service';
+import { AppConfigService } from '../../services/app-config.service';
 
 interface ManagementCard {
   title: string;
@@ -22,7 +24,7 @@ interface ManagementCard {
 @Component({
   selector: 'app-management',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, FormsModule],
   template: `
     <div class="management-container">
       <div class="management-header">
@@ -50,6 +52,35 @@ interface ManagementCard {
             <div class="card-arrow">→</div>
           </div>
         }
+      </div>
+
+      <!-- User Configuration Section -->
+      <div class="user-config-section">
+        <h2>👤 User Configuration</h2>
+        <div class="user-form">
+          <div class="form-group">
+            <label for="user-identifier">User Identifier:</label>
+            <input
+              type="text"
+              id="user-identifier"
+              class="form-input"
+              [(ngModel)]="userIdentifier"
+              (blur)="saveUserIdentifier()"
+              placeholder="Enter your user identifier"
+              maxlength="50"
+            />
+            <small class="form-help">This identifier will be included in all security reports for tracking purposes.</small>
+          </div>
+          <div class="form-actions">
+            <button 
+              class="btn btn-primary"
+              (click)="saveUserIdentifier()"
+              [disabled]="isSaving()"
+            >
+              {{ isSaving() ? '💾 Saving...' : '💾 Save' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Platform-specific daemon setup instructions -->
@@ -213,9 +244,13 @@ Register-ScheduledTask -TaskName "EAI Security Check" -Action $Action -Trigger $
 })
 export class ManagementComponent implements OnInit {
   private readonly electronService = inject(ElectronService);
+  private readonly appConfigService = inject(AppConfigService);
   private readonly router = inject(Router);
 
   protected readonly selectedPlatform = signal<'linux' | 'macos' | 'windows'>('linux');
+  protected readonly isSaving = signal(false);
+  protected userIdentifier = '';
+
   protected readonly managementCards = signal<ManagementCard[]>([
     {
       title: 'Configuration Editor',
@@ -233,11 +268,26 @@ export class ManagementComponent implements OnInit {
     }
   ]);
 
-  ngOnInit() {
+  async ngOnInit() {
     // Detect current platform and set as default
     const info = this.electronService.platformInfo();
     if (info?.platform) {
       this.selectedPlatform.set(info.platform as 'linux' | 'macos' | 'windows');
+    }
+
+    // Load user identifier
+    await this.appConfigService.loadConfig();
+    this.userIdentifier = this.appConfigService.getUserIdentifier();
+  }
+
+  protected async saveUserIdentifier() {
+    this.isSaving.set(true);
+    try {
+      await this.appConfigService.setUserIdentifier(this.userIdentifier);
+    } catch (error) {
+      console.error('Failed to save user identifier:', error);
+    } finally {
+      this.isSaving.set(false);
     }
   }
 

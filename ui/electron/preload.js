@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   loadRecentReports: () => ipcRenderer.invoke("load-recent-reports"),
   getConfigDirectory: () => ipcRenderer.invoke("get-config-directory"),
   getReportsDirectory: () => ipcRenderer.invoke("get-reports-directory"),
+  loadApplicationConfig: () => ipcRenderer.invoke("load-application-config"),
+  saveApplicationConfig: (config) => ipcRenderer.invoke("save-application-config", config),
 });
 
 contextBridge.exposeInMainWorld("isElectron", true);

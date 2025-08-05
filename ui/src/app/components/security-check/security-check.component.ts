@@ -11,6 +11,7 @@ import {
   SecurityCheckReport,
 } from '../../services/electron.service';
 import { ReportService } from '../../services/report.service';
+import { AppConfigService } from '../../services/app-config.service';
 import { PasswordDialogComponent } from '../password-dialog/password-dialog.component';
 
 @Component({
@@ -155,6 +156,7 @@ import { PasswordDialogComponent } from '../password-dialog/password-dialog.comp
 export class SecurityCheckComponent {
   private readonly electronService = inject(ElectronService);
   private readonly reportService = inject(ReportService);
+  private readonly appConfigService = inject(AppConfigService);
   private readonly _isRunning = signal(false);
   private readonly _report = signal<SecurityCheckReport | null>(null);
   private readonly _showPasswordDialog = signal(false);
