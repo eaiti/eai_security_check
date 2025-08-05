@@ -1,0 +1,69 @@
+{
+  "diskEncryption": {
+    "enabled": true
+  },
+  "packageVerification": {
+    "enabled": true
+  },
+  "systemIntegrityProtection": {
+    "enabled": true
+  },
+  "passwordProtection": {
+    "enabled": true,
+    "requirePasswordImmediately": true
+  },
+  "password": {
+    "required": false,
+    "minLength": 8,
+    "requireUppercase": false,
+    "requireLowercase": false,
+    "requireNumber": false,
+    "requireSpecialChar": false,
+    "maxAgeDays": 180
+  },
+  "autoLock": {
+    "maxTimeoutMinutes": 3
+  },
+  "firewall": {
+    "enabled": true,
+    "stealthMode": true
+  },
+  "remoteLogin": {
+    "enabled": false
+  },
+  "remoteManagement": {
+    "enabled": false
+  },
+  "automaticUpdates": {
+    "enabled": true,
+    "automaticInstall": true,
+    "automaticSecurityInstall": true
+  },
+  "sharingServices": {
+    "fileSharing": false,
+    "screenSharing": false,
+    "remoteLogin": false
+  },
+  "osVersion": {
+    "targetVersion": "latest"
+  },
+  "wifiSecurity": {
+    "bannedNetworks": [
+      "EAIguest",
+      "xfinitywifi",
+      "Guest",
+      "Public WiFi",
+      "Free WiFi"
+    ]
+  },
+  "installedApps": {
+    "bannedApplications": [
+      "BitTorrent",
+      "uTorrent",
+      "Limewire",
+      "TeamViewer",
+      "AnyDesk",
+      "Skype"
+    ]
+  }
+}
