@@ -7,12 +7,14 @@ import {
   SystemStatus,
 } from './dashboard.component';
 import { ElectronService } from '../../services/electron.service';
+import { ReportService } from '../../services/report.service';
 
 describe('DashboardComponent', () => {
   let component: DashboardComponent;
   let fixture: ComponentFixture<DashboardComponent>;
   let mockElectronService: jasmine.SpyObj<ElectronService>;
   let mockRouter: jasmine.SpyObj<Router>;
+  let mockReportService: jasmine.SpyObj<ReportService>;
 
   const mockReportHistory: ReportHistory[] = [
     {
@@ -51,6 +53,7 @@ describe('DashboardComponent', () => {
     mockElectronService = jasmine.createSpyObj('ElectronService', [
       'installGlobally',
       'manageDaemon',
+      'loadReportFromPath',
     ]);
     // Add signal properties
     Object.defineProperty(mockElectronService, 'isElectron', {
@@ -71,15 +74,24 @@ describe('DashboardComponent', () => {
     });
     
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
+    mockReportService = jasmine.createSpyObj('ReportService', ['setReport']);
 
     mockElectronService.installGlobally.and.returnValue(Promise.resolve(true));
     mockElectronService.manageDaemon.and.returnValue(Promise.resolve('stopped'));
+    mockElectronService.loadReportFromPath.and.returnValue(Promise.resolve({
+      platform: { platform: 'darwin', arch: 'x64', version: '14.0.0' },
+      profile: 'default',
+      timestamp: '2025-08-05T15:25:10.146Z',
+      checks: [],
+      summary: { passed: 0, failed: 0, warnings: 0, overallStatus: 'pass' }
+    }));
 
     await TestBed.configureTestingModule({
       imports: [DashboardComponent],
       providers: [
         { provide: ElectronService, useValue: mockElectronService },
         { provide: Router, useValue: mockRouter },
+        { provide: ReportService, useValue: mockReportService },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -116,11 +128,13 @@ describe('DashboardComponent', () => {
     expect(component.systemStatus()).toBeDefined();
   });
 
-  it('should view report', () => {
+  it('should view report', async () => {
     const report = mockReportHistory[0];
-    spyOn(console, 'log');
-    component.viewReport(report);
-    expect(console.log).toHaveBeenCalledWith('View report:', report);
+    
+    await component.viewReport(report);
+    
+    expect(mockElectronService.loadReportFromPath).toHaveBeenCalledWith(report.reportPath!);
+    expect(mockRouter.navigate).toHaveBeenCalledWith(['/report-viewer']);
   });
 
   it('should copy report', () => {

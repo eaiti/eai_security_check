@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 import { InteractiveModeComponent } from './interactive-mode.component';
 import { ElectronService } from '../../services/electron.service';
 
@@ -64,7 +65,7 @@ describe('InteractiveModeComponent', () => {
     });
 
     await TestBed.configureTestingModule({
-      imports: [InteractiveModeComponent],
+      imports: [InteractiveModeComponent, RouterTestingModule],
       providers: [{ provide: ElectronService, useValue: mockElectronService }],
     }).compileComponents();
 

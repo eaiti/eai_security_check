@@ -46,7 +46,7 @@ describe('SecurityCheckComponent', () => {
   it('should show loading state when running security check', async () => {
     const mockReport = {
       platform: { platform: 'darwin', arch: 'x64', version: '14.0.0' },
-      profile: 'default',
+      profile: 'relaxed',
       timestamp: new Date().toISOString(),
       checks: [],
       summary: {
@@ -61,6 +61,9 @@ describe('SecurityCheckComponent', () => {
       Promise.resolve(mockReport),
     );
 
+    // Use relaxed profile which doesn't require password
+    component.selectedProfile = 'relaxed';
+    
     expect(component.isRunning()).toBeFalse();
 
     const promise = component.runSecurityCheck();
@@ -103,7 +106,7 @@ describe('SecurityCheckComponent', () => {
   it('should handle empty report data', async () => {
     const emptyReport = {
       platform: { platform: 'darwin', arch: 'x64', version: '14.0.0' },
-      profile: 'default',
+      profile: 'relaxed',
       timestamp: new Date().toISOString(),
       checks: [],
       summary: {
@@ -117,6 +120,9 @@ describe('SecurityCheckComponent', () => {
     mockElectronService.runSecurityCheck.and.returnValue(
       Promise.resolve(emptyReport),
     );
+
+    // Use relaxed profile which doesn't require password
+    component.selectedProfile = 'relaxed';
 
     await component.runSecurityCheck();
     expect(component.report()).toEqual(emptyReport);

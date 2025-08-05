@@ -124,7 +124,15 @@ describe('ReportViewerComponent', () => {
   });
 
   it('should handle report verification', async () => {
+    // Set a selected report path first
+    component['_selectedReportPath'].set('test-report.json');
+    
+    mockElectronService.verifyReport.and.returnValue(
+      Promise.resolve(true)
+    );
+    
     await component.verifyReport();
+    expect(mockElectronService.verifyReport).toHaveBeenCalledWith('test-report.json');
     // Should complete without errors
   });
 
