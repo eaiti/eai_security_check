@@ -4,7 +4,7 @@ import { SecurityCheckComponent } from './components/security-check/security-che
 import { ConfigEditorComponent } from './components/config-editor/config-editor.component';
 import { DaemonManagerComponent } from './components/daemon-manager/daemon-manager.component';
 import { ReportViewerComponent } from './components/report-viewer/report-viewer.component';
-import { InteractiveModeComponent } from './components/interactive-mode/interactive-mode.component';
+import { ManagementComponent } from './components/management/management.component';
 import { ReportVerification } from './components/report-verification/report-verification';
 
 export const routes: Routes = [
@@ -15,5 +15,5 @@ export const routes: Routes = [
   { path: 'daemon-manager', component: DaemonManagerComponent },
   { path: 'report-viewer', component: ReportViewerComponent },
   { path: 'report-verification', component: ReportVerification },
-  { path: 'interactive-mode', component: InteractiveModeComponent },
+  { path: 'management', component: ManagementComponent },
 ];

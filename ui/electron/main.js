@@ -296,7 +296,18 @@ class ElectronMain {
       }
       
       const passwordArg = password ? `--password "${password}"` : '';
-      const command = `node "${this.cliPath}" check ${configArg} ${passwordArg} --format json --quiet`;
+      
+      // Generate output filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const outputFile = path.join(__dirname, `../../reports/security-report-${profile}-${timestamp}.json`);
+      
+      // Ensure reports directory exists
+      const reportsDir = path.dirname(outputFile);
+      if (!fs.existsSync(reportsDir)) {
+        fs.mkdirSync(reportsDir, { recursive: true });
+      }
+      
+      const command = `node "${this.cliPath}" check ${configArg} ${passwordArg} --format json --output "${outputFile}" --quiet`;
 
       console.log(`Running security check: ${command}`);
       const result = await this.executeCommand(command);
@@ -306,15 +317,22 @@ class ElectronMain {
         throw new Error(result.stderr || result.error.message);
       }
 
-      // Parse the JSON output from CLI
+      // Read the saved report file
       try {
-        const report = JSON.parse(result.stdout);
-        console.log(`Security check completed successfully for profile: ${profile}`);
+        const report = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
+        console.log(`Security check completed successfully for profile: ${profile}, saved to: ${outputFile}`);
         return report;
       } catch (parseError) {
-        console.warn("Failed to parse CLI output:", parseError.message);
-        console.warn("CLI stdout:", result.stdout);
-        throw new Error("Failed to parse security check results");
+        console.warn("Failed to read saved report:", parseError.message);
+        // Fallback to parsing stdout
+        try {
+          const report = JSON.parse(result.stdout);
+          console.log(`Security check completed successfully for profile: ${profile} (fallback mode)`);
+          return report;
+        } catch (fallbackError) {
+          console.warn("CLI stdout:", result.stdout);
+          throw new Error("Failed to parse security check results");
+        }
       }
     } catch (error) {
       console.error("Security check failed:", error);

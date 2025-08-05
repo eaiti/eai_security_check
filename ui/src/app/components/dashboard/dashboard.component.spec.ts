@@ -40,7 +40,6 @@ describe('DashboardComponent', () => {
 
   const mockSystemStatus: SystemStatus = {
     version: '1.1.0',
-    globalInstall: true,
     daemonStatus: 'running',
     lastCheck: mockReportHistory[0],
     recentReports: mockReportHistory,
@@ -53,7 +52,6 @@ describe('DashboardComponent', () => {
 
   beforeEach(async () => {
     mockElectronService = jasmine.createSpyObj('ElectronService', [
-      'installGlobally',
       'manageDaemon',
       'loadReportFromPath',
     ]);
@@ -79,7 +77,6 @@ describe('DashboardComponent', () => {
     mockReportService = jasmine.createSpyObj('ReportService', ['setReport', 'getReportHistory']);
     mockReportService.getReportHistory.and.returnValue(mockReportHistory);
 
-    mockElectronService.installGlobally.and.returnValue(Promise.resolve(true));
     mockElectronService.manageDaemon.and.returnValue(Promise.resolve('stopped'));
     mockElectronService.loadReportFromPath.and.returnValue(Promise.resolve({
       platform: { platform: 'darwin', arch: 'x64', version: '14.0.0' },
@@ -117,12 +114,7 @@ describe('DashboardComponent', () => {
   it('should load system status on init', async () => {
     await component.ngOnInit();
     expect(component.systemStatus().version).toBeDefined();
-    expect(typeof component.systemStatus().globalInstall).toBe('boolean');
-  });
-
-  it('should install globally', async () => {
-    await component.installGlobally();
-    expect(mockElectronService.installGlobally).toHaveBeenCalled();
+    expect(typeof component.systemStatus().daemonStatus).toBe('string');
   });
 
   it('should refresh history', async () => {

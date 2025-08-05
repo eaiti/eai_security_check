@@ -16,7 +16,6 @@ import { ReportService, ReportHistory } from '../../services/report.service';
 
 export interface SystemStatus {
   version: string;
-  globalInstall: boolean;
   daemonStatus: 'running' | 'stopped' | 'not_configured';
   lastCheck?: ReportHistory;
   recentReports: ReportHistory[];
@@ -45,21 +44,6 @@ export interface SystemStatus {
           <div class="status-item">
             <span class="status-label">Version:</span>
             <span class="status-value">{{ systemStatus().version }}</span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">Global Install:</span>
-            <span
-              class="status-value"
-              [class]="
-                systemStatus().globalInstall ? 'status-good' : 'status-warning'
-              "
-            >
-              {{
-                systemStatus().globalInstall
-                  ? '✅ Installed'
-                  : '⚠️ Not Installed'
-              }}
-            </span>
           </div>
           <div class="status-item">
             <span class="status-label">Daemon:</span>
@@ -92,12 +76,7 @@ export interface SystemStatus {
           <button class="btn btn-primary" routerLink="/security-check">
             🔍 Run Security Check
           </button>
-          @if (!systemStatus().globalInstall) {
-            <button class="btn btn-secondary" (click)="installGlobally()">
-              📦 Install Globally
-            </button>
-          }
-          <button class="btn btn-secondary" routerLink="/interactive-mode">
+          <button class="btn btn-secondary" routerLink="/management">
             🎛️ System Management
           </button>
         </div>
@@ -235,7 +214,7 @@ export interface SystemStatus {
             <div class="feature-icon">🎛️</div>
             <h3>Management</h3>
             <p>System administration and configuration management</p>
-            <button class="btn btn-sm" routerLink="/interactive-mode">
+            <button class="btn btn-sm" routerLink="/management">
               Manage System
             </button>
           </div>
@@ -260,7 +239,6 @@ export class DashboardComponent implements OnInit {
   private readonly reportService = inject(ReportService);
   private readonly _systemStatus = signal<SystemStatus>({
     version: '1.0.0',
-    globalInstall: false,
     daemonStatus: 'not_configured',
     recentReports: [],
     configExists: false,
@@ -287,7 +265,6 @@ export class DashboardComponent implements OnInit {
       // Mock system status for now - in real implementation this would come from CLI
       const status: SystemStatus = {
         version,
-        globalInstall: await this.checkGlobalInstall(),
         daemonStatus: await this.checkDaemonStatus(),
         recentReports,
         lastCheck: recentReports[0],
@@ -301,16 +278,6 @@ export class DashboardComponent implements OnInit {
       this._systemStatus.set(status);
     } catch (error) {
       console.error('Failed to load system status:', error);
-    }
-  }
-
-  private async checkGlobalInstall(): Promise<boolean> {
-    try {
-      if (!this.electronService.isElectron()) return false;
-      // In real implementation, this would check via CLI
-      return false; // Mock
-    } catch {
-      return false;
     }
   }
 
@@ -402,21 +369,6 @@ export class DashboardComponent implements OnInit {
     // This is now handled automatically by the ReportService
     // Just refresh the dashboard to show the new report
     this.loadSystemStatus();
-  }
-
-  async installGlobally(): Promise<void> {
-    try {
-      const success = await this.electronService.installGlobally();
-      if (success) {
-        const current = this.systemStatus();
-        this._systemStatus.set({
-          ...current,
-          globalInstall: true,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to install globally:', error);
-    }
   }
 
   async refreshHistory(): Promise<void> {

@@ -28,8 +28,8 @@ describe('DaemonManagerComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should have default schedule input', () => {
-    expect(component.scheduleInput).toBe('0 */6 * * *');
+  it('should have default interval days input', () => {
+    expect(component.intervalDaysInput).toBe(7);
   });
 
   it('should start daemon with configuration', async () => {

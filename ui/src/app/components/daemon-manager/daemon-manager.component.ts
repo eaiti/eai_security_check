@@ -100,16 +100,18 @@ interface DaemonStatus {
 
         <div class="config-form">
           <div class="form-group">
-            <label for="schedule">Schedule (Cron Expression)</label>
+            <label for="intervalDays">Check Interval (Days)</label>
             <input
-              type="text"
-              id="schedule"
-              [(ngModel)]="scheduleInput"
-              placeholder="0 */6 * * *"
+              type="number"
+              id="intervalDays"
+              [(ngModel)]="intervalDaysInput"
+              placeholder="7"
+              min="1"
+              max="365"
               class="form-control"
             />
             <small class="help-text"
-              >Example: "0 */6 * * *" runs every 6 hours</small
+              >How often to run security checks (e.g., 7 for weekly)</small
             >
           </div>
 
@@ -339,8 +341,7 @@ export class DaemonManagerComponent implements OnInit {
   private readonly _showSmtpConfig = signal(false);
   readonly showSmtpConfig = this._showSmtpConfig.asReadonly();
 
-  scheduleInput = '0 */6 * * *';
-  profileInput = 'default';
+  profileInput = 'eai';
   emailInput = '';
   outputDirInput = '';
   userIdInput = '';
@@ -430,8 +431,7 @@ export class DaemonManagerComponent implements OnInit {
   }
 
   resetForm(): void {
-    this.scheduleInput = '0 */6 * * *';
-    this.profileInput = 'default';
+    this.profileInput = 'eai';
     this.emailInput = '';
     this.outputDirInput = '';
     this.userIdInput = '';
@@ -482,17 +482,14 @@ export class DaemonManagerComponent implements OnInit {
   }
 
   private validateConfig(config: any): boolean {
-    // Basic cron expression validation
-    const cronRegex =
-      /^(\*|[0-5]?\d) (\*|[01]?\d|2[0-3]) (\*|[0-2]?\d|3[01]) (\*|[01]?\d) (\*|[0-6])$/;
-    if (!cronRegex.test(config.schedule)) {
+    // Validate interval days
+    if (!config.intervalDays || config.intervalDays < 1 || config.intervalDays > 365) {
       return false;
     }
 
-    // Email validation if provided
-    if (config.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(config.email)) {
+    // Email validation if email format is selected
+    if (config.reportFormat === 'email' && config.email) {
+      if (!config.email.smtp || !config.email.smtp.host || !config.email.from || !config.email.to) {
         return false;
       }
     }

@@ -168,7 +168,7 @@ export class SecurityCheckComponent {
   readonly platformInfo = this.electronService.platformInfo;
   readonly cliVersion = this.electronService.cliVersion;
 
-  selectedProfile = 'default';
+  selectedProfile = 'eai';
 
   async runSecurityCheck(): Promise<void> {
     // Check if we need administrator privileges for this profile

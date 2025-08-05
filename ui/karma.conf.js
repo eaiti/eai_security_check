@@ -33,12 +33,19 @@ module.exports = function (config) {
       ]
     },
     reporters: ['progress', 'kjhtml'],
-    browsers: ['Chrome'],
     restartOnFileChange: true,
     
     // CI-specific configuration
     singleRun: process.env.CI === 'true',
     autoWatch: process.env.CI !== 'true',
+    
+    // Browser selection based on environment
+    browsers: (() => {
+      if (process.env.CI) {
+        return process.platform === 'win32' ? ['ChromeHeadlessCIWindows'] : ['ChromeHeadlessCI'];
+      }
+      return ['Chrome'];
+    })(),
     
     // Timeout configuration for CI environments
     browserDisconnectTimeout: 10000,
@@ -124,13 +131,31 @@ module.exports = function (config) {
   });
 
   // Platform-specific browser selection
-  if (process.env.CI && process.platform === 'win32') {
-    config.set({
-      browsers: ['ChromeHeadlessCIWindows'],
-      processKillTimeout: 2000,
-      browserDisconnectTimeout: 5000,
-      browserNoActivityTimeout: 15000,
-      captureTimeout: 15000
-    });
+  if (process.env.CI) {
+    if (process.platform === 'win32') {
+      config.set({
+        processKillTimeout: 1000,
+        browserDisconnectTimeout: 3000,
+        browserNoActivityTimeout: 10000,
+        captureTimeout: 10000
+      });
+      
+      // Force process cleanup on Windows
+      const originalOnBeforeDisconnect = config.beforeDisconnect;
+      config.beforeDisconnect = function(done) {
+        if (originalOnBeforeDisconnect) {
+          originalOnBeforeDisconnect(done);
+        }
+        
+        // Kill Chrome processes on Windows
+        try {
+          require('child_process').exec('taskkill /F /IM chrome.exe /T', () => {
+            setTimeout(done, 500);
+          });
+        } catch (e) {
+          setTimeout(done, 500);
+        }
+      };
+    }
   }
 };
