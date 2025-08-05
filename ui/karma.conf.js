@@ -37,14 +37,17 @@ module.exports = function (config) {
     restartOnFileChange: true,
     
     // CI-specific configuration
-    singleRun: false,
-    autoWatch: true,
+    singleRun: process.env.CI === 'true',
+    autoWatch: process.env.CI !== 'true',
     
     // Timeout configuration for CI environments
     browserDisconnectTimeout: 10000,
     browserDisconnectTolerance: 3,
-    browserNoActivityTimeout: 60000,
-    captureTimeout: 60000,
+    browserNoActivityTimeout: process.env.CI === 'true' ? 30000 : 60000,
+    captureTimeout: process.env.CI === 'true' ? 30000 : 60000,
+    
+    // Force browser termination on Windows CI
+    processKillTimeout: process.env.CI === 'true' ? 5000 : 2000,
     
     // Custom launcher for CI
     customLaunchers: {
@@ -81,7 +84,23 @@ module.exports = function (config) {
           '--disable-translate',
           '--disable-sync',
           '--disable-background-networking',
-          '--disable-background-mode'
+          '--disable-background-mode',
+          '--disable-breakpad',
+          '--disable-client-side-phishing-detection',
+          '--disable-component-update',
+          '--disable-default-apps',
+          '--disable-hang-monitor',
+          '--disable-ipc-flooding-protection',
+          '--disable-prompt-on-repost',
+          '--disable-background-timer-throttling',
+          '--disable-renderer-backgrounding',
+          '--disable-backgrounding-occluded-windows',
+          '--force-fieldtrials=*BackgroundTracing/default/',
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--disable-logging',
+          '--disable-gl-drawing-for-tests',
+          '--disable-accelerated-2d-canvas'
         ]
       }
     }
