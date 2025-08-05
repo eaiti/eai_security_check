@@ -63,6 +63,7 @@ jobs:
         run: |
           cd ui
           npm ci
+          npm run build
           npm test -- --watch=false --browsers=ChromeHeadless
 
       - name: Install UI dependencies and run UI tests (Windows)
@@ -71,6 +72,7 @@ jobs:
         run: |
           cd ui
           npm ci
+          npm run build
           npm test -- --watch=false --browsers=ChromeHeadlessCIWindows
 
       - name: Build pkg executable

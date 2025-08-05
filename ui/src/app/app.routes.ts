@@ -5,6 +5,7 @@ import { ConfigEditorComponent } from './components/config-editor/config-editor.
 import { DaemonManagerComponent } from './components/daemon-manager/daemon-manager.component';
 import { ReportViewerComponent } from './components/report-viewer/report-viewer.component';
 import { InteractiveModeComponent } from './components/interactive-mode/interactive-mode.component';
+import { ReportVerification } from './components/report-verification/report-verification';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
@@ -13,5 +14,6 @@ export const routes: Routes = [
   { path: 'config-editor', component: ConfigEditorComponent },
   { path: 'daemon-manager', component: DaemonManagerComponent },
   { path: 'report-viewer', component: ReportViewerComponent },
+  { path: 'report-verification', component: ReportVerification },
   { path: 'interactive-mode', component: InteractiveModeComponent },
 ];

@@ -89,8 +89,57 @@ class ElectronMain {
       return this.runCliCommand("interactive");
     });
 
-    ipcMain.handle("verify-report", async (event, path) => {
-      return this.runCliCommand(`verify "${path}"`);
+    ipcMain.handle("verify-report", async (event, filePath) => {
+      try {
+        if (!this.cliPath) {
+          console.warn("CLI not available for verification");
+          return false;
+        }
+
+        const result = await this.runCliCommand(`verify "${filePath}"`);
+        
+        if (result.error) {
+          console.error("Verification command failed:", result.stderr);
+          return false;
+        }
+
+        // Check if the CLI output indicates success
+        const output = result.stdout?.toLowerCase() || '';
+        return output.includes('passed') || output.includes('valid') || output.includes('success');
+      } catch (error) {
+        console.error("Verification failed:", error);
+        return false;
+      }
+    });
+
+    ipcMain.handle("load-recent-reports", async () => {
+      try {
+        const reportsDir = path.join(app.getPath("userData"), "reports");
+        
+        if (!fs.existsSync(reportsDir)) {
+          return [];
+        }
+
+        const files = fs.readdirSync(reportsDir)
+          .filter(file => file.endsWith('.json') || file.endsWith('.txt') || file.endsWith('.html'))
+          .map(file => {
+            const filePath = path.join(reportsDir, file);
+            const stats = fs.statSync(filePath);
+            return {
+              path: filePath,
+              name: file,
+              timestamp: stats.mtime.toISOString(),
+              size: this.formatFileSize(stats.size)
+            };
+          })
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+          .slice(0, 10); // Return only the 10 most recent reports
+
+        return files;
+      } catch (error) {
+        console.error("Failed to load recent reports:", error);
+        return [];
+      }
     });
 
     ipcMain.handle("manage-daemon", async (event, action, config) => {
@@ -216,13 +265,20 @@ class ElectronMain {
         throw error;
       }
     });
+
+    ipcMain.handle("get-config-directory", async () => {
+      return path.join(app.getPath("userData"), "config");
+    });
+
+    ipcMain.handle("get-reports-directory", async () => {
+      return path.join(app.getPath("userData"), "reports");
+    });
   }
 
   async runSecurityCheck(profile, config, password) {
     try {
       if (!this.cliPath) {
-        console.warn("CLI not available, using mock data");
-        return this.createMockReport(profile);
+        throw new Error("CLI not available - cannot run real security checks");
       }
 
       // Use the default profile configs from examples directory
@@ -258,13 +314,11 @@ class ElectronMain {
       } catch (parseError) {
         console.warn("Failed to parse CLI output:", parseError.message);
         console.warn("CLI stdout:", result.stdout);
-        // If parsing fails, create a mock report
-        return this.createMockReport(profile);
+        throw new Error("Failed to parse security check results");
       }
     } catch (error) {
       console.error("Security check failed:", error);
-      // Fallback to mock data
-      return this.createMockReport(profile);
+      throw error; // Don't fall back to mock data, throw the error
     }
   }
 
@@ -283,123 +337,6 @@ class ElectronMain {
         resolve({ error, stdout, stderr });
       });
     });
-  }
-
-  createMockReport(profile) {
-    // Create comprehensive mock checks that match the EAI profile requirements
-    const mockChecks = [
-      {
-        name: "Disk Encryption",
-        status: "pass",
-        message: "FileVault is enabled",
-        details: "Full disk encryption is active and protecting your data",
-        risk: "high",
-      },
-      {
-        name: "Password Protection",
-        status: "pass",
-        message: "Screen saver requires password immediately",
-        details: "Screen lock is configured correctly",
-        risk: "high",
-      },
-      {
-        name: "Password Requirements",
-        status: profile === "eai" ? "pass" : "warning",
-        message: profile === "eai" ? "Password meets EAI requirements (10+ chars)" : "Password policy could be strengthened",
-        details: profile === "eai" ? "Password has minimum 10 characters as required" : "Consider implementing stronger password requirements",
-        risk: "high",
-      },
-      {
-        name: "Auto-lock Timeout",
-        status: profile === "strict" ? "fail" : profile === "eai" ? "pass" : "warning",
-        message: profile === "eai" ? "Auto-lock timeout is 7 minutes" : "Auto-lock timeout is 10 minutes",
-        details: profile === "eai" ? "Auto-lock configured within EAI requirements" : "Consider reducing to 5 minutes for better security",
-        risk: "medium",
-      },
-      {
-        name: "Firewall",
-        status: "pass",
-        message: "Application Firewall is enabled",
-        details: "Network protection is active",
-        risk: "high",
-      },
-      {
-        name: "Package Verification",
-        status: profile === "strict" || profile === "eai" ? "pass" : "warning",
-        message: profile === "eai" ? "Gatekeeper enabled with security verification" : "Gatekeeper enabled but not in strict mode",
-        details: profile === "eai" ? "Package verification meets EAI security standards" : "Consider enabling strict mode for enhanced security",
-        risk: "medium",
-      },
-      {
-        name: "System Integrity Protection",
-        status: profile === "relaxed" ? "warning" : "pass",
-        message: profile === "relaxed" ? "SIP is disabled" : "SIP is enabled",
-        details: profile === "relaxed" ? "System Integrity Protection should be enabled for security" : "System Integrity Protection is properly configured",
-        risk: "high",
-      },
-      {
-        name: "Remote Login",
-        status: "pass",
-        message: "SSH is disabled",
-        details: "Remote access is properly secured",
-        risk: "medium",
-      },
-      {
-        name: "Automatic Updates",
-        status: "pass",
-        message: "Automatic security updates enabled",
-        details: "System will automatically install security patches",
-        risk: "medium",
-      },
-      // EAI-specific checks
-      {
-        name: "Banned Applications",
-        status: profile === "eai" ? "pass" : "warning",
-        message: profile === "eai" ? "No banned applications detected" : "Application scanning not configured",
-        details: profile === "eai" ? "BitTorrent, uTorrent, TeamViewer, and other restricted apps not found" : "EAI profile includes banned application checking",
-        risk: "medium",
-      },
-      {
-        name: "WiFi Security",
-        status: profile === "eai" ? "pass" : "warning", 
-        message: profile === "eai" ? "Not connected to banned networks" : "WiFi security not monitored",
-        details: profile === "eai" ? "Not connected to EAIguest, xfinitywifi, or other prohibited networks" : "EAI profile monitors WiFi connections",
-        risk: "medium",
-      },
-      {
-        name: "OS Version",
-        status: "pass",
-        message: "Running supported OS version",
-        details: "Operating system is up to date with latest security patches",
-        risk: "high",
-      },
-    ];
-
-    const passed = mockChecks.filter((c) => c.status === "pass").length;
-    const failed = mockChecks.filter((c) => c.status === "fail").length;
-    const warnings = mockChecks.filter((c) => c.status === "warning").length;
-
-    let overallStatus = "pass";
-    if (failed > 0) overallStatus = "fail";
-    else if (warnings > 0) overallStatus = "warning";
-
-    const os = require("os");
-    return {
-      platform: {
-        platform: os.platform(),
-        arch: os.arch(),
-        version: os.release(),
-      },
-      profile,
-      timestamp: new Date().toISOString(),
-      checks: mockChecks,
-      summary: {
-        passed,
-        failed,
-        warnings,
-        overallStatus,
-      },
-    };
   }
 
   getDefaultConfig() {
@@ -465,6 +402,14 @@ class ElectronMain {
       remoteLogin: { enabled: false },
       automaticUpdates: { enabled: true, automaticInstall: true },
     };
+  }
+
+  formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 }
 

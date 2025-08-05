@@ -72,11 +72,10 @@ describe('ElectronService', () => {
 
     try {
       const report = await service.runSecurityCheck('default');
-      expect(report).toBeDefined();
-      expect(report.checks).toBeDefined();
-      // Should fallback to mock data
+      // This should not happen as we now throw errors instead of falling back
+      fail('Should have thrown an error');
     } catch (error) {
-      // If it throws, that's also acceptable behavior
+      // Now we expect errors to be thrown instead of falling back to mock data
       expect(error).toBeDefined();
     }
   });

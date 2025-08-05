@@ -58,6 +58,7 @@ declare global {
       createConfig: (profile: string) => Promise<any>;
       listConfigs: () => Promise<string[]>;
       loadReportFile: (path: string) => Promise<string>;
+      loadRecentReports: () => Promise<any[]>;
       getConfigDirectory: () => Promise<string>;
       getReportsDirectory: () => Promise<string>;
     };
@@ -180,6 +181,18 @@ export class ElectronService {
       console.error('Failed to load report from path:', error);
       // Return mock data as fallback
       return this.getMockSecurityCheck('default');
+    }
+  }
+
+  async loadRecentReports(): Promise<any[]> {
+    if (!this._isElectron()) {
+      return []; // Return empty array when not in Electron
+    }
+    try {
+      return await window.electronAPI!.loadRecentReports();
+    } catch (error) {
+      console.error('Failed to load recent reports:', error);
+      return [];
     }
   }
 

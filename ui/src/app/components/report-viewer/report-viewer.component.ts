@@ -605,12 +605,12 @@ export class ReportViewerComponent implements OnInit {
   async selectReport(path: string): Promise<void> {
     try {
       this._selectedReportPath.set(path);
-      // In a real implementation, would load the report content from the file system
-      // For now, generate mock content based on the path
-      const mockReport = this.generateMockReport(path);
-      this._originalReport.set(mockReport);
-      this._currentReportData.set(mockReport);
-      this._reportContent.set(JSON.stringify(mockReport, null, 2));
+      
+      // Load the actual report content from the file system
+      const reportData = await this.electronService.loadReportFromPath(path);
+      this._originalReport.set(reportData);
+      this._currentReportData.set(reportData);
+      this._reportContent.set(JSON.stringify(reportData, null, 2));
       this._verificationResult.set(null);
       this.convertContent();
       this.showMessage(`Selected report: ${this.getFileName(path)}`, 'info');
@@ -935,259 +935,13 @@ export class ReportViewerComponent implements OnInit {
     }
   }
 
-  private generateMockReport(path: string): SecurityCheckReport {
-    const profile = path.includes('strict')
-      ? 'strict'
-      : path.includes('relaxed')
-        ? 'relaxed'
-        : 'default';
-
-    return {
-      platform: { platform: 'darwin', arch: 'x64', version: '14.0.0' },
-      profile,
-      timestamp: new Date().toISOString(),
-      userId: 'admin-workstation@company.com',
-      hash: 'sha256:a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456',
-      metadata: {
-        hostname: 'macbook-pro-admin',
-        version: '1.0.0'
-      },
-      checks: [
-        {
-          name: 'Disk Encryption',
-          status: 'pass',
-          message: 'FileVault is enabled',
-          details: 'Full disk encryption is active and protecting your data',
-          risk: 'high',
-        },
-        {
-          name: 'Password Protection',
-          status: 'pass',
-          message: 'Screen saver requires password immediately',
-          details: 'Screen lock is configured correctly',
-          risk: 'high',
-        },
-        {
-          name: 'Auto-lock Timeout',
-          status: profile === 'strict' ? 'fail' : 'warning',
-          message: 'Auto-lock timeout is 10 minutes',
-          details: 'Consider reducing to 5 minutes for better security',
-          risk: 'medium',
-        },
-      ],
-      summary: {
-        passed: 2,
-        failed: profile === 'strict' ? 1 : 0,
-        warnings: profile === 'strict' ? 0 : 1,
-        overallStatus: profile === 'strict' ? 'fail' : 'warning',
-      },
-    };
-  }
-
-  private isSecurityReport(obj: any): obj is SecurityCheckReport {
-    return (
-      obj &&
-      obj.platform &&
-      obj.profile &&
-      obj.timestamp &&
-      obj.checks &&
-      Array.isArray(obj.checks) &&
-      obj.summary
-    );
-  }
-
-  private async readFileContent(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsText(file);
-    });
-  }
-
-  private loadRecentReports(): void {
-    // In a real implementation, would load from file system or database
-    // For demo purposes, show mock recent reports
-    const mockReports: ReportFile[] = [
-      {
-        path: '/reports/security-check-2023-12-01.json',
-        name: 'security-check-2023-12-01.json',
-        timestamp: '2023-12-01T10:00:00Z',
-        size: '45.2 KB',
-        verified: true,
-      },
-      {
-        path: '/reports/security-check-2023-11-30.json',
-        name: 'security-check-2023-11-30.json',
-        timestamp: '2023-11-30T10:00:00Z',
-        size: '43.8 KB',
-        verified: true,
-      },
-      {
-        path: '/reports/security-check-2023-11-29.json',
-        name: 'security-check-2023-11-29.json',
-        timestamp: '2023-11-29T10:00:00Z',
-        size: '44.1 KB',
-        verified: false,
-      },
-    ];
-
-    this._recentReports.set(mockReports);
-  }
-
-  getFileName(path: string): string {
-    return path.split('/').pop() || path;
-  }
-
-  formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString();
-  }
-
-  formatJson(content: string): string {
-    try {
-      const parsed = JSON.parse(content);
-      return JSON.stringify(parsed, null, 2);
-    } catch {
-      return content;
-    }
-  }
-
-  private showMessage(
-    message: string,
-    type: 'success' | 'error' | 'info',
-  ): void {
-    this._message.set(message);
-    this._messageType.set(type);
-
-    setTimeout(() => {
-      this._message.set('');
-    }, 5000);
-  }
-
-  // Bulk verification methods
-  selectMultipleFiles(): void {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.multiple = true;
-    input.accept = '.json,.html,.pdf,.md,.txt';
-    input.addEventListener('change', (event) => {
-      const files = (event.target as HTMLInputElement).files;
-      if (files) {
-        this.addFilesToBulkList(Array.from(files));
-      }
-    });
-    input.click();
-  }
-
-  selectDirectory(): void {
-    // Note: Directory selection via webkitdirectory might not work in all browsers
-    const input = document.createElement('input');
-    input.type = 'file';
-    (input as any).webkitdirectory = true;
-    input.addEventListener('change', (event) => {
-      const files = (event.target as HTMLInputElement).files;
-      if (files) {
-        const reportFiles = Array.from(files).filter(file => 
-          file.name.endsWith('.json') || 
-          file.name.endsWith('.html') ||
-          file.name.endsWith('.md') ||
-          file.name.endsWith('.txt')
-        );
-        this.addFilesToBulkList(reportFiles);
-      }
-    });
-    input.click();
-  }
-
-  private addFilesToBulkList(files: File[]): void {
-    const newFiles: ReportFile[] = files.map(file => ({
-      path: file.name, // In browser, we use the file name as path
-      name: file.name,
-      timestamp: new Date(file.lastModified).toISOString(),
-      size: this.formatFileSize(file.size),
-      verificationStatus: 'pending'
-    }));
-    
-    const currentFiles = this._bulkFiles();
-    const uniqueFiles = newFiles.filter(newFile => 
-      !currentFiles.some(existing => existing.path === newFile.path)
-    );
-    
-    this._bulkFiles.set([...currentFiles, ...uniqueFiles]);
-    this.showMessage(`Added ${uniqueFiles.length} files for bulk verification`, 'success');
-  }
-
-  removeFile(path: string): void {
-    const currentFiles = this._bulkFiles();
-    this._bulkFiles.set(currentFiles.filter(file => file.path !== path));
-  }
-
-  async verifyBulkReports(): Promise<void> {
-    const files = this._bulkFiles();
-    if (files.length === 0) return;
-
-    this._isBulkVerifying.set(true);
-    this._bulkProgress.set({ current: 0, total: files.length });
-    this._bulkResults.set([]);
-
-    const results: BulkVerificationResult[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      this._bulkProgress.set({ current: i + 1, total: files.length });
-      
-      // Update file status
-      const updatedFiles = [...files];
-      updatedFiles[i] = { ...file, verificationStatus: 'verifying' };
-      this._bulkFiles.set(updatedFiles);
-
-      try {
-        // In a real implementation, this would verify the actual file
-        // For now, we'll simulate verification
-        const isValid = await this.simulateFileVerification(file.path);
-        
-        updatedFiles[i] = { 
-          ...file, 
-          verificationStatus: isValid ? 'valid' : 'invalid' 
-        };
-        this._bulkFiles.set(updatedFiles);
-
-        results.push({
-          path: file.path,
-          userId: await this.extractUserIdFromFile(file.path),
-          status: isValid ? 'valid' : 'invalid',
-          reason: isValid ? 'Signature verified successfully' : 'Invalid or missing signature'
-        });
-      } catch (error) {
-        updatedFiles[i] = { ...file, verificationStatus: 'error' };
-        this._bulkFiles.set(updatedFiles);
-
-        results.push({
-          path: file.path,
-          userId: null,
-          status: 'error',
-          reason: `Verification failed: ${error}`
-        });
-      }
-    }
-
-    this._bulkResults.set(results);
-    this._isBulkVerifying.set(false);
-    this.showMessage(`Bulk verification completed: ${results.length} files processed`, 'success');
-  }
-
-  private async simulateFileVerification(path: string): Promise<boolean> {
-    // Simulate verification delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    // Random result for demo
-    return Math.random() > 0.3;
-  }
-
   private async extractUserIdFromFile(path: string): Promise<string | null> {
-    // In a real implementation, this would read the file and extract user ID
-    // For demo, return a random user ID
-    const userIds = ['admin-workstation', 'security-team', 'devops-user', null];
-    return userIds[Math.floor(Math.random() * userIds.length)];
+    try {
+      const reportData = await this.electronService.loadReportFromPath(path);
+      return reportData.userId || null;
+    } catch {
+      return null;
+    }
   }
 
   getBulkSummary(): { valid: number; invalid: number; error: number } {
@@ -1252,5 +1006,62 @@ export class ReportViewerComponent implements OnInit {
   formatTimestamp(timestamp: string): string {
     const date = new Date(timestamp);
     return date.toLocaleString();
+  }
+
+  getFileName(path: string): string {
+    return path.split('/').pop() || path.split('\\').pop() || path;
+  }
+
+  formatDate(dateString: string): string {
+    return new Date(dateString).toLocaleDateString();
+  }
+
+  formatJson(content: string): string {
+    try {
+      const parsed = JSON.parse(content);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return content;
+    }
+  }
+
+  private isSecurityReport(obj: any): obj is SecurityCheckReport {
+    return (
+      obj &&
+      obj.platform &&
+      obj.profile &&
+      obj.timestamp &&
+      obj.checks &&
+      Array.isArray(obj.checks) &&
+      obj.summary
+    );
+  }
+
+  private async readFileContent(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(file);
+    });
+  }
+
+  private async loadRecentReports(): Promise<void> {
+    try {
+      const reports = await this.electronService.loadRecentReports();
+      this._recentReports.set(reports);
+    } catch (error) {
+      console.error('Failed to load recent reports:', error);
+      this._recentReports.set([]);
+    }
+  }
+
+  private showMessage(message: string, type: 'success' | 'error' | 'info'): void {
+    this._message.set(message);
+    this._messageType.set(type);
+
+    setTimeout(() => {
+      this._message.set('');
+    }, 5000);
   }
 }
