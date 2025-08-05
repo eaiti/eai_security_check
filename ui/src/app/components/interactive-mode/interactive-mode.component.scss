@@ -13,13 +13,13 @@
   border-bottom: 2px solid #eee;
 
   h1 {
-    color: #333;
+    color: var(--text-primary);
     margin: 0;
     font-size: 2.5em;
   }
 
   p {
-    color: #666;
+    color: var(--text-secondary);
     margin: 10px 0 0 0;
     font-size: 1.1em;
   }
@@ -32,7 +32,7 @@
   margin-bottom: 40px;
 
   .action-card {
-    background: white;
+    background: var(--card-background);
     border: 1px solid #e9ecef;
     border-radius: 8px;
     padding: 25px;
@@ -57,13 +57,13 @@
 
       h3 {
         margin: 0 0 8px 0;
-        color: #333;
+        color: var(--text-primary);
         font-size: 1.1em;
       }
 
       p {
         margin: 0;
-        color: #666;
+        color: var(--text-secondary);
         font-size: 0.9em;
         line-height: 1.4;
       }
@@ -79,13 +79,13 @@
 
       .arrow {
         font-size: 1.2em;
-        color: #667eea;
+        color: var(--color-primary);
         font-weight: bold;
       }
 
       .spinner {
         border: 2px solid #f3f3f3;
-        border-top: 2px solid #667eea;
+        border-top: 2px solid var(--color-primary);
         border-radius: 50%;
         width: 20px;
         height: 20px;
@@ -104,11 +104,74 @@
   }
 }
 
+// Configuration Management Section
+.config-management-section {
+  margin-bottom: 40px;
+
+  h2 {
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    font-size: 1.3em;
+  }
+
+  .config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .config-card {
+    background: var(--card-background);
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    h3 {
+      margin: 0 0 10px 0;
+      color: var(--text-primary);
+      font-size: 1.1em;
+    }
+
+    p {
+      margin: 0 0 15px 0;
+      color: var(--text-secondary);
+      font-size: 0.9em;
+    }
+
+    .profile-info {
+      .profile-name {
+        background: var(--color-success-light);
+        color: var(--color-success-dark);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+
+      .profile-missing {
+        background: var(--color-warning-light);
+        color: var(--color-warning-dark);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+    }
+
+    .config-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+  }
+}
+
 .system-info {
   margin-bottom: 40px;
 
   h2 {
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 20px;
     font-size: 1.3em;
   }
@@ -120,7 +183,7 @@
   }
 
   .info-card {
-    background: white;
+    background: var(--card-background);
     border: 1px solid #e9ecef;
     border-radius: 8px;
     padding: 20px;
@@ -128,7 +191,7 @@
 
     h3 {
       margin: 0 0 15px 0;
-      color: #333;
+      color: var(--text-primary);
       font-size: 1.1em;
     }
 
@@ -143,12 +206,12 @@
         font-size: 14px;
 
         .label {
-          color: #666;
+          color: var(--text-secondary);
           font-weight: 500;
         }
 
         .value {
-          color: #333;
+          color: var(--text-primary);
           font-weight: 600;
         }
       }
@@ -175,7 +238,7 @@
   }
 
   &.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, #764ba2 100%);
     color: white;
 
     &:hover:not(:disabled) {
@@ -199,7 +262,7 @@
   margin-bottom: 40px;
 
   h2 {
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 20px;
     font-size: 1.3em;
   }
@@ -224,7 +287,7 @@
       }
 
       .log-time {
-        color: #666;
+        color: var(--text-secondary);
         font-family: monospace;
         min-width: 80px;
         flex-shrink: 0;
@@ -235,7 +298,7 @@
       }
 
       &.log-info .log-message {
-        color: #333;
+        color: var(--text-primary);
       }
 
       &.log-success .log-message {
@@ -262,7 +325,7 @@
   z-index: 1000;
 
   .confirmation-dialog {
-    background: white;
+    background: var(--card-background);
     border-radius: 8px;
     padding: 30px;
     max-width: 400px;
@@ -271,12 +334,12 @@
 
     h3 {
       margin: 0 0 15px 0;
-      color: #333;
+      color: var(--text-primary);
     }
 
     p {
       margin: 0 0 25px 0;
-      color: #666;
+      color: var(--text-secondary);
       line-height: 1.5;
     }
 

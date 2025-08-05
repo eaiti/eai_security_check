@@ -13,13 +13,13 @@
   border-bottom: 2px solid #eee;
 
   h1 {
-    color: #333;
+    color: var(--text-primary);
     margin: 0;
     font-size: 2.5em;
   }
 
   p {
-    color: #666;
+    color: var(--text-secondary);
     margin: 10px 0 0 0;
     font-size: 1.1em;
   }
@@ -43,7 +43,7 @@
 
       &:focus {
         outline: none;
-        border-color: #667eea;
+        border-color: var(--color-primary);
       }
     }
   }
@@ -65,7 +65,7 @@
   transition: all 0.2s;
 
   &.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, #764ba2 100%);
     color: white;
 
     &:hover:not(:disabled) {
@@ -103,7 +103,7 @@
 }
 
 .config-section {
-  background: white;
+  background: var(--card-background);
   border: 1px solid #e9ecef;
   border-radius: 8px;
   padding: 25px;
@@ -111,12 +111,12 @@
 
   h3 {
     margin: 0 0 10px 0;
-    color: #333;
+    color: var(--text-primary);
     font-size: 1.3em;
   }
 
   .section-description {
-    color: #666;
+    color: var(--text-secondary);
     margin-bottom: 20px;
     font-size: 14px;
   }
@@ -141,12 +141,12 @@
   .field-label {
     display: block;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
 
     .field-description {
       display: block;
       font-weight: normal;
-      color: #666;
+      color: var(--text-secondary);
       font-size: 13px;
       margin-top: 5px;
     }
@@ -171,7 +171,7 @@
     height: 0;
 
     &:checked + .toggle-slider {
-      background-color: #667eea;
+      background-color: var(--color-primary);
 
       &:before {
         transform: translateX(26px);
@@ -179,7 +179,7 @@
     }
 
     &:focus + .toggle-slider {
-      box-shadow: 0 0 1px #667eea;
+      box-shadow: 0 0 1px var(--color-primary);
     }
   }
 
@@ -201,7 +201,7 @@
       width: 18px;
       left: 3px;
       bottom: 3px;
-      background-color: white;
+      background-color: var(--card-background);
       transition: 0.4s;
       border-radius: 50%;
     }
@@ -219,7 +219,7 @@
 
   &:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
   }
 }
@@ -227,7 +227,7 @@
 .empty-state {
   text-align: center;
   padding: 60px;
-  color: #666;
+  color: var(--text-secondary);
 
   .icon {
     font-size: 64px;

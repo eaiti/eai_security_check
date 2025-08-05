@@ -3,8 +3,8 @@ const { contextBridge, ipcRenderer } = require("electron");
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld("electronAPI", {
-  runSecurityCheck: (profile, config) =>
-    ipcRenderer.invoke("run-security-check", profile, config),
+  runSecurityCheck: (profile, config, password) =>
+    ipcRenderer.invoke("run-security-check", profile, config, password),
   runInteractive: () => ipcRenderer.invoke("run-interactive"),
   verifyReport: (path) => ipcRenderer.invoke("verify-report", path),
   manageDaemon: (action, config) =>

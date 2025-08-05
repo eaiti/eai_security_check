@@ -35,7 +35,7 @@
 
     .nav-link {
       text-decoration: none;
-      color: #666;
+      color: var(--text-primary);
       font-weight: 500;
       padding: 10px 20px;
       border-radius: 6px;
@@ -43,13 +43,13 @@
       white-space: nowrap;
 
       &:hover {
-        color: #667eea;
+        color: var(--color-primary);
         background: rgba(102, 126, 234, 0.1);
       }
 
       &.active {
         color: white;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--color-primary) 0%, #764ba2 100%);
       }
     }
   }

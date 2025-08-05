@@ -11,11 +11,12 @@ import {
   ElectronService,
   SecurityCheckReport,
 } from '../../services/electron.service';
+import { PasswordDialogComponent } from '../password-dialog/password-dialog.component';
 
 @Component({
   selector: 'app-security-check',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PasswordDialogComponent],
   template: `
     <div class="security-check-container">
       <div class="header">
@@ -138,6 +139,14 @@ import {
           </p>
         </div>
       }
+      
+      <!-- Password Dialog -->
+      @if (showPasswordDialog()) {
+        <app-password-dialog
+          (passwordSubmitted)="onPasswordSubmitted($event)"
+          (dialogCancelled)="onPasswordCancelled()"
+        />
+      }
     </div>
   `,
   styleUrls: ['./security-check.component.scss'],
@@ -147,9 +156,12 @@ export class SecurityCheckComponent {
   private readonly electronService = inject(ElectronService);
   private readonly _isRunning = signal(false);
   private readonly _report = signal<SecurityCheckReport | null>(null);
+  private readonly _showPasswordDialog = signal(false);
+  private _pendingPassword: string | null = null;
 
   readonly isRunning = this._isRunning.asReadonly();
   readonly report = this._report.asReadonly();
+  readonly showPasswordDialog = this._showPasswordDialog.asReadonly();
   readonly isElectron = this.electronService.isElectron;
   readonly platformInfo = this.electronService.platformInfo;
   readonly cliVersion = this.electronService.cliVersion;
@@ -157,10 +169,28 @@ export class SecurityCheckComponent {
   selectedProfile = 'default';
 
   async runSecurityCheck(): Promise<void> {
+    // Check if we need administrator privileges for this profile
+    if (this.needsPassword(this.selectedProfile)) {
+      this._showPasswordDialog.set(true);
+      return;
+    }
+
+    await this.executeSecurityCheck();
+  }
+
+  private needsPassword(profile: string): boolean {
+    // Profiles that require administrator access
+    const privilegedProfiles = ['strict', 'eai', 'default'];
+    return privilegedProfiles.includes(profile) && this.isElectron();
+  }
+
+  private async executeSecurityCheck(password?: string): Promise<void> {
     this._isRunning.set(true);
     try {
       const report = await this.electronService.runSecurityCheck(
         this.selectedProfile,
+        undefined,
+        password,
       );
       this._report.set(report);
     } catch (error) {
@@ -169,6 +199,17 @@ export class SecurityCheckComponent {
     } finally {
       this._isRunning.set(false);
     }
+  }
+
+  onPasswordSubmitted(password: string): void {
+    this._showPasswordDialog.set(false);
+    this._pendingPassword = password;
+    this.executeSecurityCheck(password);
+  }
+
+  onPasswordCancelled(): void {
+    this._showPasswordDialog.set(false);
+    this._pendingPassword = null;
   }
 
   getStatusIcon(status: string): string {

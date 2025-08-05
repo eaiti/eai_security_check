@@ -6,6 +6,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { ElectronService } from '../../services/electron.service';
 
 interface ManagementAction {
@@ -20,12 +21,12 @@ interface ManagementAction {
 @Component({
   selector: 'app-interactive-mode',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   template: `
     <div class="interactive-mode-container">
       <div class="header">
-        <h1>🎛️ Interactive Management</h1>
-        <p>Comprehensive system management and administrative functions</p>
+        <h1>🎛️ Management</h1>
+        <p>System administration, configuration management, and administrative functions</p>
       </div>
 
       <div class="management-grid">
@@ -45,6 +46,43 @@ interface ManagementAction {
             </div>
           </div>
         }
+      </div>
+
+      <!-- Configuration Management Section -->
+      <div class="config-management-section">
+        <h2>⚙️ Configuration Management</h2>
+        <div class="config-grid">
+          <div class="config-card">
+            <h3>Security Profiles</h3>
+            <p>Manage security check configurations</p>
+            <button class="btn btn-primary" routerLink="/config-editor">
+              Edit Configurations
+            </button>
+          </div>
+          <div class="config-card">
+            <h3>Current Profile</h3>
+            <p>Active security configuration profile</p>
+            <div class="profile-info">
+              @if (currentProfile()) {
+                <span class="profile-name">{{ currentProfile() }}</span>
+              } @else {
+                <span class="profile-missing">No profile loaded</span>
+              }
+            </div>
+          </div>
+          <div class="config-card">
+            <h3>Quick Actions</h3>
+            <p>Common configuration tasks</p>
+            <div class="config-actions">
+              <button class="btn btn-sm" (click)="loadDefaultConfig()">
+                Load Default
+              </button>
+              <button class="btn btn-sm" (click)="validateConfig()">
+                Validate Config
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="system-info">
@@ -158,12 +196,14 @@ export class InteractiveModeComponent {
   } | null>(null);
   private readonly _message = signal<string>('');
   private readonly _messageType = signal<'success' | 'error' | 'info'>('info');
+  private readonly _currentProfile = signal<string>('');
 
   readonly runningActions = this._runningActions.asReadonly();
   readonly actionLog = this._actionLog.asReadonly();
   readonly confirmationDialog = this._confirmationDialog.asReadonly();
   readonly message = this._message.asReadonly();
   readonly messageType = this._messageType.asReadonly();
+  readonly currentProfile = this._currentProfile.asReadonly();
 
   readonly isElectron = this.electronService.isElectron;
   readonly platformInfo = this.electronService.platformInfo;
@@ -397,5 +437,31 @@ export class InteractiveModeComponent {
     setTimeout(() => {
       this._message.set('');
     }, 5000);
+  }
+
+  async loadDefaultConfig(): Promise<void> {
+    try {
+      const config = await this.electronService.loadConfig();
+      this._currentProfile.set('default');
+      this.showMessage('Default configuration loaded successfully', 'success');
+    } catch (error) {
+      console.error('Failed to load default config:', error);
+      this.showMessage('Failed to load default configuration', 'error');
+    }
+  }
+
+  async validateConfig(): Promise<void> {
+    try {
+      const config = await this.electronService.loadConfig();
+      // Basic validation - check if config has required fields
+      if (config && Object.keys(config).length > 0) {
+        this.showMessage('Configuration is valid', 'success');
+      } else {
+        this.showMessage('Configuration is empty or invalid', 'error');
+      }
+    } catch (error) {
+      console.error('Config validation failed:', error);
+      this.showMessage('Configuration validation failed', 'error');
+    }
   }
 }

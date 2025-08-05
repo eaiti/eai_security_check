@@ -33,6 +33,7 @@ declare global {
       runSecurityCheck: (
         profile: string,
         config?: string,
+        password?: string,
       ) => Promise<SecurityCheckReport>;
       runInteractive: () => Promise<void>;
       verifyReport: (path: string) => Promise<boolean>;
@@ -89,13 +90,14 @@ export class ElectronService {
   async runSecurityCheck(
     profile: string,
     config?: string,
+    password?: string,
   ): Promise<SecurityCheckReport> {
     if (!this._isElectron()) {
       return this.getMockSecurityCheck(profile);
     }
 
     try {
-      return await window.electronAPI!.runSecurityCheck(profile, config);
+      return await window.electronAPI!.runSecurityCheck(profile, config, password);
     } catch (error) {
       console.error('Security check failed:', error);
       // Fallback to mock data

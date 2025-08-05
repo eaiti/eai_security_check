@@ -13,13 +13,13 @@
   border-bottom: 2px solid #eee;
 
   h1 {
-    color: #333;
+    color: var(--text-primary);
     margin: 0;
     font-size: 2.5em;
   }
 
   p {
-    color: #666;
+    color: var(--text-secondary);
     margin: 10px 0 0 0;
     font-size: 1.1em;
   }
@@ -49,7 +49,7 @@
   transition: all 0.2s;
 
   &.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, #764ba2 100%);
     color: white;
 
     &:hover:not(:disabled) {
@@ -73,18 +73,18 @@
 
   &:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: var(--color-primary);
   }
 }
 
 .loading {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--text-secondary);
 
   .spinner {
     border: 3px solid #f3f3f3;
-    border-top: 3px solid #667eea;
+    border-top: 3px solid var(--color-primary);
     border-radius: 50%;
     width: 30px;
     height: 30px;
@@ -111,11 +111,11 @@
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 30px;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid var(--color-primary);
 
   h2 {
     margin-top: 0;
-    color: #333;
+    color: var(--text-primary);
   }
 
   .summary-stats {
@@ -133,7 +133,7 @@
 
   .report-meta {
     font-size: 14px;
-    color: #666;
+    color: var(--text-secondary);
     margin-top: 15px;
   }
 }
@@ -154,7 +154,7 @@
 }
 
 .check-item {
-  background: white;
+  background: var(--card-background);
   border: 1px solid #e9ecef;
   border-radius: 8px;
   padding: 20px;
@@ -191,7 +191,7 @@
     font-weight: 600;
     font-size: 18px;
     flex-grow: 1;
-    color: #333;
+    color: var(--text-primary);
   }
 
   .check-status {
@@ -256,7 +256,7 @@
 .empty-state {
   text-align: center;
   padding: 60px;
-  color: #666;
+  color: var(--text-secondary);
 
   .icon {
     font-size: 64px;

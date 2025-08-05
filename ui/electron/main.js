@@ -81,8 +81,8 @@ class ElectronMain {
   }
 
   setupIpcHandlers() {
-    ipcMain.handle("run-security-check", async (event, profile, config) => {
-      return this.runSecurityCheck(profile, config);
+    ipcMain.handle("run-security-check", async (event, profile, config, password) => {
+      return this.runSecurityCheck(profile, config, password);
     });
 
     ipcMain.handle("run-interactive", async () => {
@@ -197,10 +197,11 @@ class ElectronMain {
     });
   }
 
-  async runSecurityCheck(profile, config) {
+  async runSecurityCheck(profile, config, password) {
     try {
       const configArg = config ? `--config "${config}"` : profile;
-      const command = `node "${this.cliPath}" check ${configArg} --format json --quiet`;
+      const passwordArg = password ? `--password "${password}"` : '';
+      const command = `node "${this.cliPath}" check ${configArg} ${passwordArg} --format json --quiet`;
 
       const result = await this.executeCommand(command);
 

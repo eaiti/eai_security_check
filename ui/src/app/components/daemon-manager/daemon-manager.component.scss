@@ -13,20 +13,20 @@
   border-bottom: 2px solid #eee;
 
   h1 {
-    color: #333;
+    color: var(--text-primary);
     margin: 0;
     font-size: 2.5em;
   }
 
   p {
-    color: #666;
+    color: var(--text-secondary);
     margin: 10px 0 0 0;
     font-size: 1.1em;
   }
 }
 
 .status-card {
-  background: white;
+  background: var(--card-background);
   border: 1px solid #e9ecef;
   border-radius: 8px;
   padding: 25px;
@@ -35,7 +35,7 @@
 
   h2 {
     margin: 0 0 20px 0;
-    color: #333;
+    color: var(--text-primary);
     font-size: 1.3em;
   }
 
@@ -51,12 +51,12 @@
 
     .label {
       font-weight: 600;
-      color: #666;
+      color: var(--text-secondary);
       min-width: 100px;
     }
 
     .value {
-      color: #333;
+      color: var(--text-primary);
 
       &.status-running {
         color: #28a745;
@@ -72,7 +72,7 @@
 
   .loading {
     text-align: center;
-    color: #666;
+    color: var(--text-secondary);
     padding: 20px;
   }
 }
@@ -98,7 +98,7 @@
   transition: all 0.2s;
 
   &.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, #764ba2 100%);
     color: white;
 
     &:hover:not(:disabled) {
@@ -131,7 +131,7 @@
 }
 
 .configuration {
-  background: white;
+  background: var(--card-background);
   border: 1px solid #e9ecef;
   border-radius: 8px;
   padding: 25px;
@@ -139,7 +139,7 @@
 
   h2 {
     margin: 0 0 25px 0;
-    color: #333;
+    color: var(--text-primary);
     font-size: 1.3em;
   }
 
@@ -154,7 +154,7 @@
 
     label {
       font-weight: 600;
-      color: #333;
+      color: var(--text-primary);
     }
 
     .form-control {
@@ -166,13 +166,13 @@
 
       &:focus {
         outline: none;
-        border-color: #667eea;
+        border-color: var(--color-primary);
         box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
       }
     }
 
     .help-text {
-      color: #666;
+      color: var(--text-secondary);
       font-size: 14px;
     }
   }
