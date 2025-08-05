@@ -72,7 +72,7 @@ class ElectronMain {
       this.mainWindow.loadURL("http://localhost:4200");
       this.mainWindow.webContents.openDevTools();
     } else {
-      this.mainWindow.loadFile(path.join(__dirname, "../dist/ui/index.html"));
+      this.mainWindow.loadFile(path.join(__dirname, "../dist/ui/browser/index.html"));
     }
 
     this.mainWindow.once("ready-to-show", () => {
@@ -97,7 +97,7 @@ class ElectronMain {
         }
 
         const result = await this.runCliCommand(`verify "${filePath}"`);
-        
+
         if (result.error) {
           console.error("Verification command failed:", result.stderr);
           return false;
@@ -115,7 +115,7 @@ class ElectronMain {
     ipcMain.handle("load-recent-reports", async () => {
       try {
         const reportsDir = path.join(app.getPath("userData"), "reports");
-        
+
         if (!fs.existsSync(reportsDir)) {
           return [];
         }
@@ -241,7 +241,7 @@ class ElectronMain {
       } catch (error) {
         console.error(`Failed to load ${profile} config from examples:`, error);
       }
-      
+
       // Fallback to hardcoded configs
       const configs = {
         default: this.getDefaultConfig(),
@@ -294,19 +294,19 @@ class ElectronMain {
           configArg = profile; // Fallback to profile name
         }
       }
-      
+
       const passwordArg = password ? `--password "${password}"` : '';
-      
+
       // Generate output filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const outputFile = path.join(__dirname, `../../reports/security-report-${profile}-${timestamp}.json`);
-      
+
       // Ensure reports directory exists
       const reportsDir = path.dirname(outputFile);
       if (!fs.existsSync(reportsDir)) {
         fs.mkdirSync(reportsDir, { recursive: true });
       }
-      
+
       const command = `node "${this.cliPath}" check ${configArg} ${passwordArg} --format json --output "${outputFile}" --quiet`;
 
       console.log(`Running security check: ${command}`);
