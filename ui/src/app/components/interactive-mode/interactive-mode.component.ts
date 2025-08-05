@@ -48,20 +48,40 @@ interface ManagementAction {
         }
       </div>
 
+      <!-- Main Management Features -->
+      <div class="main-features-section">
+        <h2>🛠️ Core Management Features</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">⚙️</div>
+            <div class="feature-content">
+              <h3>Configuration Editor</h3>
+              <p>Create, edit, and manage security profiles and configurations</p>
+              <button class="btn btn-primary" routerLink="/config-editor">
+                Manage Configurations
+              </button>
+            </div>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🔄</div>
+            <div class="feature-content">
+              <h3>Daemon Manager</h3>
+              <p>Configure automated security monitoring and scheduled reports</p>
+              <button class="btn btn-primary" routerLink="/daemon-manager">
+                Manage Daemon
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Configuration Management Section -->
       <div class="config-management-section">
-        <h2>⚙️ Configuration Management</h2>
+        <h2>📋 Current Configuration Status</h2>
         <div class="config-grid">
           <div class="config-card">
-            <h3>Security Profiles</h3>
-            <p>Manage security check configurations</p>
-            <button class="btn btn-primary" routerLink="/config-editor">
-              Edit Configurations
-            </button>
-          </div>
-          <div class="config-card">
-            <h3>Current Profile</h3>
-            <p>Active security configuration profile</p>
+            <h3>Active Profile</h3>
+            <p>Currently loaded security configuration</p>
             <div class="profile-info">
               @if (currentProfile()) {
                 <span class="profile-name">{{ currentProfile() }}</span>

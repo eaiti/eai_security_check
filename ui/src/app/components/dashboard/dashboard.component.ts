@@ -97,11 +97,9 @@ export interface SystemStatus {
               📦 Install Globally
             </button>
           }
-          @if (systemStatus().daemonStatus === 'not_configured') {
-            <button class="btn btn-secondary" routerLink="/daemon-manager">
-              ⚙️ Configure Daemon
-            </button>
-          }
+          <button class="btn btn-secondary" routerLink="/interactive-mode">
+            🎛️ System Management
+          </button>
         </div>
       </div>
 
@@ -230,19 +228,11 @@ export interface SystemStatus {
             </button>
           </div>
           <div class="feature-item">
-            <div class="feature-icon">⚙️</div>
-            <h3>Configuration</h3>
-            <p>Manage security profiles and custom configurations</p>
-            <button class="btn btn-sm" routerLink="/config-editor">
-              Configure
-            </button>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">🔄</div>
-            <h3>Daemon Manager</h3>
-            <p>Setup automated security monitoring and alerts</p>
-            <button class="btn btn-sm" routerLink="/daemon-manager">
-              Manage
+            <div class="feature-icon">🎛️</div>
+            <h3>Management</h3>
+            <p>System administration and configuration management</p>
+            <button class="btn btn-sm" routerLink="/interactive-mode">
+              Manage System
             </button>
           </div>
           <div class="feature-item">
@@ -251,14 +241,6 @@ export interface SystemStatus {
             <p>View, analyze and export security reports</p>
             <button class="btn btn-sm" routerLink="/report-viewer">
               View Reports
-            </button>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">🎛️</div>
-            <h3>Interactive Mode</h3>
-            <p>Step-by-step guided security management</p>
-            <button class="btn btn-sm" routerLink="/interactive-mode">
-              Start
             </button>
           </div>
         </div>

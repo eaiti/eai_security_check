@@ -47,34 +47,179 @@ type OutputFormat = 'json' | 'markdown' | 'html' | 'plain' | 'csv';
         <p>View, convert, and verify tamper-evident security reports</p>
       </div>
 
-      <div class="report-actions">
-        <div class="upload-section">
-          <button class="btn btn-primary" (click)="openFileDialog()">
-            📁 Open Report File
-          </button>
-          <input
-            type="file"
-            #fileInput
-            accept=".json,.html,.pdf,.md,.txt"
-            (change)="onFileSelected($event)"
-            style="display: none;"
-          />
+      <!-- Main Report Section -->
+      <div class="main-report-section">
+        <div class="report-file-section">
+          <div class="file-actions">
+            <h2>📁 Open Report File</h2>
+            <button class="btn btn-primary" (click)="openFileDialog()">
+              📁 Select Report File
+            </button>
+            <input
+              type="file"
+              #fileInput
+              accept=".json,.html,.pdf,.md,.txt"
+              (change)="onFileSelected($event)"
+              style="display: none;"
+            />
+          </div>
+
+          @if (selectedReportPath()) {
+            <div class="current-file-info">
+              <h3>Current Report</h3>
+              <div class="file-details">
+                <div class="detail-item">
+                  <span class="label">File:</span>
+                  <span class="value">{{ getFileName(selectedReportPath()!) }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="label">Path:</span>
+                  <span class="value path">{{ selectedReportPath() }}</span>
+                </div>
+                @if (currentReportData()) {
+                  <div class="detail-item">
+                    <span class="label">Profile:</span>
+                    <span class="value">{{ currentReportData()!.profile }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="label">Timestamp:</span>
+                    <span class="value">{{ formatTimestamp(currentReportData()!.timestamp) }}</span>
+                  </div>
+                  @if (currentReportData()!.userId) {
+                    <div class="detail-item">
+                      <span class="label">User ID:</span>
+                      <span class="value user-id">{{ currentReportData()!.userId }}</span>
+                    </div>
+                  }
+                  @if (currentReportData()!.hash) {
+                    <div class="detail-item">
+                      <span class="label">Tamper Hash:</span>
+                      <span class="value hash">{{ currentReportData()!.hash.substring(0, 32) }}...</span>
+                    </div>
+                  }
+                }
+              </div>
+
+              <div class="verification-section">
+                <button
+                  class="btn btn-secondary"
+                  [disabled]="isVerifying()"
+                  (click)="verifyReport()"
+                >
+                  @if (isVerifying()) {
+                    🔄 Verifying...
+                  } @else {
+                    🔍 Verify Report Integrity
+                  }
+                </button>
+                @if (verificationResult() !== null) {
+                  <div class="verification-result" [class]="getVerificationClass()">
+                    {{ getVerificationText() }}
+                  </div>
+                }
+              </div>
+            </div>
+          }
         </div>
 
-        <div class="verification-section">
-          <button
-            class="btn btn-secondary"
-            [disabled]="!selectedReportPath() || isVerifying()"
-            (click)="verifyReport()"
-          >
-            @if (isVerifying()) {
-              🔄 Verifying...
-            } @else {
-              🔍 Verify Report Integrity
-            }
-          </button>
-        </div>
+        @if (reportContent()) {
+          <div class="report-content-section">
+            <div class="content-header">
+              <h2>Report Content</h2>
+              <div class="content-controls">
+                <div class="format-selector">
+                  <label for="outputFormat">Format:</label>
+                  <select
+                    id="outputFormat"
+                    [(ngModel)]="selectedFormat"
+                    (change)="onFormatChange()"
+                    class="format-select"
+                  >
+                    <option value="json">JSON</option>
+                    <option value="markdown">Markdown</option>
+                    <option value="html">HTML</option>
+                    <option value="plain">Plain Text</option>
+                    <option value="csv">CSV</option>
+                  </select>
+                </div>
+                <button class="btn btn-sm" (click)="copyToClipboard()">
+                  📋 Copy
+                </button>
+                <button class="btn btn-sm" (click)="downloadReport()">
+                  💾 Download
+                </button>
+              </div>
+            </div>
+            <div class="content-viewer">
+              @switch (selectedFormat) {
+                @case ('json') {
+                  <div class="json-viewer">
+                    <pre>{{ formatJson(reportContent()!) }}</pre>
+                  </div>
+                }
+                @case ('html') {
+                  <div class="html-viewer" [innerHTML]="convertedContent()"></div>
+                }
+                @default {
+                  <div class="text-viewer">
+                    <pre>{{ convertedContent() }}</pre>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+        }
       </div>
+
+      <!-- Recent Reports Section -->
+      @if (recentReports().length > 0) {
+        <div class="recent-reports-section">
+          <h2>📋 Recent Reports</h2>
+          <div class="reports-grid">
+            @for (report of recentReports(); track report.path) {
+              <div class="report-card" 
+                   [class]="{ 'current-report': selectedReportPath() === report.path }"
+                   (click)="selectReport(report.path)">
+                <div class="report-header">
+                  <span class="report-name">{{ report.name }}</span>
+                  @if (selectedReportPath() === report.path) {
+                    <span class="current-badge">📍 Current</span>
+                  }
+                  @if (report.verified !== undefined) {
+                    <span class="verification-badge" [class]="'badge-' + (report.verified ? 'valid' : 'invalid')">
+                      {{ report.verified ? '✅' : '❌' }}
+                    </span>
+                  }
+                </div>
+                <div class="report-meta">
+                  <div class="meta-item">
+                    <span class="meta-label">Date:</span>
+                    <span class="meta-value">{{ formatDate(report.timestamp) }}</span>
+                  </div>
+                  <div class="meta-item">
+                    <span class="meta-label">Size:</span>
+                    <span class="meta-value">{{ report.size }}</span>
+                  </div>
+                </div>
+                <div class="report-actions">
+                  <button class="btn btn-xs" (click)="selectAndCopy(report.path, $event)">
+                    📋 Copy
+                  </button>
+                  <button class="btn btn-xs" (click)="quickDownload(report.path, $event)">
+                    💾 Download
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="empty-state">
+          <div class="icon">📄</div>
+          <p>No security reports found</p>
+          <p>Open a report file to view and verify its contents</p>
+        </div>
+      }
 
       <!-- Bulk Verification Section -->
       <div class="bulk-verification-section">
@@ -368,6 +513,7 @@ export class ReportViewerComponent implements OnInit {
   private readonly _selectedReportPath = signal<string | null>(null);
   private readonly _reportContent = signal<string | null>(null);
   private readonly _originalReport = signal<SecurityCheckReport | null>(null);
+  private readonly _currentReportData = signal<SecurityCheckReport | null>(null);
   private readonly _verificationResult = signal<boolean | null>(null);
   private readonly _isVerifying = signal(false);
   private readonly _recentReports = signal<ReportFile[]>([]);
@@ -383,6 +529,7 @@ export class ReportViewerComponent implements OnInit {
 
   readonly selectedReportPath = this._selectedReportPath.asReadonly();
   readonly reportContent = this._reportContent.asReadonly();
+  readonly currentReportData = this._currentReportData.asReadonly();
   readonly verificationResult = this._verificationResult.asReadonly();
   readonly isVerifying = this._isVerifying.asReadonly();
   readonly recentReports = this._recentReports.asReadonly();
@@ -407,6 +554,7 @@ export class ReportViewerComponent implements OnInit {
     
     if (sharedReport) {
       this._originalReport.set(sharedReport);
+      this._currentReportData.set(sharedReport);
       this._selectedReportPath.set(sharedPath);
       this._reportContent.set(JSON.stringify(sharedReport, null, 2));
       this.convertContent();
@@ -439,6 +587,7 @@ export class ReportViewerComponent implements OnInit {
         const parsed = JSON.parse(content);
         if (this.isSecurityReport(parsed)) {
           this._originalReport.set(parsed);
+          this._currentReportData.set(parsed);
         }
       } catch {
         // Not a JSON security report, that's okay
@@ -460,6 +609,7 @@ export class ReportViewerComponent implements OnInit {
       // For now, generate mock content based on the path
       const mockReport = this.generateMockReport(path);
       this._originalReport.set(mockReport);
+      this._currentReportData.set(mockReport);
       this._reportContent.set(JSON.stringify(mockReport, null, 2));
       this._verificationResult.set(null);
       this.convertContent();
@@ -796,6 +946,12 @@ export class ReportViewerComponent implements OnInit {
       platform: { platform: 'darwin', arch: 'x64', version: '14.0.0' },
       profile,
       timestamp: new Date().toISOString(),
+      userId: 'admin-workstation@company.com',
+      hash: 'sha256:a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456',
+      metadata: {
+        hostname: 'macbook-pro-admin',
+        version: '1.0.0'
+      },
       checks: [
         {
           name: 'Disk Encryption',
@@ -1079,5 +1235,22 @@ export class ReportViewerComponent implements OnInit {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  getVerificationClass(): string {
+    const result = this.verificationResult();
+    if (result === null) return '';
+    return result ? 'verification-valid' : 'verification-invalid';
+  }
+
+  getVerificationText(): string {
+    const result = this.verificationResult();
+    if (result === null) return '';
+    return result ? '✅ Valid & Unmodified' : '❌ Invalid or Modified';
+  }
+
+  formatTimestamp(timestamp: string): string {
+    const date = new Date(timestamp);
+    return date.toLocaleString();
   }
 }

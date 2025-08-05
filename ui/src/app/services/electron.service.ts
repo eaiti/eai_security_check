@@ -25,6 +25,13 @@ export interface SecurityCheckReport {
     warnings: number;
     overallStatus: 'pass' | 'fail' | 'warning';
   };
+  // Tamper-resistant security fields
+  hash?: string;
+  userId?: string;
+  metadata?: {
+    hostname?: string;
+    version?: string;
+  };
 }
 
 declare global {
