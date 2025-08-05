@@ -2,6 +2,8 @@
 
 A cross-platform Node.js + TypeScript tool for auditing security settings on macOS, Linux, and Windows systems against configurable security profiles. The tool provides detailed reports with educational explanations and actionable recommendations.
 
+**🆕 NEW: Modern Angular-based Graphical User Interface with advanced report management! See [UI Documentation](#-user-interface) below.**
+
 ## 🌟 Key Features
 
 ### 🖥️ Cross-Platform Support
@@ -26,6 +28,7 @@ A cross-platform Node.js + TypeScript tool for auditing security settings on mac
 
 ### 📊 Advanced Features
 - **Multiple Output Formats**: Console, plain, markdown, JSON, email
+- **Report Format Conversion**: Convert between JSON, HTML, Markdown, CSV, and Plain Text
 - **Clipboard Integration**: Copy results directly to clipboard
 - **Cryptographic Verification**: Enhanced tamper detection with HMAC-SHA256 signatures
 - **Scheduled Audits**: Automated daemon mode with email notifications
@@ -33,7 +36,126 @@ A cross-platform Node.js + TypeScript tool for auditing security settings on mac
 
 ## 🚀 Quick Start
 
-### 1. Download & Install
+### Choose Your Interface
+
+**🖱️ Graphical User Interface (Recommended for New Users)**
+```bash
+# Build the CLI first
+npm run build
+
+# Start the UI
+npm run start:ui
+```
+
+**⌨️ Command Line Interface (For Automation & Scripts)**
+
+## 🎛️ User Interface
+
+### Modern Angular-Based Desktop Application
+
+EAI Security Check now includes a powerful, modern GUI built with Angular and Electron:
+
+- **Cross-platform Desktop App**: Native executables for Windows, macOS, and Linux
+- **Modern Angular Architecture**: Built with Angular 20+ using signals and OnPush change detection
+- **Comprehensive Features**: Complete mirror of CLI functionality plus advanced UI-only features
+- **Professional Design**: Responsive, accessible interface with consistent theming
+
+### 🏠 Dashboard Overview
+
+The main dashboard provides a comprehensive view of your system's security status:
+
+- **System Status**: Current version, global installation status, daemon status, and configuration status
+- **Last Security Check**: Quick summary of your most recent audit with pass/fail/warning counts
+- **Report History**: Timeline of recent security checks with quick access to view or copy reports
+- **Feature Overview**: Direct access to all major features with descriptions
+
+### 📊 Advanced Report Management
+
+The enhanced Report Viewer provides powerful report management capabilities:
+
+- **Multiple Format Support**: View reports in JSON, HTML, Markdown, CSV, or Plain Text
+- **Format Conversion**: Convert any report between all supported formats
+- **Copy to Clipboard**: One-click copying of reports in any format
+- **Download Reports**: Save reports locally in your preferred format
+- **Report Verification**: Verify tamper-evident report integrity
+- **Report History**: Browse and manage historical security audit reports
+
+### ⚙️ Configuration Management
+
+Visual configuration editor with full CLI feature parity:
+
+- **Profile Editor**: Create, edit, and manage security profiles
+- **Real-time Validation**: Immediate feedback on configuration changes
+- **Import/Export**: Load configurations from files or save custom profiles
+- **Profile Templates**: Start with predefined profiles and customize as needed
+
+### 🔄 Daemon Management
+
+Comprehensive daemon management interface:
+
+- **Setup Wizard**: Step-by-step configuration of automated security monitoring
+- **Schedule Configuration**: Visual cron-style scheduling with preset options
+- **Email Integration**: Configure SMTP settings for automated report delivery
+- **Status Monitoring**: Real-time daemon status and last execution information
+- **Log Viewer**: Access daemon execution logs and troubleshooting information
+
+### 🎛️ Interactive Mode
+
+Guided security management interface:
+
+- **Step-by-Step Wizards**: Guided setup for all major features
+- **System Information**: Comprehensive view of platform and security status
+- **Global Installation**: Manage system-wide installation with visual feedback
+- **Help and Documentation**: Contextual help throughout the interface
+
+#### Starting the UI
+
+```bash
+# Quick start (from root directory)
+npm run build      # Build CLI first
+npm run start:ui   # Launch graphical interface
+
+# Or from UI directory
+cd ui
+npm install       # First time only
+npm start         # Launch application
+```
+
+#### UI-Specific Features
+
+- **Dashboard**: System overview with recent security check history
+- **Report Converter**: Convert reports between JSON, HTML, Markdown, CSV, and Plain Text
+- **Copy Functionality**: One-click copying to clipboard for any report format
+- **Visual Status Indicators**: Clear pass/fail/warning indicators with color coding
+- **Responsive Design**: Works on various screen sizes and resolutions
+- **Real-time Updates**: Live status updates and progress indicators
+- **Export Options**: Download reports in multiple formats with proper file extensions
+
+#### Building Distributables
+
+```bash
+cd ui
+npm run dist        # Build for current platform
+npm run dist:mac    # Build for macOS (.dmg)
+npm run dist:win    # Build for Windows (.exe installer)  
+npm run dist:linux  # Build for Linux (.AppImage)
+```
+
+### Downloads
+
+When releases are available, you can download both CLI and UI versions:
+
+**CLI Executables:**
+- `eai-security-check-cli-[platform]-[version]` - Command line interface
+
+**UI Executables:**  
+- `eai-security-check-ui-[platform]-[version]` - Desktop application with graphical interface
+
+Choose the version that best fits your workflow:
+- **Use CLI** for automation, scripting, servers, and integration
+- **Use UI** for interactive use, report management, and visual configuration
+
+#### 1. Download & Install
 
 **For End Users (Standalone Executable - Recommended)**
 
@@ -58,7 +180,7 @@ Invoke-WebRequest -Uri https://github.com/eaiti/eai_security_check/releases/late
 npm install -g eai-security-check
 ```
 
-### 2. Setup Configuration
+#### 2. Setup Configuration
 
 ```bash
 # Interactive management mode - guides you through all configuration options
@@ -73,7 +195,7 @@ eai-security-check interactive
 # 6. System Status: View comprehensive system information and status
 ```
 
-### 3. Run Your First Security Audit
+#### 3. Run Your First Security Audit
 
 ```bash
 # Quick security check (uses centralized config)
@@ -86,7 +208,7 @@ eai-security-check check strict
 eai-security-check check --hash --format markdown -o ~/Documents/security-report.md
 ```
 
-### 4. Set Up Automated Monitoring (Optional)
+#### 4. Set Up Automated Monitoring (Optional)
 
 **Option A: Interactive Setup (Recommended)**
 ```bash

@@ -1,0 +1,101 @@
+{
+  "name": "eai-security-check-ui",
+  "version": "1.1.0",
+  "main": "electron/main.js",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "build:prod": "ng build --configuration production",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "lint": "ng lint",
+    "electron": "electron .",
+    "electron:dev": "concurrently \"npm start\" \"wait-on http://localhost:4200 && NODE_ENV=development electron .\"",
+    "electron:build": "npm run build:prod && electron .",
+    "pack": "npm run build:prod && electron-builder --dir",
+    "dist": "npm run build:prod && electron-builder",
+    "dist:mac": "npm run build:prod && electron-builder --mac",
+    "dist:win": "npm run build:prod && electron-builder --win",
+    "dist:linux": "npm run build:prod && electron-builder --linux"
+  },
+  "prettier": {
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/cdk": "^20.1.4",
+    "@angular/common": "^20.1.4",
+    "@angular/compiler": "^20.1.4",
+    "@angular/core": "^20.1.4",
+    "@angular/forms": "^20.1.4",
+    "@angular/material": "^20.1.4",
+    "@angular/platform-browser": "^20.1.4",
+    "@angular/router": "^20.1.4",
+    "rxjs": "~7.8.2",
+    "tslib": "^2.8.1",
+    "zone.js": "~0.15.1"
+  },
+  "devDependencies": {
+    "@angular/build": "^20.1.4",
+    "@angular/cli": "^20.1.4",
+    "@angular/compiler-cli": "^20.1.4",
+    "@types/jasmine": "~5.1.8",
+    "angular-eslint": "20.1.1",
+    "concurrently": "^9.2.0",
+    "electron": "^37.2.5",
+    "electron-builder": "^26.0.12",
+    "eslint": "^9.29.0",
+    "jasmine-core": "~5.9.0",
+    "karma": "~6.4.4",
+    "karma-chrome-launcher": "~3.2.0",
+    "karma-coverage": "~2.2.1",
+    "karma-jasmine": "~5.1.0",
+    "karma-jasmine-html-reporter": "~2.1.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "8.34.1",
+    "wait-on": "^8.0.4"
+  },
+  "build": {
+    "appId": "com.eai.security-check-ui",
+    "productName": "EAI Security Check UI",
+    "directories": {
+      "output": "release/"
+    },
+    "files": [
+      "dist/ui/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist/",
+        "to": "app/dist/",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.utilities",
+      "icon": "public/favicon.ico"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "public/favicon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility",
+      "icon": "public/favicon.ico"
+    }
+  }
+}

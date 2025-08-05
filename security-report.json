@@ -1,0 +1,26 @@
+{
+  "timestamp": "2025-08-05T19:46:33.519Z",
+  "summary": "",
+  "overallPassed": false,
+  "totalChecks": 2,
+  "passedChecks": 0,
+  "failedChecks": 1,
+  "warningChecks": 1,
+  "results": [
+    {
+      "status": "warning",
+      "message": "Version: ubuntu 24.04 (untested - may have false positives/negatives)",
+      "icon": "⚠️"
+    },
+    {
+      "status": "failed",
+      "message": "FAILED - 6/17 checks passed",
+      "icon": "❌"
+    }
+  ],
+  "metadata": {
+    "platform": "linux",
+    "timestamp": "2025-08-05T19:46:33.519Z",
+    "overallPassed": false
+  }
+}

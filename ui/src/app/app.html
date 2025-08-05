@@ -1,0 +1,38 @@
+<div class="app-container">
+  <nav class="navigation">
+    <div class="nav-header">
+      <h1>🔒 EAI Security Check</h1>
+      <p>Cross-platform security auditing tool</p>
+    </div>
+
+    <div class="nav-links">
+      <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">
+        🏠 Dashboard
+      </a>
+      <a
+        routerLink="/security-check"
+        routerLinkActive="active"
+        class="nav-link"
+      >
+        🔍 Security Check
+      </a>
+      <a routerLink="/report-verification" routerLinkActive="active" class="nav-link">
+        🔍 Report Verification
+      </a>
+      <a routerLink="/report-viewer" routerLinkActive="active" class="nav-link">
+        📊 Report Viewer
+      </a>
+      <a
+        routerLink="/management"
+        routerLinkActive="active"
+        class="nav-link"
+      >
+        🎛️ Management
+      </a>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <router-outlet />
+  </main>
+</div>

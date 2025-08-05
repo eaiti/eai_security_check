@@ -7,5 +7,19 @@
   "useTabs": false,
   "bracketSpacing": true,
   "arrowParens": "avoid",
-  "endOfLine": "auto"
+  "endOfLine": "auto",
+  "overrides": [
+    {
+      "files": "*.html",
+      "options": {
+        "parser": "angular"
+      }
+    },
+    {
+      "files": "ui/src/**/*.html",
+      "options": {
+        "parser": "angular"
+      }
+    }
+  ]
 }

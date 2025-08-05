@@ -1,0 +1,47 @@
+{
+  "diskEncryption": {
+    "enabled": true
+  },
+  "packageVerification": {
+    "enabled": true
+  },
+  "systemIntegrityProtection": {
+    "enabled": true
+  },
+  "passwordProtection": {
+    "enabled": true,
+    "requirePasswordImmediately": true
+  },
+  "password": {
+    "required": true,
+    "minLength": 8,
+    "requireUppercase": true,
+    "requireLowercase": true,
+    "requireNumber": true,
+    "requireSpecialChar": true,
+    "maxAgeDays": 180
+  },
+  "autoLock": {
+    "maxTimeoutMinutes": 10
+  },
+  "firewall": {
+    "enabled": true,
+    "stealthMode": false
+  },
+  "remoteLogin": {
+    "enabled": true
+  },
+  "remoteManagement": {
+    "enabled": false
+  },
+  "automaticUpdates": {
+    "enabled": true,
+    "downloadOnly": true,
+    "automaticSecurityInstall": true
+  },
+  "sharingServices": {
+    "fileSharing": true,
+    "screenSharing": true,
+    "remoteLogin": true
+  }
+}

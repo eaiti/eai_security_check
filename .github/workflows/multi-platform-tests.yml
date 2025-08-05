@@ -57,6 +57,24 @@ jobs:
       - name: Run Jest tests
         run: npm test
 
+      - name: Install UI dependencies and run UI tests (Linux/macOS)
+        if: matrix.platform != 'windows'
+        timeout-minutes: 15
+        run: |
+          cd ui
+          npm ci
+          npm run build
+          npm test -- --watch=false --browsers=ChromeHeadless
+
+      - name: Install UI dependencies and run UI tests (Windows)
+        if: matrix.platform == 'windows'
+        timeout-minutes: 15
+        run: |
+          cd ui
+          npm ci
+          npm run build
+          npm test -- --watch=false --browsers=ChromeHeadlessCIWindows
+
       - name: Build pkg executable
         run: npm run ${{ matrix.pkg-target }}
 
