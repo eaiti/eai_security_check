@@ -10,6 +10,7 @@ import { FormsModule } from '@angular/forms';
 import {
   ElectronService,
   SecurityCheckReport,
+  FileFilter,
 } from '../../services/electron.service';
 import { ReportService } from '../../services/report.service';
 

@@ -35,6 +35,46 @@ export interface SecurityCheckReport {
   };
 }
 
+export interface ConfigData {
+  [key: string]: unknown;
+}
+
+export interface DaemonConfig {
+  enabled: boolean;
+  intervalDays: number;
+  securityProfile: string;
+  reportFormat: string;
+  userId?: string;
+  email?: {
+    smtp: {
+      host: string;
+      port: number;
+      secure: boolean;
+      auth: {
+        user: string;
+        pass: string;
+      };
+    };
+    from: string;
+    to: string[];
+    subject: string;
+  };
+  [key: string]: unknown;
+}
+
+export interface FileFilter {
+  name: string;
+  extensions: string[];
+}
+
+export interface RecentReportData {
+  path: string;
+  name: string;
+  timestamp: string;
+  size: string;
+  [key: string]: unknown;
+}
+
 declare global {
   interface Window {
     electronAPI?: {
@@ -47,22 +87,22 @@ declare global {
       verifyReport: (path: string) => Promise<boolean>;
       manageDaemon: (
         action: 'start' | 'stop' | 'status' | 'configure',
-        config?: any,
-      ) => Promise<any>;
+        config?: DaemonConfig,
+      ) => Promise<DaemonConfig | string>;
       installGlobally: () => Promise<boolean>;
       uninstallGlobally: (removeConfig?: boolean) => Promise<boolean>;
       updateApp: () => Promise<boolean>;
       getPlatformInfo: () => Promise<PlatformInfo>;
       getCliVersion: () => Promise<string>;
-      loadConfig: (path?: string) => Promise<any>;
-      saveConfig: (config: any, path?: string) => Promise<boolean>;
-      createConfig: (profile: string) => Promise<any>;
+      loadConfig: (path?: string) => Promise<ConfigData>;
+      saveConfig: (config: ConfigData, path?: string) => Promise<boolean>;
+      createConfig: (profile: string) => Promise<ConfigData>;
       listConfigs: () => Promise<string[]>;
       loadReportFile: (path: string) => Promise<string>;
-      loadRecentReports: () => Promise<any[]>;
+      loadRecentReports: () => Promise<RecentReportData[]>;
       getConfigDirectory: () => Promise<string>;
       getReportsDirectory: () => Promise<string>;
-      selectFiles: (filters: any[], multiple?: boolean) => Promise<string[]>;
+      selectFiles: (filters: FileFilter[], multiple?: boolean) => Promise<string[]>;
       selectDirectory: () => Promise<string>;
       getFilesFromDirectory: (directory: string, extension: string) => Promise<string[]>;
       loadReport: (path: string) => Promise<SecurityCheckReport>;
@@ -137,8 +177,8 @@ export class ElectronService {
 
   async manageDaemon(
     action: 'start' | 'stop' | 'status' | 'configure',
-    config?: any,
-  ): Promise<any> {
+    config?: DaemonConfig,
+  ): Promise<DaemonConfig | string> {
     if (!this._isElectron()) {
       throw new Error('Daemon management requires Electron');
     }
@@ -166,7 +206,7 @@ export class ElectronService {
     return window.electronAPI!.updateApp();
   }
 
-  async loadConfig(path?: string): Promise<any> {
+  async loadConfig(path?: string): Promise<ConfigData> {
     if (!this._isElectron()) {
       return this.getMockConfig();
     }
@@ -189,7 +229,7 @@ export class ElectronService {
     }
   }
 
-  async loadRecentReports(): Promise<any[]> {
+  async loadRecentReports(): Promise<RecentReportData[]> {
     if (!this._isElectron()) {
       return []; // Return empty array when not in Electron
     }
@@ -201,14 +241,14 @@ export class ElectronService {
     }
   }
 
-  async saveConfig(config: any, path?: string): Promise<boolean> {
+  async saveConfig(config: ConfigData, path?: string): Promise<boolean> {
     if (!this._isElectron()) {
       return true; // Mock success
     }
     return window.electronAPI!.saveConfig(config, path);
   }
 
-  async createConfig(profile: string): Promise<any> {
+  async createConfig(profile: string): Promise<ConfigData> {
     if (!this._isElectron()) {
       return this.getMockConfig();
     }
@@ -337,7 +377,7 @@ export class ElectronService {
     };
   }
 
-  private getMockConfig(): any {
+  private getMockConfig(): ConfigData {
     return {
       diskEncryption: { enabled: true },
       passwordProtection: { enabled: true, requirePasswordImmediately: true },
@@ -364,7 +404,7 @@ export class ElectronService {
     return window.electronAPI!.getReportsDirectory();
   }
 
-  async selectFiles(filters: any[], multiple = false): Promise<string[]> {
+  async selectFiles(filters: FileFilter[], multiple = false): Promise<string[]> {
     if (!this.isElectron()) {
       // Mock for non-electron environment
       return [];

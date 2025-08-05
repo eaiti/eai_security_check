@@ -7,14 +7,14 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ElectronService } from '../../services/electron.service';
+import { ElectronService, ConfigData, DaemonConfig } from '../../services/electron.service';
 
 interface DaemonStatus {
   running: boolean;
   schedule?: string;
   nextRun?: string;
   lastRun?: string;
-  config?: any;
+  config?: ConfigData;
 }
 
 @Component({
@@ -363,7 +363,23 @@ export class DaemonManagerComponent implements OnInit {
     try {
       this._isOperating.set(true);
       const result = await this.electronService.manageDaemon('status');
-      this._status.set(result as DaemonStatus);
+      // Convert result to DaemonStatus if it's an object
+      if (typeof result === 'object' && result !== null) {
+        const status: DaemonStatus = {
+          running: Boolean((result as any).running),
+          schedule: (result as any).schedule,
+          nextRun: (result as any).nextRun,
+          lastRun: (result as any).lastRun,
+          config: result as ConfigData
+        };
+        this._status.set(status);
+      } else {
+        // If it's a string, create a minimal status
+        this._status.set({
+          running: false,
+          config: {}
+        });
+      }
       this.showMessage('Status refreshed', 'success');
     } catch (error) {
       console.error('Failed to get daemon status:', error);
@@ -451,8 +467,8 @@ export class DaemonManagerComponent implements OnInit {
     this._showSmtpConfig.set(!this._showSmtpConfig());
   }
 
-  private buildDaemonConfig(): any {
-    const config: any = {
+  private buildDaemonConfig(): DaemonConfig {
+    const config: DaemonConfig = {
       enabled: true,
       intervalDays: this.intervalDaysInput,
       securityProfile: this.profileInput,
@@ -481,7 +497,7 @@ export class DaemonManagerComponent implements OnInit {
     return config;
   }
 
-  private validateConfig(config: any): boolean {
+  private validateConfig(config: DaemonConfig): boolean {
     // Validate interval days
     if (!config.intervalDays || config.intervalDays < 1 || config.intervalDays > 365) {
       return false;
