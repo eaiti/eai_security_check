@@ -1,0 +1,23 @@
+# Ignore build outputs
+dist/
+node_modules/
+ui/dist/
+bin/index*
+
+# Ignore logs and temporary files
+*.log
+logs/
+reports/
+
+# Ignore package lock files for context
+package-lock.json
+ui/package-lock.json
+
+# Focus on source code and configs
+!src/**
+!ui/src/**
+!examples/**
+!*.json
+!*.md
+!*.ts
+!*.js
