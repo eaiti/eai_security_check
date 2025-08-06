@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "eai-security-check": {
+      "command": "node",
+      "args": ["scripts/mcp-server.js"],
+      "cwd": "${workspaceFolder}",
+      "env": {}
+    }
+  },
+  "inputs": []
+}

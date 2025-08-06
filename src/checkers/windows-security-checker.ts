@@ -1,6 +1,6 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { ISecurityChecker } from '../types';
+import { exec } from "child_process";
+import { promisify } from "util";
+import { ISecurityChecker } from "../types";
 
 const execAsync = promisify(exec);
 
@@ -14,7 +14,9 @@ export class WindowsSecurityChecker implements ISecurityChecker {
   /**
    * Execute PowerShell command
    */
-  private async execPowerShell(command: string): Promise<{ stdout: string; stderr: string }> {
+  private async execPowerShell(
+    command: string,
+  ): Promise<{ stdout: string; stderr: string }> {
     const psCommand = `powershell -Command "${command.replace(/"/g, '\\"')}"`;
     return execAsync(psCommand);
   }
@@ -22,7 +24,9 @@ export class WindowsSecurityChecker implements ISecurityChecker {
   /**
    * Execute command with elevated privileges if needed
    */
-  private async execWithElevation(command: string): Promise<{ stdout: string; stderr: string }> {
+  private async execWithElevation(
+    command: string,
+  ): Promise<{ stdout: string; stderr: string }> {
     // On Windows, we'll try regular PowerShell first, then suggest running as admin if needed
     return this.execPowerShell(command);
   }
@@ -34,14 +38,17 @@ export class WindowsSecurityChecker implements ISecurityChecker {
   async checkDiskEncryption(): Promise<boolean> {
     try {
       // Check BitLocker status using manage-bde
-      const { stdout } = await execAsync('manage-bde -status');
+      const { stdout } = await execAsync("manage-bde -status");
 
       // Check if any drive has BitLocker enabled and unlocked/protected
-      const lines = stdout.split('\n');
+      const lines = stdout.split("\n");
       let hasEncryptedDrive = false;
 
       for (const line of lines) {
-        if (line.includes('Protection Status:') && line.includes('Protection On')) {
+        if (
+          line.includes("Protection Status:") &&
+          line.includes("Protection On")
+        ) {
           hasEncryptedDrive = true;
           break;
         }
@@ -52,7 +59,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
       // Fallback: try PowerShell Get-BitLockerVolume
       try {
         const { stdout } = await this.execPowerShell(
-          'Get-BitLockerVolume | Where-Object {$_.ProtectionStatus -eq "On"} | Measure-Object | Select-Object -ExpandProperty Count'
+          'Get-BitLockerVolume | Where-Object {$_.ProtectionStatus -eq "On"} | Measure-Object | Select-Object -ExpandProperty Count',
         );
         const count = parseInt(stdout.trim());
         return count > 0;
@@ -81,15 +88,15 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         Write-Output "ScreenSaverIsSecure: $($screensaverSecure.ScreenSaverIsSecure)";
       `);
 
-      const lines = stdout.split('\n');
+      const lines = stdout.split("\n");
       let screensaverActive = false;
       let screensaverSecure = false;
 
       for (const line of lines) {
-        if (line.includes('ScreenSaverActive:') && line.includes('1')) {
+        if (line.includes("ScreenSaverActive:") && line.includes("1")) {
           screensaverActive = true;
         }
-        if (line.includes('ScreenSaverIsSecure:') && line.includes('1')) {
+        if (line.includes("ScreenSaverIsSecure:") && line.includes("1")) {
           screensaverSecure = true;
         }
       }
@@ -100,13 +107,13 @@ export class WindowsSecurityChecker implements ISecurityChecker {
       return {
         enabled,
         requirePasswordImmediately,
-        passwordRequiredAfterLock: screensaverSecure
+        passwordRequiredAfterLock: screensaverSecure,
       };
     } catch {
       return {
         enabled: false,
         requirePasswordImmediately: false,
-        passwordRequiredAfterLock: false
+        passwordRequiredAfterLock: false,
       };
     }
   }
@@ -145,17 +152,17 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         Write-Output "Public: $publicEnabled";
       `);
 
-      const lines = stdout.split('\n');
+      const lines = stdout.split("\n");
       let domainEnabled = false;
       let privateEnabled = false;
       let publicEnabled = false;
 
       for (const line of lines) {
-        if (line.includes('Domain:') && line.includes('True')) {
+        if (line.includes("Domain:") && line.includes("True")) {
           domainEnabled = true;
-        } else if (line.includes('Private:') && line.includes('True')) {
+        } else if (line.includes("Private:") && line.includes("True")) {
           privateEnabled = true;
-        } else if (line.includes('Public:') && line.includes('True')) {
+        } else if (line.includes("Public:") && line.includes("True")) {
           publicEnabled = true;
         }
       }
@@ -170,7 +177,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
           $publicProfile = Get-NetFirewallProfile -Name Public;
           Write-Output $publicProfile.NotifyOnListen;
         `);
-        stealthMode = stealthStdout.trim() === 'False'; // NotifyOnListen False means stealth mode
+        stealthMode = stealthStdout.trim() === "False"; // NotifyOnListen False means stealth mode
       } catch {
         stealthMode = false;
       }
@@ -194,7 +201,9 @@ export class WindowsSecurityChecker implements ISecurityChecker {
       `);
 
       const smartScreenStatus = stdout.trim();
-      return smartScreenStatus === 'RequireAdmin' || smartScreenStatus === 'Prompt';
+      return (
+        smartScreenStatus === "RequireAdmin" || smartScreenStatus === "Prompt"
+      );
     } catch {
       return false;
     }
@@ -218,15 +227,21 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         }
       `);
 
-      const lines = stdout.split('\n');
+      const lines = stdout.split("\n");
       let realTimeProtection = false;
       let tamperProtection = false;
 
       for (const line of lines) {
-        if (line.includes('RealTimeProtectionEnabled:') && line.includes('True')) {
+        if (
+          line.includes("RealTimeProtectionEnabled:") &&
+          line.includes("True")
+        ) {
           realTimeProtection = true;
         }
-        if (line.includes('TamperProtectionEnabled:') && line.includes('True')) {
+        if (
+          line.includes("TamperProtectionEnabled:") &&
+          line.includes("True")
+        ) {
           tamperProtection = true;
         }
       }
@@ -249,7 +264,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
       `);
 
       const status = stdout.trim();
-      return status === 'Running';
+      return status === "Running";
     } catch {
       return false;
     }
@@ -268,15 +283,15 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         Write-Output "RDPEnabled: $($rdpEnabled.fDenyTSConnections)";
       `);
 
-      const lines = stdout.split('\n');
+      const lines = stdout.split("\n");
       let rdpServiceRunning = false;
       let rdpEnabled = false;
 
       for (const line of lines) {
-        if (line.includes('RDPService:') && line.includes('Running')) {
+        if (line.includes("RDPService:") && line.includes("Running")) {
           rdpServiceRunning = true;
         }
-        if (line.includes('RDPEnabled:') && line.includes('0')) {
+        if (line.includes("RDPEnabled:") && line.includes("0")) {
           rdpEnabled = true; // fDenyTSConnections = 0 means RDP is enabled
         }
       }
@@ -297,7 +312,11 @@ export class WindowsSecurityChecker implements ISecurityChecker {
     automaticInstall?: boolean;
     automaticSecurityInstall?: boolean;
     configDataInstall?: boolean;
-    updateMode?: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
+    updateMode?:
+      | "disabled"
+      | "check-only"
+      | "download-only"
+      | "fully-automatic";
     downloadOnly?: boolean;
   }> {
     try {
@@ -309,18 +328,18 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         Write-Output "WUService: $($wuService.Status)";
       `);
 
-      const lines = stdout.split('\n');
+      const lines = stdout.split("\n");
       let auOptions = 0;
       let serviceRunning = false;
 
       for (const line of lines) {
-        if (line.includes('AUOptions:')) {
+        if (line.includes("AUOptions:")) {
           const match = line.match(/AUOptions:\s*(\d+)/);
           if (match) {
             auOptions = parseInt(match[1]);
           }
         }
-        if (line.includes('WUService:') && line.includes('Running')) {
+        if (line.includes("WUService:") && line.includes("Running")) {
           serviceRunning = true;
         }
       }
@@ -335,15 +354,19 @@ export class WindowsSecurityChecker implements ISecurityChecker {
       const automaticDownload = auOptions >= 3;
       const automaticInstall = auOptions >= 4;
 
-      let updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
+      let updateMode:
+        | "disabled"
+        | "check-only"
+        | "download-only"
+        | "fully-automatic";
       if (auOptions <= 1) {
-        updateMode = 'disabled';
+        updateMode = "disabled";
       } else if (auOptions === 2) {
-        updateMode = 'check-only';
+        updateMode = "check-only";
       } else if (auOptions === 3) {
-        updateMode = 'download-only';
+        updateMode = "download-only";
       } else {
-        updateMode = 'fully-automatic';
+        updateMode = "fully-automatic";
       }
 
       return {
@@ -353,7 +376,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         automaticInstall,
         automaticSecurityInstall: automaticInstall, // Treat same as automatic install
         downloadOnly: auOptions === 3,
-        updateMode
+        updateMode,
       };
     } catch {
       return {
@@ -363,7 +386,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         automaticInstall: false,
         automaticSecurityInstall: false,
         downloadOnly: false,
-        updateMode: 'disabled'
+        updateMode: "disabled",
       };
     }
   }
@@ -391,20 +414,20 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         Write-Output "MediaSharing: $($wmpNetSvc.Status)";
       `);
 
-      const lines = stdout.split('\n');
+      const lines = stdout.split("\n");
       let fileSharing = false;
       let screenSharing = false;
       let remoteLogin = false;
       let mediaSharing = false;
 
       for (const line of lines) {
-        if (line.includes('FileSharing:') && line.includes('Running')) {
+        if (line.includes("FileSharing:") && line.includes("Running")) {
           fileSharing = true;
-        } else if (line.includes('RDP:') && line.includes('Running')) {
+        } else if (line.includes("RDP:") && line.includes("Running")) {
           screenSharing = true;
-        } else if (line.includes('SSH:') && line.includes('Running')) {
+        } else if (line.includes("SSH:") && line.includes("Running")) {
           remoteLogin = true;
-        } else if (line.includes('MediaSharing:') && line.includes('Running')) {
+        } else if (line.includes("MediaSharing:") && line.includes("Running")) {
           mediaSharing = true;
         }
       }
@@ -413,14 +436,14 @@ export class WindowsSecurityChecker implements ISecurityChecker {
         fileSharing,
         screenSharing,
         remoteLogin,
-        mediaSharing
+        mediaSharing,
       };
     } catch {
       return {
         fileSharing: false,
         screenSharing: false,
         remoteLogin: false,
-        mediaSharing: false
+        mediaSharing: false,
       };
     }
   }
@@ -438,11 +461,11 @@ export class WindowsSecurityChecker implements ISecurityChecker {
   async getCurrentWindowsVersion(): Promise<string> {
     try {
       const { stdout } = await this.execPowerShell(
-        '[System.Environment]::OSVersion.Version.ToString()'
+        "[System.Environment]::OSVersion.Version.ToString()",
       );
       return stdout.trim();
     } catch {
-      return 'unknown';
+      return "unknown";
     }
   }
 
@@ -458,7 +481,7 @@ export class WindowsSecurityChecker implements ISecurityChecker {
       `);
       return stdout.trim();
     } catch {
-      return 'Windows (unknown version)';
+      return "Windows (unknown version)";
     }
   }
 
@@ -473,23 +496,25 @@ export class WindowsSecurityChecker implements ISecurityChecker {
   }> {
     const current = await this.getCurrentWindowsVersion();
 
-    if (targetVersion === 'latest') {
+    if (targetVersion === "latest") {
       // For Windows, we consider Windows 11 as latest
-      const isLatest = current.startsWith('10.0.22') || current.startsWith('11.');
+      const isLatest =
+        current.startsWith("10.0.22") || current.startsWith("11.");
       return {
         current,
         target: targetVersion,
         isLatest,
-        passed: isLatest
+        passed: isLatest,
       };
     }
 
-    const passed = current === targetVersion || current.startsWith(targetVersion);
+    const passed =
+      current === targetVersion || current.startsWith(targetVersion);
     return {
       current,
       target: targetVersion,
       isLatest: false,
-      passed
+      passed,
     };
   }
 
@@ -501,70 +526,80 @@ export class WindowsSecurityChecker implements ISecurityChecker {
     {
       description: string;
       recommendation: string;
-      riskLevel: 'High' | 'Medium' | 'Low';
+      riskLevel: "High" | "Medium" | "Low";
     }
   > {
     return {
       diskEncryption: {
         description:
-          'BitLocker provides full-disk encryption, protecting your data if your device is lost or stolen.',
+          "BitLocker provides full-disk encryption, protecting your data if your device is lost or stolen.",
         recommendation:
-          'Should be ENABLED. Without disk encryption, anyone with physical access can read your files.',
-        riskLevel: 'High'
+          "Should be ENABLED. Without disk encryption, anyone with physical access can read your files.",
+        riskLevel: "High",
       },
       passwordProtection: {
         description:
-          'Password protection ensures your device locks and requires authentication after being idle.',
+          "Password protection ensures your device locks and requires authentication after being idle.",
         recommendation:
-          'Should be ENABLED with immediate password requirement for maximum security.',
-        riskLevel: 'High'
+          "Should be ENABLED with immediate password requirement for maximum security.",
+        riskLevel: "High",
       },
       autoLock: {
-        description: 'Auto-lock automatically locks your screen after a period of inactivity.',
+        description:
+          "Auto-lock automatically locks your screen after a period of inactivity.",
         recommendation:
-          'Should be set to 15 minutes or less. Shorter timeouts provide better security.',
-        riskLevel: 'Medium'
+          "Should be set to 15 minutes or less. Shorter timeouts provide better security.",
+        riskLevel: "Medium",
       },
       firewall: {
         description:
-          'Windows Defender Firewall helps protect your computer from unauthorized network access.',
-        recommendation: 'Should be ENABLED on all network profiles, especially Public networks.',
-        riskLevel: 'High'
+          "Windows Defender Firewall helps protect your computer from unauthorized network access.",
+        recommendation:
+          "Should be ENABLED on all network profiles, especially Public networks.",
+        riskLevel: "High",
       },
       packageVerification: {
         description:
-          'Windows Defender SmartScreen helps protect against malicious downloads and applications.',
-        recommendation: 'Should be ENABLED to verify application authenticity and prevent malware.',
-        riskLevel: 'High'
+          "Windows Defender SmartScreen helps protect against malicious downloads and applications.",
+        recommendation:
+          "Should be ENABLED to verify application authenticity and prevent malware.",
+        riskLevel: "High",
       },
       systemIntegrityProtection: {
         description:
-          'Windows Defender provides real-time protection against malware and system tampering.',
-        recommendation: 'Should be ENABLED with real-time protection and tamper protection active.',
-        riskLevel: 'High'
+          "Windows Defender provides real-time protection against malware and system tampering.",
+        recommendation:
+          "Should be ENABLED with real-time protection and tamper protection active.",
+        riskLevel: "High",
       },
       remoteLogin: {
-        description: 'SSH and remote login services allow external access to your computer.',
-        recommendation: 'Should be DISABLED unless specifically needed for remote administration.',
-        riskLevel: 'Medium'
+        description:
+          "SSH and remote login services allow external access to your computer.",
+        recommendation:
+          "Should be DISABLED unless specifically needed for remote administration.",
+        riskLevel: "Medium",
       },
       remoteManagement: {
-        description: 'Remote Desktop allows others to control your computer remotely.',
-        recommendation: 'Should be DISABLED unless specifically needed for remote support.',
-        riskLevel: 'Medium'
+        description:
+          "Remote Desktop allows others to control your computer remotely.",
+        recommendation:
+          "Should be DISABLED unless specifically needed for remote support.",
+        riskLevel: "Medium",
       },
       automaticUpdates: {
-        description: 'Windows Update automatically downloads and installs security updates.',
+        description:
+          "Windows Update automatically downloads and installs security updates.",
         recommendation:
-          'Should be ENABLED to ensure you receive critical security patches promptly.',
-        riskLevel: 'High'
+          "Should be ENABLED to ensure you receive critical security patches promptly.",
+        riskLevel: "High",
       },
       sharingServices: {
-        description: 'File and media sharing services make your files accessible over the network.',
+        description:
+          "File and media sharing services make your files accessible over the network.",
         recommendation:
-          'Should be DISABLED unless you specifically need to share files with other computers.',
-        riskLevel: 'Medium'
-      }
+          "Should be DISABLED unless you specifically need to share files with other computers.",
+        riskLevel: "Medium",
+      },
     };
   }
 }

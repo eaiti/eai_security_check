@@ -15,24 +15,20 @@
  * - APPLE_TEAM_ID: Team ID for notarization
  */
 
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+const { execSync } = require("child_process");
+const fs = require("fs");
+const path = require("path");
 
-const EXECUTABLE_NAME = 'index-macos';
-const BIN_DIR = path.join(__dirname, '..', 'bin');
+const EXECUTABLE_NAME = "index-macos";
+const BIN_DIR = path.join(__dirname, "..", "bin");
 const EXECUTABLE_PATH = path.join(BIN_DIR, EXECUTABLE_NAME);
 
 function log(message) {
   console.log(`[macOS Signing] ${message}`);
 }
 
-function error(message) {
-  console.error(`[macOS Signing] ERROR: ${message}`);
-}
-
 function checkRequirements() {
-  log('Checking requirements...');
+  log("Checking requirements...");
 
   // Check if executable exists
   if (!fs.existsSync(EXECUTABLE_PATH)) {
@@ -41,44 +37,46 @@ function checkRequirements() {
 
   // Check if codesign is available
   try {
-    execSync('which codesign', { stdio: 'ignore' });
-  } catch (e) {
-    throw new Error('codesign tool not found. Please install Xcode command line tools.');
+    execSync("which codesign", { stdio: "ignore" });
+  } catch {
+    throw new Error(
+      "codesign tool not found. Please install Xcode command line tools.",
+    );
   }
 
   // Check environment variables
-  const requiredEnvVars = ['APPLE_DEVELOPER_ID'];
+  const requiredEnvVars = ["APPLE_DEVELOPER_ID"];
   for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
       throw new Error(`Required environment variable ${envVar} not set`);
     }
   }
 
-  log('Requirements check passed');
+  log("Requirements check passed");
 }
 
 function signExecutable() {
-  log('Signing executable...');
+  log("Signing executable...");
 
   const developerId = process.env.APPLE_DEVELOPER_ID;
 
   // Sign the executable
   const signCommand = [
-    'codesign',
-    '--sign',
+    "codesign",
+    "--sign",
     `"${developerId}"`,
-    '--timestamp',
-    '--options',
-    'runtime',
-    '--verbose',
-    `"${EXECUTABLE_PATH}"`
-  ].join(' ');
+    "--timestamp",
+    "--options",
+    "runtime",
+    "--verbose",
+    `"${EXECUTABLE_PATH}"`,
+  ].join(" ");
 
   log(`Running: ${signCommand}`);
 
   try {
-    const output = execSync(signCommand, { encoding: 'utf8', stdio: 'pipe' });
-    log('Signing successful');
+    const output = execSync(signCommand, { encoding: "utf8", stdio: "pipe" });
+    log("Signing successful");
     if (output) {
       log(`Output: ${output}`);
     }
@@ -88,12 +86,12 @@ function signExecutable() {
 }
 
 function verifySignature() {
-  log('Verifying signature...');
+  log("Verifying signature...");
 
   try {
     const verifyCommand = `codesign --verify --verbose "${EXECUTABLE_PATH}"`;
-    const output = execSync(verifyCommand, { encoding: 'utf8', stdio: 'pipe' });
-    log('Signature verification successful');
+    const output = execSync(verifyCommand, { encoding: "utf8", stdio: "pipe" });
+    log("Signature verification successful");
     if (output) {
       log(`Verification output: ${output}`);
     }
@@ -108,43 +106,48 @@ function notarizeExecutable() {
   const teamId = process.env.APPLE_TEAM_ID;
 
   if (!username || !password || !teamId) {
-    log('Notarization credentials not provided, skipping notarization');
-    log('For distribution, you may want to notarize the executable');
+    log("Notarization credentials not provided, skipping notarization");
+    log("For distribution, you may want to notarize the executable");
     return;
   }
 
-  log('Starting notarization process...');
+  log("Starting notarization process...");
 
   // Create a temporary zip file
-  const zipPath = path.join(BIN_DIR, 'eai-security-check-macos.zip');
+  const zipPath = path.join(BIN_DIR, "eai-security-check-macos.zip");
 
   try {
     // Zip the executable
-    execSync(`cd "${BIN_DIR}" && zip -r "${zipPath}" "${EXECUTABLE_NAME}"`, { stdio: 'pipe' });
+    execSync(`cd "${BIN_DIR}" && zip -r "${zipPath}" "${EXECUTABLE_NAME}"`, {
+      stdio: "pipe",
+    });
 
     // Submit for notarization
     const notarizeCommand = [
-      'xcrun',
-      'notarytool',
-      'submit',
+      "xcrun",
+      "notarytool",
+      "submit",
       `"${zipPath}"`,
-      '--apple-id',
+      "--apple-id",
       username,
-      '--password',
+      "--password",
       password,
-      '--team-id',
+      "--team-id",
       teamId,
-      '--wait'
-    ].join(' ');
+      "--wait",
+    ].join(" ");
 
-    log('Submitting for notarization (this may take several minutes)...');
-    const output = execSync(notarizeCommand, { encoding: 'utf8', timeout: 600000 }); // 10 minute timeout
+    log("Submitting for notarization (this may take several minutes)...");
+    const output = execSync(notarizeCommand, {
+      encoding: "utf8",
+      timeout: 600000,
+    }); // 10 minute timeout
     log(`Notarization result: ${output}`);
 
     // Clean up zip file
     fs.unlinkSync(zipPath);
 
-    log('Notarization completed successfully');
+    log("Notarization completed successfully");
   } catch (e) {
     // Clean up zip file if it exists
     if (fs.existsSync(zipPath)) {
@@ -156,7 +159,7 @@ function notarizeExecutable() {
 
 function main() {
   try {
-    log('Starting macOS signing process...');
+    log("Starting macOS signing process...");
 
     checkRequirements();
     signExecutable();
@@ -167,16 +170,18 @@ function main() {
       notarizeExecutable();
     }
 
-    log('macOS signing process completed successfully!');
+    log("macOS signing process completed successfully!");
     log(`Signed executable: ${EXECUTABLE_PATH}`);
   } catch (e) {
     console.warn(`[macOS Signing] WARNING: Signing failed - ${e.message}`);
-    console.warn('[macOS Signing] WARNING: Build will continue without code signing');
     console.warn(
-      '[macOS Signing] WARNING: Users may see security warnings when running the executable'
+      "[macOS Signing] WARNING: Build will continue without code signing",
     );
     console.warn(
-      '[macOS Signing] INFO: To enable code signing, configure Apple Developer certificates and environment variables'
+      "[macOS Signing] WARNING: Users may see security warnings when running the executable",
+    );
+    console.warn(
+      "[macOS Signing] INFO: To enable code signing, configure Apple Developer certificates and environment variables",
     );
     // Exit with success code to allow build to continue
     process.exit(0);
@@ -187,4 +192,10 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { main, checkRequirements, signExecutable, verifySignature, notarizeExecutable };
+module.exports = {
+  main,
+  checkRequirements,
+  signExecutable,
+  verifySignature,
+  notarizeExecutable,
+};

@@ -1,77 +1,106 @@
 # Daemon Setup Guide
 
-This guide covers setting up automated security audits using the EAI Security Check daemon functionality.
+This guide covers setting up automated security audits using the EAI Security Check daemon functionality with **automatic system service integration**.
 
 ## 🎯 Overview
 
 The daemon feature enables:
+- **Automated System Service Setup**: One-click installation as system service (LaunchAgent/systemd/Task Scheduler)
+- **Independent Background Execution**: Runs as separate Node.js process, no CLI required
 - **Scheduled Security Audits**: Automated checks at configurable intervals
 - **Email Notifications**: Automatic report delivery to specified recipients  
 - **SCP File Transfer**: Optional upload of reports to remote servers
-- **Service Integration**: Run as system service with auto-restart capabilities
-- **Flexible Scheduling**: Daily, weekly, or custom interval options
+- **Cross-Platform Service Management**: Unified interface for service installation/removal
+- **Real-time Status Monitoring**: Live daemon and system service status
+- **Integrated Log Management**: View and clear daemon logs from desktop interface
 
-## 🚀 Quick Setup
+## 🚀 Quick Setup (Desktop Application)
 
-### 1. Initialize Daemon Configuration
+### 1. **Access Daemon Manager**
+1. Open EAI Security Check desktop application
+2. Navigate to **🔄 Daemon Manager** in the main menu
+3. The daemon manager provides complete daemon and system service control
+
+### 2. **Configure Daemon Settings**
+1. **Set Check Interval**: Choose daily (1), weekly (7), or custom interval (1-365 days)
+2. **Select Security Profile**: Choose from default, strict, relaxed, developer, or EAI
+3. **Configure Email Notifications** (optional):
+   - Enter recipient email address
+   - Configure SMTP settings (Gmail, Outlook, custom server)
+   - Set email format and subject preferences
+4. **Set User ID**: Identifier included in reports for tracking
+5. Click **💾 Save Configuration**
+
+### 3. **Setup System Service (Recommended)**
+1. In Daemon Manager, locate **System Service Integration** section
+2. Click **🛠️ Setup System Service** 
+   - **macOS**: Creates LaunchAgent in `~/Library/LaunchAgents/`
+   - **Linux**: Creates systemd service in `~/.config/systemd/user/`
+   - **Windows**: Creates Task Scheduler entry for current user
+3. System service will automatically start daemon on system boot
+4. Verify installation with **✅ Installed** status indicator
+
+### 4. **Start and Monitor Daemon**
+1. Click **▶️ Start Daemon** to begin automated monitoring
+2. Monitor **Current Status** section for:
+   - Daemon running status (🟢 Running / 🔴 Stopped)  
+   - Next scheduled run time
+   - Last audit completion
+3. Use **🔄 Refresh Status** to update information
+4. Use **📋 Load Recent Logs** to view daemon activity
+
+## 📋 System Service Details
+
+## 📋 System Service Details
+
+### Automatic Service Installation
+
+The desktop application automatically handles system service setup:
+
+| Platform | Service Type | Installation Location | Auto-start |
+|----------|-------------|----------------------|------------|
+| **macOS** | LaunchAgent | `~/Library/LaunchAgents/com.eai.security-check.plist` | ✅ User login |
+| **Linux** | systemd user service | `~/.config/systemd/user/eai-security-check.service` | ✅ User session |
+| **Windows** | Task Scheduler | User tasks (non-admin) | ✅ User logon |
+
+### Service Management Commands
+
+**Desktop Application** (Recommended):
+- Use **🛠️ Setup System Service** / **🗑️ Remove System Service** buttons
+- Real-time status monitoring with **System Service** indicator
+- No terminal/command-line access required
+
+**Manual Management** (Advanced users):
 
 ```bash
-# Interactive setup with centralized configuration
-eai-security-check interactive
+# macOS - LaunchAgent
+launchctl load ~/Library/LaunchAgents/com.eai.security-check.plist    # Enable
+launchctl unload ~/Library/LaunchAgents/com.eai.security-check.plist  # Disable  
 
-# Navigate to: Daemon → Setup Daemon Automation
-# This creates centralized config alongside your executable:
-# - <executable-dir>/config/scheduling-config.json
-# - <executable-dir>/logs/ (created automatically)
-# - <executable-dir>/reports/ (created automatically)
+# Linux - systemd user service
+systemctl --user enable eai-security-check.service   # Enable auto-start
+systemctl --user start eai-security-check.service    # Start now
+systemctl --user status eai-security-check.service   # Check status
+systemctl --user disable eai-security-check.service  # Disable
 
-# What the setup includes:
-# - Email configuration (SMTP settings)
-# - Check interval (daily/weekly/custom)
-# - Security profile selection
-# - Optional SCP file transfer
-# - User identification
-```
-
-### 2. Start the Daemon
-
-```bash
-# Start daemon with centralized configuration
-eai-security-check daemon
-
-# Check comprehensive daemon status
-eai-security-check interactive
-# → Navigate to: Daemon → View Status
-
-# Manage daemon (start/stop/restart)
-eai-security-check interactive  
-# → Navigate to: Daemon → Start/Stop/Restart
-```
-
-### 3. Optional: Set Up as System Service
-
-The interactive mode can automatically set up system services:
-
-```bash
-eai-security-check interactive
-# → Navigate to: Daemon → Setup Daemon Automation
-# → Choose "Yes" when asked about system service setup
-# → This automatically creates and loads the appropriate service files
+# Windows - Task Scheduler (via PowerShell)
+Get-ScheduledTask -TaskName "EAI Security Check"      # Check status
+Start-ScheduledTask -TaskName "EAI Security Check"    # Start now
+Disable-ScheduledTask -TaskName "EAI Security Check"  # Disable
 ```
 
 ## 📋 Daemon Configuration
 
-### Centralized File Structure
+### User Configuration Directory
 
-The daemon uses a centralized file structure alongside the executable:
+The daemon uses the standard user configuration directory structure:
 
 ```
-# Executable location (example):
-/path/to/eai-security-check
+# User configuration directory:
+~/.eai-security-check/
 
-# Centralized structure:
-/path/to/
-├── eai-security-check           # Main executable
+# Directory structure:
+~/.eai-security-check/
 ├── config/                      # Configuration files
 │   ├── scheduling-config.json   # Daemon configuration
 │   └── security-config.json     # Security profile settings
@@ -316,15 +345,12 @@ WantedBy=default.target
 
 ### macOS (launchd)
 
-The interactive mode can automatically set up macOS LaunchAgent services:
+**Using the Desktop Application:**
+1. Navigate to **Settings** → **Daemon Configuration** → **System Service**
+2. Follow the macOS LaunchAgent setup instructions
+3. The app will guide you through creating and loading the LaunchAgent
 
-```bash
-# Automatic setup via interactive mode (recommended)
-eai-security-check interactive
-# → Navigate to: Daemon → Setup Daemon Automation
-# → This automatically creates and loads the LaunchAgent
-
-# Manual setup (if needed)
+**Manual setup (for development builds):**
 # The plist file uses centralized logging alongside the executable
 cp ~/path/to/com.eai.security-check.daemon.plist ~/Library/LaunchAgents/
 
@@ -559,18 +585,45 @@ Get-Content "$env:APPDATA\eai-security-check\daemon.log" -Wait
 
 ## 🚨 Troubleshooting
 
-### Common Issues
+### Desktop Application Issues
+
+**System Service Setup Fails:**
+1. **Permission Issues**: Service installation requires write access to user service directories
+   - **macOS**: `~/Library/LaunchAgents/` must be writable
+   - **Linux**: `~/.config/systemd/user/` must exist and be writable  
+   - **Windows**: Current user must have Task Scheduler access
+2. **Missing Dependencies**: 
+   - **Linux**: systemd user services require `systemctl --user` support
+   - **Windows**: Task Scheduler service must be running
+3. **Use Desktop Application Logs**: Check **📋 Load Recent Logs** for detailed error messages
+
+**Daemon Status Shows "Not Available":**
+1. **Configuration Missing**: Use **💾 Save Configuration** to create daemon config
+2. **Node.js Path Issues**: Daemon requires Node.js in system PATH
+3. **Permission Problems**: Check that `~/.eai-security-check/` is writable
+4. **Desktop Application Restart**: Close and reopen application after configuration changes
+
+**Email Configuration Not Saving:**
+1. **SMTP Validation**: Use **Email Integration** collapsible section to verify all SMTP settings
+2. **Authentication Issues**: Enable 2FA and use app-specific passwords for Gmail/Outlook
+3. **SSL/TLS Settings**: Try both secure (port 465) and STARTTLS (port 587) options
+4. **Firewall**: Ensure outbound SMTP ports (587, 465, 25) are not blocked
+
+### Command Line Troubleshooting
+
+**Classic Issues:**
 
 **Daemon not starting:**
 ```bash
-# Check configuration
-eai-security-check daemon --status
+# Check configuration via desktop app first, then:
+# Verify daemon process
+ps aux | grep "eai-security-check"
 
-# Validate email settings
-eai-security-check daemon --test-email
+# Check configuration files
+ls -la ~/.eai-security-check/config/
 
-# Check permissions
-ls -la <executable-dir>/config/
+# Test daemon manually
+node dist/cli/index.js daemon --status
 ```
 
 **Email not sending:**
@@ -578,30 +631,39 @@ ls -la <executable-dir>/config/
 # Test SMTP connection
 telnet smtp.gmail.com 587
 
-# Check authentication
-eai-security-check daemon --test-email
+# Check authentication with desktop app **Email Integration** test feature
 
 # Verify app password (Gmail)
 # Make sure 2FA is enabled and app password is correct
 ```
 
-**SCP transfer failing:**
+**System service issues:**
 ```bash
-# Test SSH connection
-ssh -i ~/.ssh/backup_key backup-user@backup.company.com
+# macOS LaunchAgent
+launchctl list | grep eai-security-check
+launchctl print gui/$(id -u)/com.eai.security-check
 
-# Check destination permissions
-ssh backup-user@backup.company.com "ls -la /backup/path/"
+# Linux systemd
+systemctl --user status eai-security-check.service
+journalctl --user -u eai-security-check.service -f
 
-# Install sshpass for password auth (Linux)
-sudo apt install sshpass  # Ubuntu/Debian
-sudo dnf install sshpass  # Fedora
+# Windows Task Scheduler
+Get-ScheduledTask -TaskName "*EAI*" | Select TaskName,State
 ```
 
-**Service not auto-starting:**
-```bash
-# Linux: Check lingering
-loginctl show-user $USER | grep Linger
+### Getting Help
+
+1. **Desktop Application Logs**: Use **📋 Load Recent Logs** for recent daemon activity
+2. **Configuration Export**: Save your daemon configuration for support requests
+3. **System Service Status**: Note the **System Service** status (installed/not installed, running/stopped)
+4. **Platform Information**: Include OS version and platform details
+5. **Error Messages**: Copy exact error messages from daemon logs
+
+For additional support, include:
+- Daemon configuration (with sensitive information removed)
+- Recent log entries from **📋 Load Recent Logs**  
+- System service installation status
+- Platform and application version information
 
 # macOS: Check launchd
 launchctl list | grep com.eai.security-check

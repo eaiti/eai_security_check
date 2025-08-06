@@ -1,16 +1,20 @@
-# Daemon Service Setup Examples
+# Automated Monitoring Setup Examples
 
-This directory contains configuration files and setup scripts for running EAI Security Check as a system service across different platforms.
+This directory contains configuration files and setup scripts for configuring automated security auditing across different platforms.
 
 ## 🚀 Quick Start (Recommended)
 
-**The easiest way to set up the daemon is through the interactive mode:**
+**The easiest way to set up automated monitoring is through the desktop application:**
 
-```bash
-eai-security-check interactive
-# Navigate to: Daemon → Setup Daemon Automation
-# Follow the guided setup process with centralized file structure
-```
+1. **Launch EAI Security Check** desktop application
+2. **Navigate to Settings** → "Automated Monitoring"  
+3. **Click "Setup Automated Audits"** 
+4. **Follow the setup wizard**:
+   - Configure audit schedule (daily, weekly, custom)
+   - Set up email notifications with SMTP settings
+   - Choose security profile and report format
+   - Test configuration with sample email
+5. **Activate monitoring** - system service setup is handled automatically
 
 This will:
 1. ✅ Configure email settings and schedule
@@ -19,18 +23,17 @@ This will:
 4. ✅ Test your configuration and start daemon
 5. ✅ Use centralized logging (no permission issues)
 
-## � Centralized File Structure
+## 🗂 Configuration and File Structure
 
-The daemon uses a centralized file structure that keeps all files organized alongside the executable:
+The daemon uses the standard user directory structure for configuration and files:
 
 ```
-# Example: Executable at /path/to/eai-security-check
-/path/to/
-├── eai-security-check           # Main executable
-├── config/                      # All configuration files
-│   ├── scheduling-config.json   # Daemon settings & email config
+# User configuration directory: ~/.eai-security-check/
+~/.eai-security-check/
+├── config/                      # Configuration files
+│   ├── scheduling-config.json   # Daemon settings & email config  
 │   └── security-config.json     # Security profile settings
-├── logs/                        # All daemon logs (no permission issues!)
+├── logs/                        # Daemon logs  
 │   ├── eai-security-check.log   # Daemon output logs
 │   └── eai-security-check.error.log # Error logs
 └── reports/                     # Generated security reports
@@ -38,50 +41,30 @@ The daemon uses a centralized file structure that keeps all files organized alon
 ```
 
 **Benefits:**
-✅ **Self-contained**: Move executable directory, everything moves with it  
-✅ **No permission issues**: No need for `/var/log/` or system directories  
-✅ **Global install compatible**: Works with symlinks (`/usr/local/bin/eai-security-check`)  
+✅ **User-based**: Configuration stored in user's home directory  
 ✅ **Cross-platform consistent**: Same structure on macOS, Linux, Windows  
-✅ **Service-friendly**: LaunchAgent/systemd can reliably find logs and config  
+✅ **No permission issues**: User has full access to their config directory  
+✅ **Service-friendly**: LaunchAgent/systemd can reliably find user configs  
 
 ## �📋 Manual Setup Instructions
 
 ### macOS (LaunchAgent)
 
-#### Using Interactive Mode (Recommended)
-```bash
-# Run the guided setup
-eai-security-check interactive
-# Choose "3. Daemon - Automated security monitoring"
-# Choose "1. Setup Daemon Automation"
-# Follow the prompts - it will automatically:
-# 1. Check for compatible global installation
-# 2. Install globally if needed
-# 3. Set up LaunchAgent automatically
-```
+#### Setup Steps
+1. **Configure daemon settings:**
+   - Use the desktop application to configure daemon email settings and schedule
+   - Settings are saved to `~/.eai-security-check/config/scheduling-config.json`
 
-#### Manual Setup
-1. **First, ensure global installation:**
+2. **Set up LaunchAgent:**
    ```bash
-   npm install -g eai-security-check  # Or use interactive mode
-   ```
-
-2. **Configure the daemon:**
-   ```bash
-   eai-security-check interactive  # Choose daemon setup
-   ```
-
-3. **Manual LaunchAgent setup (if needed):**
-   ```bash
-   # Only needed if interactive setup failed
    cp daemon-examples/com.eai.security-check.daemon.plist ~/Library/LaunchAgents/
    launchctl load ~/Library/LaunchAgents/com.eai.security-check.daemon.plist
    ```
 
 #### Common Issues on macOS
-- **"No such file or directory"**: Make sure you have a compatible global installation. Use interactive mode which checks this automatically.
+- **"No such file or directory"**: Make sure the daemon service files are properly installed and configured
 - **"Permission denied"**: Check that the executable is in your PATH and has execute permissions
-- **"Service won't start"**: Check logs in `~/Library/Logs/eai-security-check.error.log`
+- **"Service won't start"**: Check logs in `~/.eai-security-check/logs/eai-security-check.error.log`
 
 ### Linux (systemd)
 
@@ -105,9 +88,8 @@ systemctl --user start eai-security-check-daemon.service
 ### Windows (Task Scheduler)
 
 1. **Set up daemon configuration:**
-   ```cmd
-   eai-security-check interactive
-   ```
+   - Use the desktop application to configure daemon email settings and schedule
+   - Settings are saved to `%USERPROFILE%\.eai-security-check\config\scheduling-config.json`
 
 2. **Run the PowerShell setup script as Administrator:**
    ```powershell
@@ -238,7 +220,7 @@ eai-security-check daemon --check-now
   - `security-config.json` (optional)
 
 ### Log Files
-**Location**: `<executable-dir>/logs/`
+**Location**: `~/.eai-security-check/logs/`
   - `eai-security-check.log`
   - `eai-security-check.error.log`
 
@@ -249,8 +231,8 @@ eai-security-check daemon --check-now
 
 ## 💡 Best Practices
 
-1. **Start with Interactive Setup**: Use `eai-security-check interactive` to configure everything properly
-2. **Test First**: Run `eai-security-check daemon` manually to verify your configuration
+1. **Configure Using Desktop App**: Use the desktop application to configure daemon settings properly
+2. **Test First**: Test your configuration before setting up automated services
 3. **Check Logs**: Monitor logs after setup to ensure everything works correctly
 4. **Use User Services**: Run as user service rather than system service when possible
 5. **Regular Updates**: Keep the tool updated and restart services after updates

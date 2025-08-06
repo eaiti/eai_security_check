@@ -6,10 +6,10 @@
  * This script helps users verify the signatures and checksums of downloaded executables.
  */
 
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+const { execSync } = require("child_process");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
 
 function log(message) {
   console.log(`[Verify] ${message}`);
@@ -28,7 +28,7 @@ function warning(message) {
 }
 
 function verifyMacOSSignature(executablePath) {
-  log('Verifying macOS code signature...');
+  log("Verifying macOS code signature...");
 
   if (!fs.existsSync(executablePath)) {
     throw new Error(`Executable not found: ${executablePath}`);
@@ -36,29 +36,29 @@ function verifyMacOSSignature(executablePath) {
 
   try {
     // Check if codesign is available
-    execSync('which codesign', { stdio: 'ignore' });
-  } catch (e) {
-    warning('codesign not available, skipping macOS signature verification');
+    execSync("which codesign", { stdio: "ignore" });
+  } catch {
+    warning("codesign not available, skipping macOS signature verification");
     return;
   }
 
   try {
-    const output = execSync(`codesign --verify --verbose "${executablePath}"`, {
-      encoding: 'utf8',
-      stdio: 'pipe'
+    execSync(`codesign --verify --verbose "${executablePath}"`, {
+      encoding: "utf8",
+      stdio: "pipe",
     });
 
     // Get signature details
     const infoOutput = execSync(`codesign -dv "${executablePath}"`, {
-      encoding: 'utf8',
-      stdio: 'pipe'
+      encoding: "utf8",
+      stdio: "pipe",
     });
 
-    success('macOS signature verified');
+    success("macOS signature verified");
     log(`Signature details: ${infoOutput}`);
   } catch (e) {
-    if (e.stderr && e.stderr.includes('not signed')) {
-      warning('Executable is not code signed');
+    if (e.stderr && e.stderr.includes("not signed")) {
+      warning("Executable is not code signed");
     } else {
       throw new Error(`Signature verification failed: ${e.message}`);
     }
@@ -66,7 +66,7 @@ function verifyMacOSSignature(executablePath) {
 }
 
 function verifyLinuxSignature(executablePath, signaturePath) {
-  log('Verifying Linux GPG signature...');
+  log("Verifying Linux GPG signature...");
 
   if (!fs.existsSync(executablePath)) {
     throw new Error(`Executable not found: ${executablePath}`);
@@ -79,23 +79,30 @@ function verifyLinuxSignature(executablePath, signaturePath) {
 
   try {
     // Check if gpg is available
-    execSync('which gpg', { stdio: 'ignore' });
-  } catch (e) {
-    warning('gpg not available, skipping GPG signature verification');
+    execSync("which gpg", { stdio: "ignore" });
+  } catch {
+    warning("gpg not available, skipping GPG signature verification");
     return;
   }
 
   try {
-    const output = execSync(`gpg --verify "${signaturePath}" "${executablePath}"`, {
-      encoding: 'utf8',
-      stdio: 'pipe'
-    });
-    success('GPG signature verified');
+    const output = execSync(
+      `gpg --verify "${signaturePath}" "${executablePath}"`,
+      {
+        encoding: "utf8",
+        stdio: "pipe",
+      },
+    );
+    success("GPG signature verified");
     log(`Verification output: ${output}`);
   } catch (e) {
     // GPG verification output goes to stderr even on success
-    if (e.stderr && (e.stderr.includes('Good signature') || e.stderr.includes('valid signature'))) {
-      success('GPG signature verified');
+    if (
+      e.stderr &&
+      (e.stderr.includes("Good signature") ||
+        e.stderr.includes("valid signature"))
+    ) {
+      success("GPG signature verified");
       log(`Verification output: ${e.stderr}`);
     } else {
       throw new Error(`GPG signature verification failed: ${e.message}`);
@@ -104,7 +111,7 @@ function verifyLinuxSignature(executablePath, signaturePath) {
 }
 
 function verifyWindowsSignature(executablePath) {
-  log('Verifying Windows code signature...');
+  log("Verifying Windows code signature...");
 
   if (!fs.existsSync(executablePath)) {
     throw new Error(`Executable not found: ${executablePath}`);
@@ -114,59 +121,61 @@ function verifyWindowsSignature(executablePath) {
   let verified = false;
 
   // Try signtool if on Windows
-  if (os.platform() === 'win32') {
+  if (os.platform() === "win32") {
     try {
       const output = execSync(`signtool verify /pa "${executablePath}"`, {
-        encoding: 'utf8',
-        stdio: 'pipe'
+        encoding: "utf8",
+        stdio: "pipe",
       });
-      success('Windows signature verified (signtool)');
+      success("Windows signature verified (signtool)");
       log(`Verification output: ${output}`);
       verified = true;
-    } catch (e) {
+    } catch {
       // Try PowerShell method
       try {
         const psOutput = execSync(
           `powershell -Command "Get-AuthenticodeSignature '${executablePath}' | Select-Object Status, StatusMessage"`,
           {
-            encoding: 'utf8',
-            stdio: 'pipe'
-          }
+            encoding: "utf8",
+            stdio: "pipe",
+          },
         );
-        if (psOutput.includes('Valid')) {
-          success('Windows signature verified (PowerShell)');
+        if (psOutput.includes("Valid")) {
+          success("Windows signature verified (PowerShell)");
           log(`Verification output: ${psOutput}`);
           verified = true;
         } else {
           warning(`Signature status: ${psOutput}`);
         }
-      } catch (psError) {
-        warning('Unable to verify Windows signature');
+      } catch {
+        warning("Unable to verify Windows signature");
       }
     }
   } else {
     // Try osslsigncode for cross-platform verification
     try {
-      execSync('which osslsigncode', { stdio: 'ignore' });
+      execSync("which osslsigncode", { stdio: "ignore" });
       const output = execSync(`osslsigncode verify "${executablePath}"`, {
-        encoding: 'utf8',
-        stdio: 'pipe'
+        encoding: "utf8",
+        stdio: "pipe",
       });
-      success('Windows signature verified (osslsigncode)');
+      success("Windows signature verified (osslsigncode)");
       log(`Verification output: ${output}`);
       verified = true;
-    } catch (e) {
-      warning('osslsigncode not available, cannot verify Windows signature on this platform');
+    } catch {
+      warning(
+        "osslsigncode not available, cannot verify Windows signature on this platform",
+      );
     }
   }
 
   if (!verified) {
-    warning('Could not verify Windows signature (no suitable tools available)');
+    warning("Could not verify Windows signature (no suitable tools available)");
   }
 }
 
 function verifyChecksum(executablePath, checksumPath) {
-  log('Verifying checksum...');
+  log("Verifying checksum...");
 
   if (!fs.existsSync(executablePath)) {
     throw new Error(`Executable not found: ${executablePath}`);
@@ -178,36 +187,38 @@ function verifyChecksum(executablePath, checksumPath) {
   }
 
   try {
-    const checksumContent = fs.readFileSync(checksumPath, 'utf8').trim();
-    const [expectedHash, filename] = checksumContent.split('  ');
+    const checksumContent = fs.readFileSync(checksumPath, "utf8").trim();
+    const [expectedHash] = checksumContent.split("  ");
 
     let actualHash;
 
-    if (os.platform() === 'win32') {
+    if (os.platform() === "win32") {
       // Use PowerShell on Windows
       const output = execSync(
         `powershell -Command "Get-FileHash '${executablePath}' -Algorithm SHA256 | Select-Object -ExpandProperty Hash"`,
         {
-          encoding: 'utf8'
-        }
+          encoding: "utf8",
+        },
       );
       actualHash = output.trim().toLowerCase();
     } else {
       // Use sha256sum on Unix-like systems
       const output = execSync(`sha256sum "${executablePath}"`, {
-        encoding: 'utf8'
+        encoding: "utf8",
       });
-      actualHash = output.split(' ')[0];
+      actualHash = output.split(" ")[0];
     }
 
     if (actualHash === expectedHash.toLowerCase()) {
-      success('Checksum verified');
+      success("Checksum verified");
       log(`SHA256: ${actualHash}`);
     } else {
-      throw new Error(`Checksum mismatch! Expected: ${expectedHash}, Actual: ${actualHash}`);
+      throw new Error(
+        `Checksum mismatch! Expected: ${expectedHash}, Actual: ${actualHash}`,
+      );
     }
   } catch (e) {
-    if (e.message.includes('Checksum mismatch')) {
+    if (e.message.includes("Checksum mismatch")) {
       throw e;
     } else {
       throw new Error(`Checksum verification failed: ${e.message}`);
@@ -235,8 +246,8 @@ Options:
   }
 
   const executablePath = args[0];
-  const skipSignature = args.includes('--skip-signature');
-  const skipChecksum = args.includes('--skip-checksum');
+  const skipSignature = args.includes("--skip-signature");
+  const skipChecksum = args.includes("--skip-checksum");
 
   try {
     log(`Verifying: ${executablePath}`);
@@ -245,24 +256,26 @@ Options:
     const basename = path.basename(executablePath);
 
     if (!skipSignature) {
-      if (basename.includes('macos')) {
+      if (basename.includes("macos")) {
         verifyMacOSSignature(executablePath);
-      } else if (basename.includes('linux')) {
-        const signaturePath = executablePath + '.sig';
+      } else if (basename.includes("linux")) {
+        const signaturePath = executablePath + ".sig";
         verifyLinuxSignature(executablePath, signaturePath);
-      } else if (basename.includes('windows') || basename.endsWith('.exe')) {
+      } else if (basename.includes("windows") || basename.endsWith(".exe")) {
         verifyWindowsSignature(executablePath);
       } else {
-        warning('Cannot determine platform from filename, skipping signature verification');
+        warning(
+          "Cannot determine platform from filename, skipping signature verification",
+        );
       }
     }
 
     if (!skipChecksum) {
-      const checksumPath = executablePath + '.sha256';
+      const checksumPath = executablePath + ".sha256";
       verifyChecksum(executablePath, checksumPath);
     }
 
-    success('Verification completed successfully!');
+    success("Verification completed successfully!");
   } catch (e) {
     error(e.message);
     process.exit(1);
@@ -277,5 +290,5 @@ module.exports = {
   verifyMacOSSignature,
   verifyLinuxSignature,
   verifyWindowsSignature,
-  verifyChecksum
+  verifyChecksum,
 };

@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
 /**
  * Utility functions for version detection and management
@@ -11,40 +11,44 @@ export class VersionUtils {
   static getCurrentVersion(): string {
     try {
       // In pkg environment, try to read from embedded package.json
-      const isPkg = typeof (process as unknown as { pkg?: unknown }).pkg !== 'undefined';
+      const isPkg =
+        typeof (process as unknown as { pkg?: unknown }).pkg !== "undefined";
 
       if (isPkg) {
         // For pkg binaries, we embed the version at build time
         // Try to read from snapshot filesystem first
-        const pkgPackageJson = path.join(path.dirname(process.execPath), 'package.json');
+        const pkgPackageJson = path.join(
+          path.dirname(process.execPath),
+          "package.json",
+        );
         if (fs.existsSync(pkgPackageJson)) {
-          const content = fs.readFileSync(pkgPackageJson, 'utf-8');
+          const content = fs.readFileSync(pkgPackageJson, "utf-8");
           const packageInfo = JSON.parse(content);
           return packageInfo.version;
         }
 
         // Try embedded package.json
-        const embeddedPath = path.join(__dirname, '..', 'package.json');
+        const embeddedPath = path.join(__dirname, "..", "package.json");
         if (fs.existsSync(embeddedPath)) {
-          const content = fs.readFileSync(embeddedPath, 'utf-8');
+          const content = fs.readFileSync(embeddedPath, "utf-8");
           const packageInfo = JSON.parse(content);
           return packageInfo.version;
         }
       } else {
         // Regular Node.js environment
-        const packagePath = path.join(__dirname, '..', 'package.json');
+        const packagePath = path.join(__dirname, "..", "package.json");
         if (fs.existsSync(packagePath)) {
-          const content = fs.readFileSync(packagePath, 'utf-8');
+          const content = fs.readFileSync(packagePath, "utf-8");
           const packageInfo = JSON.parse(content);
           return packageInfo.version;
         }
       }
 
       // Fallback if package.json can't be found
-      return '1.0.0';
+      return "1.0.0";
     } catch (error) {
-      console.warn('Warning: Could not determine current version:', error);
-      return '1.0.0';
+      console.warn("Warning: Could not determine current version:", error);
+      return "1.0.0";
     }
   }
 
@@ -54,7 +58,7 @@ export class VersionUtils {
    */
   static compareVersions(version1: string, version2: string): number {
     const parseVersion = (version: string) => {
-      return version.split('.').map(part => {
+      return version.split(".").map((part) => {
         const num = parseInt(part, 10);
         return isNaN(num) ? 0 : num;
       });
@@ -90,18 +94,18 @@ export class VersionUtils {
       const currentVersion = this.getCurrentVersion();
 
       // On Linux/macOS, use ps to find similar processes
-      const { exec } = await import('child_process');
-      const { promisify } = await import('util');
+      const { exec } = await import("child_process");
+      const { promisify } = await import("util");
       const execAsync = promisify(exec);
 
       // Look for processes that might be different versions of the same tool
       const psCommand =
-        process.platform === 'darwin'
+        process.platform === "darwin"
           ? 'ps aux | grep -E "eai-security-check|index" | grep -v grep'
           : 'ps aux | grep -E "eai-security-check|index" | grep -v grep';
 
       const result = await execAsync(psCommand);
-      const processes = result.stdout.split('\n').filter(line => line.trim());
+      const processes = result.stdout.split("\n").filter((line) => line.trim());
 
       let hasNewer = false;
       let newerVersion: string | undefined;
@@ -115,7 +119,7 @@ export class VersionUtils {
 
         // Look for version patterns in the process command line
         const versionMatch = processLine.match(
-          /eai-security-check-(?:macos|linux)-v?(\d+\.\d+\.\d+)/
+          /eai-security-check-(?:macos|linux)-v?(\d+\.\d+\.\d+)/,
         );
         if (versionMatch) {
           const foundVersion = versionMatch[1];
@@ -130,7 +134,7 @@ export class VersionUtils {
 
       return { hasNewer, newerVersion, processInfo };
     } catch (error) {
-      console.warn('Warning: Could not check for newer versions:', error);
+      console.warn("Warning: Could not check for newer versions:", error);
       return { hasNewer: false };
     }
   }
@@ -142,7 +146,7 @@ export class VersionUtils {
     try {
       if (fs.existsSync(lockFilePath)) {
         // Check if the process is still running
-        const lockContent = fs.readFileSync(lockFilePath, 'utf-8');
+        const lockContent = fs.readFileSync(lockFilePath, "utf-8");
         const lockInfo = JSON.parse(lockContent);
 
         // Simple check - try to send signal 0 to the process (doesn't actually send a signal)
@@ -161,13 +165,13 @@ export class VersionUtils {
         pid: process.pid,
         version: this.getCurrentVersion(),
         started: new Date().toISOString(),
-        executable: process.argv[0]
+        executable: process.argv[0],
       };
 
       fs.writeFileSync(lockFilePath, JSON.stringify(lockInfo, null, 2));
       return true;
     } catch (error) {
-      console.warn('Warning: Could not create daemon lock:', error);
+      console.warn("Warning: Could not create daemon lock:", error);
       return false;
     }
   }
@@ -181,20 +185,23 @@ export class VersionUtils {
         fs.unlinkSync(lockFilePath);
       }
     } catch (error) {
-      console.warn('Warning: Could not remove daemon lock:', error);
+      console.warn("Warning: Could not remove daemon lock:", error);
     }
   }
 
   /**
    * Check if current instance should yield to a newer version
    */
-  static async shouldYieldToNewerVersion(): Promise<{ shouldYield: boolean; reason?: string }> {
+  static async shouldYieldToNewerVersion(): Promise<{
+    shouldYield: boolean;
+    reason?: string;
+  }> {
     const versionCheck = await this.checkForNewerVersion();
 
     if (versionCheck.hasNewer) {
       return {
         shouldYield: true,
-        reason: `Found newer version ${versionCheck.newerVersion} running. Current version: ${this.getCurrentVersion()}`
+        reason: `Found newer version ${versionCheck.newerVersion} running. Current version: ${this.getCurrentVersion()}`,
       };
     }
 

@@ -1,5 +1,5 @@
-import { confirm, input } from '@inquirer/prompts';
-import { ConfigManager } from '../config/config-manager';
+import { confirm, input } from "@inquirer/prompts";
+import { ConfigManager } from "../config/config-manager";
 
 export interface InstallationResult {
   success: boolean;
@@ -39,7 +39,7 @@ export class InstallationOperations {
    * Install the application globally
    */
   static async installGlobally(): Promise<InstallationResult> {
-    console.log('🌍 Installing globally...\n');
+    console.log("🌍 Installing globally...\n");
 
     try {
       const result = await ConfigManager.installGlobally();
@@ -47,7 +47,7 @@ export class InstallationOperations {
     } catch (error) {
       return {
         success: false,
-        message: `Installation failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Installation failed: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -56,7 +56,7 @@ export class InstallationOperations {
    * Update the global installation
    */
   static async updateGlobalInstallation(): Promise<InstallationResult> {
-    console.log('🔄 Updating global installation...\n');
+    console.log("🔄 Updating global installation...\n");
 
     try {
       const result = await ConfigManager.updateApplication();
@@ -64,7 +64,7 @@ export class InstallationOperations {
     } catch (error) {
       return {
         success: false,
-        message: `Update failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Update failed: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -72,20 +72,22 @@ export class InstallationOperations {
   /**
    * Uninstall the application globally
    */
-  static async uninstallGlobally(cleanupData: boolean = false): Promise<InstallationResult> {
-    console.log('🗑️  Uninstalling globally...\n');
+  static async uninstallGlobally(
+    cleanupData: boolean = false,
+  ): Promise<InstallationResult> {
+    console.log("🗑️  Uninstalling globally...\n");
 
     try {
       if (cleanupData) {
         const confirmInput = await input({
           message:
-            '⚠️ This will remove ALL configuration files, reports, and logs. Type "yes" to confirm:'
+            '⚠️ This will remove ALL configuration files, reports, and logs. Type "yes" to confirm:',
         });
 
-        if (confirmInput.toLowerCase() !== 'yes') {
+        if (confirmInput.toLowerCase() !== "yes") {
           return {
             success: false,
-            message: 'Uninstall cancelled by user'
+            message: "Uninstall cancelled by user",
           };
         }
       }
@@ -95,7 +97,7 @@ export class InstallationOperations {
     } catch (error) {
       return {
         success: false,
-        message: `Uninstall failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Uninstall failed: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
@@ -116,12 +118,14 @@ export class InstallationOperations {
         exists: systemStatus.globalInstall.exists,
         version: systemStatus.globalInstall.globalVersion || undefined,
         isUpToDate: !systemStatus.globalInstall.isDifferentVersion,
-        path: systemStatus.globalInstall.exists ? '/usr/local/bin/eai-security-check' : undefined
+        path: systemStatus.globalInstall.exists
+          ? "/usr/local/bin/eai-security-check"
+          : undefined,
       };
     } catch (error) {
-      console.error('Error checking global installation status:', error);
+      console.error("Error checking global installation status:", error);
       return {
-        exists: false
+        exists: false,
       };
     }
   }
@@ -133,7 +137,7 @@ export class InstallationOperations {
     try {
       return await ConfigManager.getSystemStatus();
     } catch (error) {
-      console.error('Error getting system status:', error);
+      console.error("Error getting system status:", error);
       throw error;
     }
   }
@@ -146,34 +150,36 @@ export class InstallationOperations {
 
     if (globalStatus.exists) {
       if (globalStatus.isUpToDate) {
-        console.log('✅ Global installation is already up to date');
+        console.log("✅ Global installation is already up to date");
         return;
       } else {
-        console.log('🔄 Global installation exists but needs updating...');
+        console.log("🔄 Global installation exists but needs updating...");
         const result = await this.updateGlobalInstallation();
 
         if (result.success) {
-          console.log('✅', result.message);
+          console.log("✅", result.message);
           if (result.oldVersion && result.newVersion) {
-            console.log(`📦 Updated from version ${result.oldVersion} to ${result.newVersion}`);
+            console.log(
+              `📦 Updated from version ${result.oldVersion} to ${result.newVersion}`,
+            );
           }
         } else {
-          console.error('❌', result.message);
+          console.error("❌", result.message);
           throw new Error(result.message);
         }
       }
     } else {
-      console.log('📦 No global installation found. Installing...');
+      console.log("📦 No global installation found. Installing...");
       const result = await this.installGlobally();
 
       if (result.success) {
-        console.log('✅', result.message);
+        console.log("✅", result.message);
         if (result.symlinkPath) {
           console.log(`🔗 Symlink created: ${result.symlinkPath}`);
         }
         console.log(`📂 Executable installed: ${result.executablePath}`);
       } else {
-        console.error('❌', result.message);
+        console.error("❌", result.message);
         throw new Error(result.message);
       }
     }
@@ -183,36 +189,38 @@ export class InstallationOperations {
    * Remove global installation with user interaction
    */
   static async removeGlobalInstallation(): Promise<void> {
-    console.log('🗑️  Remove Global Installation\n');
+    console.log("🗑️  Remove Global Installation\n");
 
-    console.log('⚠️  This will remove system-wide access to eai-security-check.');
+    console.log(
+      "⚠️  This will remove system-wide access to eai-security-check.",
+    );
 
     const cleanupData = await confirm({
-      message: 'Do you also want to remove all configuration files and data?',
-      default: false
+      message: "Do you also want to remove all configuration files and data?",
+      default: false,
     });
 
     const confirmRemoval = await confirm({
       message: cleanupData
-        ? 'Are you sure you want to uninstall and remove ALL data?'
-        : 'Are you sure you want to uninstall (keeping configuration data)?',
-      default: false
+        ? "Are you sure you want to uninstall and remove ALL data?"
+        : "Are you sure you want to uninstall (keeping configuration data)?",
+      default: false,
     });
 
     if (confirmRemoval) {
       const result = await this.uninstallGlobally(cleanupData);
 
       if (result.success) {
-        console.log('✅', result.message);
+        console.log("✅", result.message);
         if (!cleanupData) {
-          console.log('\n💡 Configuration files and data were preserved.');
+          console.log("\n💡 Configuration files and data were preserved.");
         }
       } else {
-        console.error('❌', result.message);
+        console.error("❌", result.message);
         throw new Error(result.message);
       }
     } else {
-      console.log('❌ Removal cancelled.');
+      console.log("❌ Removal cancelled.");
     }
   }
 
@@ -233,7 +241,7 @@ export class InstallationOperations {
       currentVersion,
       lastTrackedVersion: lastVersion || undefined,
       isUpgrade,
-      needsUpdate: isUpgrade
+      needsUpdate: isUpgrade,
     };
   }
 
@@ -273,8 +281,8 @@ export class InstallationOperations {
       availableProfiles: string[];
     };
   }> {
-    const os = await import('os');
-    const { PlatformDetector } = await import('../utils/platform-detector');
+    const os = await import("os");
+    const { PlatformDetector } = await import("../utils/platform-detector");
 
     const systemStatus = await this.getSystemStatus();
     const platform = await PlatformDetector.detectPlatform();
@@ -282,15 +290,18 @@ export class InstallationOperations {
 
     // Get available profiles
     const availableProfiles: string[] = [];
-    const profiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
-    const fs = await import('fs');
-    const path = await import('path');
+    const profiles = ["default", "strict", "relaxed", "developer", "eai"];
+    const fs = await import("fs");
+    const path = await import("path");
 
     for (const profile of profiles) {
       const profilePath =
-        profile === 'default'
+        profile === "default"
           ? systemStatus.config.securityConfigPath
-          : path.join(systemStatus.config.configDirectory, `${profile}-config.json`);
+          : path.join(
+              systemStatus.config.configDirectory,
+              `${profile}-config.json`,
+            );
       if (fs.existsSync(profilePath)) {
         availableProfiles.push(profile);
       }
@@ -306,21 +317,21 @@ export class InstallationOperations {
       globalInstallation: {
         exists: systemStatus.globalInstall.exists,
         version: systemStatus.globalInstall.globalVersion || undefined,
-        upToDate: !systemStatus.globalInstall.isDifferentVersion
+        upToDate: !systemStatus.globalInstall.isDifferentVersion,
       },
       daemon: {
         configured: systemStatus.config.schedulingConfigExists,
         running: systemStatus.daemon.isRunning,
         version: systemStatus.daemon.daemonVersion || undefined,
-        upToDate: !systemStatus.daemon.needsUpdate
+        upToDate: !systemStatus.daemon.needsUpdate,
       },
       configuration: {
         directory: systemStatus.config.configDirectory,
         reportsDirectory: systemStatus.config.reportsDirectory,
         securityConfigExists: systemStatus.config.securityConfigExists,
         schedulingConfigExists: systemStatus.config.schedulingConfigExists,
-        availableProfiles
-      }
+        availableProfiles,
+      },
     };
   }
 
@@ -328,84 +339,103 @@ export class InstallationOperations {
    * Display detailed system information
    */
   static async displayDetailedSystemInfo(): Promise<void> {
-    console.log('📊 Detailed System Information\n');
+    console.log("📊 Detailed System Information\n");
 
     const systemInfo = await this.getDetailedSystemInfo();
 
-    console.log('🖥️  System Information:');
+    console.log("🖥️  System Information:");
     console.log(`   Platform: ${systemInfo.platform}`);
     console.log(`   Architecture: ${systemInfo.architecture}`);
     console.log(`   Node.js: ${systemInfo.nodeVersion}`);
-    console.log('');
+    console.log("");
 
-    console.log('📦 Application Information:');
+    console.log("📦 Application Information:");
     console.log(`   Version: ${systemInfo.applicationVersion}`);
     console.log(`   Executable: ${systemInfo.executablePath}`);
     console.log(`   Working Directory: ${systemInfo.workingDirectory}`);
-    console.log('');
+    console.log("");
 
-    console.log('🌍 Global Installation:');
-    console.log(`   Installed: ${systemInfo.globalInstallation.exists ? 'Yes' : 'No'}`);
+    console.log("🌍 Global Installation:");
+    console.log(
+      `   Installed: ${systemInfo.globalInstallation.exists ? "Yes" : "No"}`,
+    );
     if (systemInfo.globalInstallation.exists) {
-      console.log(`   Version: ${systemInfo.globalInstallation.version || 'Unknown'}`);
-      console.log(`   Up to date: ${systemInfo.globalInstallation.upToDate ? 'Yes' : 'No'}`);
+      console.log(
+        `   Version: ${systemInfo.globalInstallation.version || "Unknown"}`,
+      );
+      console.log(
+        `   Up to date: ${systemInfo.globalInstallation.upToDate ? "Yes" : "No"}`,
+      );
     }
-    console.log('');
+    console.log("");
 
-    console.log('🤖 Daemon Status:');
-    console.log(`   Configured: ${systemInfo.daemon.configured ? 'Yes' : 'No'}`);
-    console.log(`   Running: ${systemInfo.daemon.running ? 'Yes' : 'No'}`);
+    console.log("🤖 Daemon Status:");
+    console.log(
+      `   Configured: ${systemInfo.daemon.configured ? "Yes" : "No"}`,
+    );
+    console.log(`   Running: ${systemInfo.daemon.running ? "Yes" : "No"}`);
     if (systemInfo.daemon.version) {
       console.log(`   Version: ${systemInfo.daemon.version}`);
-      console.log(`   Up to date: ${systemInfo.daemon.upToDate ? 'Yes' : 'No'}`);
+      console.log(
+        `   Up to date: ${systemInfo.daemon.upToDate ? "Yes" : "No"}`,
+      );
     }
-    console.log('');
+    console.log("");
 
-    console.log('🔧 Configuration:');
+    console.log("🔧 Configuration:");
     console.log(`   Directory: ${systemInfo.configuration.directory}`);
-    console.log(`   Reports Directory: ${systemInfo.configuration.reportsDirectory}`);
     console.log(
-      `   Security Config: ${systemInfo.configuration.securityConfigExists ? 'Found' : 'Missing'}`
+      `   Reports Directory: ${systemInfo.configuration.reportsDirectory}`,
     );
     console.log(
-      `   Scheduling Config: ${systemInfo.configuration.schedulingConfigExists ? 'Found' : 'Missing'}`
+      `   Security Config: ${systemInfo.configuration.securityConfigExists ? "Found" : "Missing"}`,
+    );
+    console.log(
+      `   Scheduling Config: ${systemInfo.configuration.schedulingConfigExists ? "Found" : "Missing"}`,
     );
 
     // Show available profiles
-    console.log('   Available Profiles:');
-    const allProfiles = ['default', 'strict', 'relaxed', 'developer', 'eai'];
+    console.log("   Available Profiles:");
+    const allProfiles = ["default", "strict", "relaxed", "developer", "eai"];
     for (const profile of allProfiles) {
-      const exists = systemInfo.configuration.availableProfiles.includes(profile);
-      console.log(`     ${profile}: ${exists ? '✅' : '❌'}`);
+      const exists =
+        systemInfo.configuration.availableProfiles.includes(profile);
+      console.log(`     ${profile}: ${exists ? "✅" : "❌"}`);
     }
-    console.log('');
+    console.log("");
   }
 
   /**
    * Handle version update notification and tracking
    */
   static async handleVersionUpdates(): Promise<void> {
-    console.log('🔍 Checking for Updates\n');
+    console.log("🔍 Checking for Updates\n");
 
     const updateInfo = this.checkForUpdates();
 
     console.log(`📦 Current Version: ${updateInfo.currentVersion}`);
-    console.log(`📊 Last Tracked Version: ${updateInfo.lastTrackedVersion || 'None'}`);
-    console.log(`🔄 Version Upgrade: ${updateInfo.isUpgrade ? 'Yes' : 'No'}`);
-    console.log('');
+    console.log(
+      `📊 Last Tracked Version: ${updateInfo.lastTrackedVersion || "None"}`,
+    );
+    console.log(`🔄 Version Upgrade: ${updateInfo.isUpgrade ? "Yes" : "No"}`);
+    console.log("");
 
     if (updateInfo.isUpgrade) {
-      console.log('🎉 You have upgraded to a newer version!');
-      console.log('💡 Consider updating global installation and daemon if needed.');
+      console.log("🎉 You have upgraded to a newer version!");
+      console.log(
+        "💡 Consider updating global installation and daemon if needed.",
+      );
 
       // Update tracked version
       this.updateVersionTracking();
-      console.log('✅ Version tracking updated.');
+      console.log("✅ Version tracking updated.");
     } else {
-      console.log('✅ You are running the latest tracked version.');
-      console.log('💡 For the latest releases, check: https://github.com/eaiti/eai_security_check');
+      console.log("✅ You are running the latest tracked version.");
+      console.log(
+        "💡 For the latest releases, check: https://github.com/eaiti/eai_security_check",
+      );
     }
 
-    console.log('');
+    console.log("");
   }
 }

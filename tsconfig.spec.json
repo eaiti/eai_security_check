@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "dom", "dom.iterable", "es6"],
+    "allowJs": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": true,
+    "outDir": "./out-tsc/spec",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "moduleResolution": "bundler",
+    "importHelpers": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "useDefineForClassFields": false,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["jasmine", "node"]
+  },
+  "files": [
+    "src/ui/main.ts"
+  ],
+  "include": [
+    "src/ui/**/*.d.ts",
+    "src/ui/**/*.ts",
+    "src/ui/**/*.spec.ts"
+  ]
+}

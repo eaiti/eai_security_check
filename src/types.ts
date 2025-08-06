@@ -61,7 +61,7 @@ export interface SecurityConfig {
   };
   // Platform-specific settings
   platform?: {
-    target: 'macos' | 'linux' | 'auto'; // Target platform, 'auto' detects automatically
+    target: "macos" | "linux" | "auto"; // Target platform, 'auto' detects automatically
   };
 }
 
@@ -99,7 +99,7 @@ export interface ScpConfig {
   host: string;
   username: string;
   destinationDirectory: string;
-  authMethod: 'password' | 'key';
+  authMethod: "password" | "key";
   password?: string; // For password authentication
   privateKeyPath?: string; // For key-based authentication
   port?: number; // SSH port, defaults to 22
@@ -111,7 +111,7 @@ export interface SchedulingConfig {
   intervalMinutes?: number; // Alternative interval in minutes for testing (overrides intervalDays)
   email?: EmailConfig; // Optional email configuration
   scp?: ScpConfig; // Optional SCP file transfer configuration
-  reportFormat: 'email' | 'plain' | 'markdown' | 'json';
+  reportFormat: "email" | "plain" | "markdown" | "json";
   securityProfile: string; // Which security profile to use for checks
   customConfigPath?: string; // Optional path to custom security config
   userId?: string; // User identifier included in reports and emails
@@ -184,7 +184,11 @@ export interface ISecurityChecker {
     automaticInstall?: boolean;
     automaticSecurityInstall?: boolean;
     configDataInstall?: boolean;
-    updateMode?: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
+    updateMode?:
+      | "disabled"
+      | "check-only"
+      | "download-only"
+      | "fully-automatic";
     downloadOnly?: boolean;
   }>;
 
@@ -225,7 +229,7 @@ export interface ISecurityChecker {
     {
       description: string;
       recommendation: string;
-      riskLevel: 'High' | 'Medium' | 'Low';
+      riskLevel: "High" | "Medium" | "Low";
     }
   >;
 

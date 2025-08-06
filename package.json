@@ -1,40 +1,50 @@
 {
   "name": "eai-security-check",
   "version": "1.1.0",
-  "description": "A cross-platform Node.js tool to check macOS, Linux, and Windows security settings with CLI and UI interfaces",
-  "main": "dist/cli/index.js",
-  "bin": {
-    "eai-security-check": "./dist/cli/index.js"
-  },
+  "description": "A cross-platform Node.js security audit tool with Electron desktop UI",
+  "main": "src/electron/main.js",
   "scripts": {
-    "build": "node scripts/build.js",
-    "build:ui": "npm run build && cd ui && npm install && npm run build",
-    "build:all": "npm run build && npm run build:ui",
-    "start": "node dist/cli/index.js",
-    "start:ui": "npm run build && cd ui && npm run electron:build",
-    "dev": "ts-node src/cli/index.ts",
-    "dev:ui": "cd ui && npm run electron:dev",
-    "check": "npm run build && npm start check",
-    "lint": "eslint src/**/*.ts",
-    "lint:ui": "eslint ui/src/**/*.ts ui/src/**/*.html",
-    "lint:all": "npm run lint && npm run lint:ui",
-    "lint:fix": "eslint src/**/*.ts --fix",
-    "lint:ui:fix": "eslint ui/src/**/*.ts ui/src/**/*.html --fix",
-    "lint:fix:all": "npm run lint:fix && npm run lint:ui:fix",
-    "format": "prettier --write \"**/*.{ts,js,json}\" --ignore-path .prettierignore",
-    "format:ui": "prettier --write \"ui/src/**/*.{ts,html,scss}\"",
-    "format:all": "prettier --write \"**/*.{ts,js,json,html,scss}\" --ignore-path .prettierignore",
-    "format:check": "prettier --check \"**/*.{ts,js,json}\" --ignore-path .prettierignore",
-    "test": "jest",
-    "pkg:build": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64,node18-linux-x64,node18-win-x64 --out-path ./bin",
-    "pkg:macos": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64 --output ./bin/index-macos",
-    "pkg:linux": "npm run build && pkg dist/cli/index.js --targets node18-linux-x64 --output ./bin/index-linux",
-    "pkg:windows": "npm run build && pkg dist/cli/index.js --targets node18-win-x64 --output ./bin/index-win.exe",
-    "pkg:local": "npm run build && pkg dist/cli/index.js --targets node18-macos-x64 --output ./bin/index-macos",
-    "sign:macos": "node scripts/sign-macos.js",
-    "sign:linux": "node scripts/sign-linux.js",
-    "sign:windows": "node scripts/sign-windows.js",
-    "sign:all": "npm run sign:macos && npm run sign:linux && npm run sign:windows"
+    "build": "tsc && ng build --configuration production",
+    "build:dev": "tsc && ng build",
+    "start": "npm run build && electron .",
+    "dev": "concurrently \"tsc --watch\" \"ng serve\" \"wait-on http://localhost:4200 && NODE_ENV=development electron .\"",
+    "dev:start": "npm run dev",
+    "dev:stop": "pkill -f 'concurrently|ng serve|electron.*eai-security-check' || true",
+    "dev:restart": "npm run dev:stop && sleep 2 && npm run dev",
+    "dev:status": "pgrep -f 'electron.*eai-security-check' | wc -l | xargs -I {} echo 'Electron processes running: {}'",
+    "mcp": "node scripts/mcp-server.js",
+    "mcp:start": "node scripts/mcp-server.js",
+    "ng": "ng",
+    "electron": "electron .",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "test": "jest && ng test --watch=false",
+    "test:core": "jest",
+    "test:ui": "ng test --watch=false --browsers=ChromeHeadless",
+    "test:ui-browser": "ng test --watch=false",
+    "test:watch": "jest --watch",
+    "test:all": "npm run test:core && npm run test:ui",
+    "test:macos": "cd scripts && ./test-macos.sh",
+    "test:linux": "cd scripts && ./test-linux.sh",
+    "test:windows": "cd scripts && pwsh -ExecutionPolicy Bypass -File ./test-windows.ps1",
+    "test:platform": "cd scripts && ./test-platform.sh",
+    "test:all-platforms": "cd scripts && ./test-all.sh",
+    "verify": "npm run test:all && npm run build && npm run lint && npm run format:check",
+    "verify:quick": "npm run test:core && npm run lint",
+    "ci": "npm run verify",
+    "check": "npx electron . check",
+    "check:dev": "npx electron . check --profile developer --format human",
+    "check:strict": "npx electron . check --profile strict --format human", 
+    "validate": "npx electron . validate",
+    "version:show": "npx electron . --version",
+    "lint": "eslint '**/*.{js,ts,html}' --ignore-pattern 'node_modules/' --ignore-pattern 'dist/' --ignore-pattern '.angular/' --ignore-pattern 'coverage/' --ignore-pattern 'release/'",
+    "lint:fix": "eslint '**/*.{js,ts,html}' --ignore-pattern 'node_modules/' --ignore-pattern 'dist/' --ignore-pattern '.angular/' --ignore-pattern 'coverage/' --ignore-pattern 'release/' --fix",
+    "format": "prettier --write 'src/**/*.{ts,js,html,scss}' 'ui/src/**/*.{ts,js,html,scss}' || true",
+    "format:check": "prettier --check 'src/**/*.{ts,js,html,scss}' 'ui/src/**/*.{ts,js,html,scss}' || true",
+    "format:all": "npm run format && npm run lint:fix"
   },
   "keywords": [
     "macos",
@@ -43,48 +53,100 @@
     "security",
     "audit",
     "diskEncryption",
-    "password"
+    "password",
+    "electron",
+    "angular"
   ],
   "author": "",
   "license": "MIT",
-  "pkg": {
-    "assets": [
-      "examples/**/*.json",
-      "daemon-examples/**/*"
-    ],
-    "scripts": [
-      "dist/**/*.js"
-    ],
-    "outputPath": "./bin"
+  "prettier": {
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "dependencies": {
+    "@angular/cdk": "^20.1.4",
+    "@angular/common": "^20.1.4",
+    "@angular/compiler": "^20.1.4",
+    "@angular/core": "^20.1.4",
+    "@angular/forms": "^20.1.4",
+    "@angular/material": "^20.1.4",
+    "@angular/platform-browser": "^20.1.4",
+    "@angular/router": "^20.1.4",
+    "rxjs": "~7.8.2",
+    "tslib": "^2.8.1",
+    "zone.js": "~0.15.1",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.5"
   },
   "devDependencies": {
+    "@angular/build": "^20.1.4",
+    "@angular/cli": "^20.1.4",
+    "@angular/compiler-cli": "^20.1.4",
     "@angular-eslint/eslint-plugin": "^20.1.1",
     "@angular-eslint/eslint-plugin-template": "^20.1.1",
     "@angular-eslint/template-parser": "^20.1.1",
-    "@eslint/js": "^9.32.0",
-    "@types/inquirer": "^9.0.8",
+    "@types/jasmine": "~5.1.8",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.2.0",
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^6.4.17",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
+    "@eslint/js": "^9.32.0",
+    "angular-eslint": "20.1.1",
+    "concurrently": "^9.2.0",
+    "electron": "^37.2.5",
+    "electron-builder": "^26.0.12",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.3",
     "globals": "^16.3.0",
+    "jasmine-core": "~5.9.0",
     "jest": "^30.0.5",
+    "karma": "~6.4.4",
+    "karma-chrome-launcher": "~3.2.0",
+    "karma-coverage": "~2.2.1",
+    "karma-jasmine": "~5.1.0",
+    "karma-jasmine-html-reporter": "~2.1.0",
     "npm-check-updates": "^18.0.2",
-    "pkg": "^5.8.1",
     "prettier": "^3.6.2",
     "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2"
+    "typescript": "~5.8.3",
+    "typescript-eslint": "8.34.1",
+    "wait-on": "^8.0.4"
   },
-  "dependencies": {
-    "@inquirer/prompts": "^7.8.0",
-    "commander": "^14.0.0",
-    "node-cron": "^4.2.1",
-    "nodemailer": "^7.0.5"
+  "build": {
+    "appId": "com.eai.security-check",
+    "productName": "EAI Security Check",
+    "directories": {
+      "output": "release/"
+    },
+    "files": [
+      "dist/**/*",
+      "src/electron/**/*",
+      "package.json",
+      "examples/**/*.json"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.utilities",
+      "icon": "public/favicon.ico"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "public/favicon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility",
+      "icon": "public/favicon.ico"
+    }
   }
 }

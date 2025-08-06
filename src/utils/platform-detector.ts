@@ -1,14 +1,14 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import * as os from 'os';
+import { exec } from "child_process";
+import { promisify } from "util";
+import * as os from "os";
 
 const execAsync = promisify(exec);
 
 export enum Platform {
-  MACOS = 'macos',
-  LINUX = 'linux',
-  WINDOWS = 'windows',
-  UNSUPPORTED = 'unsupported'
+  MACOS = "macos",
+  LINUX = "linux",
+  WINDOWS = "windows",
+  UNSUPPORTED = "unsupported",
 }
 
 export interface PlatformInfo {
@@ -27,18 +27,18 @@ export class PlatformDetector {
   static async detectPlatform(): Promise<PlatformInfo> {
     const platform = os.platform();
 
-    if (platform === 'darwin') {
+    if (platform === "darwin") {
       return await this.detectMacOS();
-    } else if (platform === 'linux') {
+    } else if (platform === "linux") {
       return await this.detectLinux();
-    } else if (platform === 'win32') {
+    } else if (platform === "win32") {
       return await this.detectWindows();
     } else {
       return {
         platform: Platform.UNSUPPORTED,
-        version: 'unknown',
+        version: "unknown",
         isSupported: false,
-        warningMessage: `❌ Platform ${platform} is not supported. This tool supports macOS, Linux, and Windows only.`
+        warningMessage: `❌ Platform ${platform} is not supported. This tool supports macOS, Linux, and Windows only.`,
       };
     }
   }
@@ -48,19 +48,19 @@ export class PlatformDetector {
    */
   private static async detectMacOS(): Promise<PlatformInfo> {
     try {
-      const { stdout } = await execAsync('sw_vers -productVersion');
+      const { stdout } = await execAsync("sw_vers -productVersion");
       const version = stdout.trim();
 
       // Check if version is supported (15.0+)
-      const isSupported = this.compareVersions(version, '15.0') >= 0;
-      const approvedVersions = ['15.5', '15.6'];
+      const isSupported = this.compareVersions(version, "15.0") >= 0;
+      const approvedVersions = ["15.5", "15.6"];
       const isApproved = approvedVersions.includes(version);
 
       let warningMessage: string | undefined;
       if (!isSupported) {
         warningMessage = `⚠️  macOS ${version} is below version 15.0. Security checks may not work correctly.`;
       } else if (!isApproved) {
-        warningMessage = `⚠️  macOS ${version} has not been fully tested. Tested versions: ${approvedVersions.join(', ')}.`;
+        warningMessage = `⚠️  macOS ${version} has not been fully tested. Tested versions: ${approvedVersions.join(", ")}.`;
       }
 
       return {
@@ -68,14 +68,14 @@ export class PlatformDetector {
         version,
         isSupported,
         isApproved,
-        warningMessage
+        warningMessage,
       };
     } catch (error) {
       return {
         platform: Platform.MACOS,
-        version: 'unknown',
+        version: "unknown",
         isSupported: false,
-        warningMessage: `❌ Unable to detect macOS version: ${error}`
+        warningMessage: `❌ Unable to detect macOS version: ${error}`,
       };
     }
   }
@@ -86,44 +86,52 @@ export class PlatformDetector {
   private static async detectLinux(): Promise<PlatformInfo> {
     try {
       // Try to detect distribution from /etc/os-release
-      let distribution = 'unknown';
-      let version = 'unknown';
+      let distribution = "unknown";
+      let version = "unknown";
 
       try {
-        const { stdout } = await execAsync('cat /etc/os-release');
-        const lines = stdout.split('\n');
+        const { stdout } = await execAsync("cat /etc/os-release");
+        const lines = stdout.split("\n");
 
         for (const line of lines) {
-          if (line.startsWith('ID=')) {
-            distribution = line.split('=')[1].replace(/"/g, '');
-          } else if (line.startsWith('VERSION_ID=')) {
-            version = line.split('=')[1].replace(/"/g, '');
+          if (line.startsWith("ID=")) {
+            distribution = line.split("=")[1].replace(/"/g, "");
+          } else if (line.startsWith("VERSION_ID=")) {
+            version = line.split("=")[1].replace(/"/g, "");
           }
         }
       } catch {
         // Fallback to lsb_release if available
         try {
-          const { stdout: distStdout } = await execAsync('lsb_release -is');
+          const { stdout: distStdout } = await execAsync("lsb_release -is");
           distribution = distStdout.trim().toLowerCase();
-          const { stdout: versionStdout } = await execAsync('lsb_release -rs');
+          const { stdout: versionStdout } = await execAsync("lsb_release -rs");
           version = versionStdout.trim();
         } catch {
           // Use uname as final fallback
-          const { stdout: unameStdout } = await execAsync('uname -r');
+          const { stdout: unameStdout } = await execAsync("uname -r");
           version = unameStdout.trim();
         }
       }
 
       // Check if this is a supported distribution
-      const supportedDistributions = ['fedora', 'ubuntu', 'debian', 'centos', 'rhel'];
-      const isSupported = supportedDistributions.includes(distribution.toLowerCase());
+      const supportedDistributions = [
+        "fedora",
+        "ubuntu",
+        "debian",
+        "centos",
+        "rhel",
+      ];
+      const isSupported = supportedDistributions.includes(
+        distribution.toLowerCase(),
+      );
 
       // Primary support is for Fedora
-      const isApproved = distribution.toLowerCase() === 'fedora';
+      const isApproved = distribution.toLowerCase() === "fedora";
 
       let warningMessage: string | undefined;
       if (!isSupported) {
-        warningMessage = `⚠️  Linux distribution '${distribution}' is not officially supported. Supported: ${supportedDistributions.join(', ')}. Security checks may not work correctly.`;
+        warningMessage = `⚠️  Linux distribution '${distribution}' is not officially supported. Supported: ${supportedDistributions.join(", ")}. Security checks may not work correctly.`;
       } else if (!isApproved) {
         warningMessage = `⚠️  Linux distribution '${distribution}' has limited testing. Primary support is for Fedora. Some checks may not work correctly.`;
       }
@@ -134,15 +142,15 @@ export class PlatformDetector {
         distribution,
         isSupported,
         isApproved,
-        warningMessage
+        warningMessage,
       };
     } catch (error) {
       return {
         platform: Platform.LINUX,
-        version: 'unknown',
-        distribution: 'unknown',
+        version: "unknown",
+        distribution: "unknown",
         isSupported: false,
-        warningMessage: `❌ Unable to detect Linux distribution: ${error}`
+        warningMessage: `❌ Unable to detect Linux distribution: ${error}`,
       };
     }
   }
@@ -153,26 +161,28 @@ export class PlatformDetector {
   private static async detectWindows(): Promise<PlatformInfo> {
     try {
       // Get Windows version using wmic
-      const { stdout } = await execAsync('wmic os get Version /format:list');
-      const versionLine = stdout.split('\n').find(line => line.startsWith('Version='));
-      let version = 'unknown';
+      const { stdout } = await execAsync("wmic os get Version /format:list");
+      const versionLine = stdout
+        .split("\n")
+        .find((line) => line.startsWith("Version="));
+      let version = "unknown";
 
       if (versionLine) {
-        version = versionLine.split('=')[1].trim();
+        version = versionLine.split("=")[1].trim();
       }
 
       // Try alternative method using PowerShell if wmic fails
-      if (version === 'unknown') {
+      if (version === "unknown") {
         try {
           const { stdout: psStdout } = await execAsync(
-            'powershell -Command "[System.Environment]::OSVersion.Version.ToString()"'
+            'powershell -Command "[System.Environment]::OSVersion.Version.ToString()"',
           );
           version = psStdout.trim();
         } catch {
           // Final fallback to registry query
           try {
             const { stdout: regStdout } = await execAsync(
-              'reg query "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion" /v ReleaseId'
+              'reg query "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion" /v ReleaseId',
             );
             const releaseMatch = regStdout.match(/ReleaseId\s+REG_SZ\s+(.+)/);
             if (releaseMatch) {
@@ -187,13 +197,13 @@ export class PlatformDetector {
       // Check if version is supported (Windows 10 build 1903+ or Windows 11)
       const isSupported = this.isWindowsVersionSupported(version);
       const approvedVersions = [
-        '10.0.19041',
-        '10.0.19042',
-        '10.0.19043',
-        '10.0.19044',
-        '10.0.22000'
+        "10.0.19041",
+        "10.0.19042",
+        "10.0.19043",
+        "10.0.19044",
+        "10.0.22000",
       ];
-      const isApproved = approvedVersions.some(av => version.startsWith(av));
+      const isApproved = approvedVersions.some((av) => version.startsWith(av));
 
       let warningMessage: string | undefined;
       if (!isSupported) {
@@ -207,14 +217,14 @@ export class PlatformDetector {
         version,
         isSupported,
         isApproved,
-        warningMessage
+        warningMessage,
       };
     } catch (error) {
       return {
         platform: Platform.WINDOWS,
-        version: 'unknown',
+        version: "unknown",
         isSupported: false,
-        warningMessage: `❌ Unable to detect Windows version: ${error}`
+        warningMessage: `❌ Unable to detect Windows version: ${error}`,
       };
     }
   }
@@ -223,16 +233,16 @@ export class PlatformDetector {
    * Check if Windows version is supported
    */
   private static isWindowsVersionSupported(version: string): boolean {
-    if (version === 'unknown') return false;
+    if (version === "unknown") return false;
 
     // Support Windows 10 build 1903 (10.0.18362) and later, and Windows 11
-    if (version.startsWith('10.0.')) {
-      const build = parseInt(version.split('.')[2] || '0');
+    if (version.startsWith("10.0.")) {
+      const build = parseInt(version.split(".")[2] || "0");
       return build >= 18362; // Windows 10 build 1903
     }
 
     // Windows 11 starts with build 22000
-    if (version.startsWith('11.') || version.includes('22000')) {
+    if (version.startsWith("11.") || version.includes("22000")) {
       return true;
     }
 
@@ -244,8 +254,8 @@ export class PlatformDetector {
    * Returns: -1 if version1 < version2, 0 if equal, 1 if version1 > version2
    */
   private static compareVersions(version1: string, version2: string): number {
-    const v1Parts = version1.split('.').map(Number);
-    const v2Parts = version2.split('.').map(Number);
+    const v1Parts = version1.split(".").map(Number);
+    const v2Parts = version2.split(".").map(Number);
 
     const maxLength = Math.max(v1Parts.length, v2Parts.length);
 
@@ -298,11 +308,11 @@ export class PlatformDetector {
   static getSimplePlatform(): Platform {
     const platform = os.platform();
 
-    if (platform === 'darwin') {
+    if (platform === "darwin") {
       return Platform.MACOS;
-    } else if (platform === 'linux') {
+    } else if (platform === "linux") {
       return Platform.LINUX;
-    } else if (platform === 'win32') {
+    } else if (platform === "win32") {
       return Platform.WINDOWS;
     } else {
       return Platform.UNSUPPORTED;

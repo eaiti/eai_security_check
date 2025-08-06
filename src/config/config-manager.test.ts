@@ -1,30 +1,29 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { ConfigManager } from './config-manager';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import { ConfigManager } from "./config-manager";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 // Mock fs module
-jest.mock('fs');
+jest.mock("fs");
 const mockedFs = jest.mocked(fs);
 
 // Mock os module
-jest.mock('os');
+jest.mock("os");
 const mockedOs = jest.mocked(os);
 
 // Mock path module to use POSIX paths when platform is mocked as linux
-jest.mock('path');
+jest.mock("path");
 const mockedPath = jest.mocked(path);
 
 // Mock readline for interactive input
-jest.mock('readline', () => ({
+jest.mock("readline", () => ({
   createInterface: jest.fn(() => ({
     question: jest.fn(),
-    close: jest.fn()
-  }))
+    close: jest.fn(),
+  })),
 }));
 
-describe('ConfigManager', () => {
+describe("ConfigManager", () => {
   const originalEnv = process.env;
   const originalExecPath = process.execPath;
 
@@ -32,9 +31,9 @@ describe('ConfigManager', () => {
     jest.clearAllMocks();
 
     // Mock process.execPath to use a test executable path
-    Object.defineProperty(process, 'execPath', {
-      value: '/test/app/eai-security-check',
-      writable: true
+    Object.defineProperty(process, "execPath", {
+      value: "/test/app/eai-security-check",
+      writable: true,
     });
 
     // Reset environment variables
@@ -44,138 +43,138 @@ describe('ConfigManager', () => {
 
     // Setup path mocking to use POSIX paths when platform is linux
     mockedPath.join.mockImplementation((...segments: string[]) => {
-      return segments.join('/');
+      return segments.join("/");
     });
     mockedPath.dirname.mockImplementation((filePath: string) => {
-      const parts = filePath.split('/');
+      const parts = filePath.split("/");
       parts.pop();
-      return parts.join('/') || '/';
+      return parts.join("/") || "/";
     });
   });
 
   afterEach(() => {
     process.env = originalEnv;
-    Object.defineProperty(process, 'execPath', {
+    Object.defineProperty(process, "execPath", {
       value: originalExecPath,
-      writable: true
+      writable: true,
     });
   });
 
-  describe('configuration file paths', () => {
-    it('should return correct security config path', () => {
+  describe("configuration file paths", () => {
+    it("should return correct security config path", () => {
       const result = ConfigManager.getSecurityConfigPath();
-      expect(result).toBe('/test/app/config/security-config.json');
+      expect(result).toBe("/test/app/config/security-config.json");
     });
 
-    it('should return correct scheduling config path', () => {
+    it("should return correct scheduling config path", () => {
       const result = ConfigManager.getSchedulingConfigPath();
-      expect(result).toBe('/test/app/config/scheduling-config.json');
+      expect(result).toBe("/test/app/config/scheduling-config.json");
     });
 
-    it('should return correct daemon state path', () => {
+    it("should return correct daemon state path", () => {
       const result = ConfigManager.getDaemonStatePath();
-      expect(result).toBe('/test/app/config/daemon-state.json');
+      expect(result).toBe("/test/app/config/daemon-state.json");
     });
   });
 
-  describe('createSecurityConfig', () => {
+  describe("createSecurityConfig", () => {
     beforeEach(() => {
-      mockedFs.existsSync.mockImplementation(path => {
+      mockedFs.existsSync.mockImplementation((path) => {
         // Config directory exists, config file doesn't
-        if (path === '/test/app/config') return true;
-        if (path === '/test/app/config/security-config.json') return false;
+        if (path === "/test/app/config") return true;
+        if (path === "/test/app/config/security-config.json") return false;
         return false;
       });
       mockedFs.mkdirSync.mockImplementation(() => undefined);
       mockedFs.writeFileSync.mockImplementation(() => {});
     });
 
-    it('should create security config with default profile', () => {
+    it("should create security config with default profile", () => {
       ConfigManager.createSecurityConfig();
 
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/test/app/config/security-config.json',
-        expect.stringContaining('"diskEncryption"')
+        "/test/app/config/security-config.json",
+        expect.stringContaining('"diskEncryption"'),
       );
     });
 
-    it('should create security config with specified profile', () => {
-      ConfigManager.createSecurityConfig('strict');
+    it("should create security config with specified profile", () => {
+      ConfigManager.createSecurityConfig("strict");
 
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/test/app/config/security-config.json',
-        expect.stringContaining('"diskEncryption"')
+        "/test/app/config/security-config.json",
+        expect.stringContaining('"diskEncryption"'),
       );
     });
 
-    it('should throw error if config already exists', () => {
-      mockedFs.existsSync.mockImplementation(path => {
-        if (path === '/test/app/config') return true;
-        if (path === '/test/app/config/security-config.json') return true;
+    it("should throw error if config already exists", () => {
+      mockedFs.existsSync.mockImplementation((path) => {
+        if (path === "/test/app/config") return true;
+        if (path === "/test/app/config/security-config.json") return true;
         return false;
       });
 
       expect(() => ConfigManager.createSecurityConfig()).toThrow(
-        'Security configuration already exists'
+        "Security configuration already exists",
       );
     });
   });
 
-  describe('createAllSecurityConfigs', () => {
+  describe("createAllSecurityConfigs", () => {
     beforeEach(() => {
-      mockedOs.platform.mockReturnValue('linux');
-      mockedFs.existsSync.mockImplementation(path => {
+      mockedOs.platform.mockReturnValue("linux");
+      mockedFs.existsSync.mockImplementation((path) => {
         // Config directory exists, config files don't
-        if (path === '/test/app/config') return true;
+        if (path === "/test/app/config") return true;
         return false;
       });
       mockedFs.mkdirSync.mockImplementation(() => undefined);
       mockedFs.writeFileSync.mockImplementation(() => {});
 
       // Mock console.log to avoid test output
-      jest.spyOn(console, 'log').mockImplementation(() => {});
+      jest.spyOn(console, "log").mockImplementation(() => {});
     });
 
     afterEach(() => {
       jest.restoreAllMocks();
     });
 
-    it('should create all security profile configs', () => {
+    it("should create all security profile configs", () => {
       ConfigManager.createAllSecurityConfigs();
 
       // Should create main config file (default profile)
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/test/app/config/security-config.json',
-        expect.stringContaining('"diskEncryption"')
+        "/test/app/config/security-config.json",
+        expect.stringContaining('"diskEncryption"'),
       );
 
       // Should create profile-specific config files
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/test/app/config/strict-config.json',
-        expect.stringContaining('"diskEncryption"')
+        "/test/app/config/strict-config.json",
+        expect.stringContaining('"diskEncryption"'),
       );
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/test/app/config/relaxed-config.json',
-        expect.stringContaining('"diskEncryption"')
+        "/test/app/config/relaxed-config.json",
+        expect.stringContaining('"diskEncryption"'),
       );
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/test/app/config/developer-config.json',
-        expect.stringContaining('"diskEncryption"')
+        "/test/app/config/developer-config.json",
+        expect.stringContaining('"diskEncryption"'),
       );
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/test/app/config/eai-config.json',
-        expect.stringContaining('"diskEncryption"')
+        "/test/app/config/eai-config.json",
+        expect.stringContaining('"diskEncryption"'),
       );
 
       // Should create 5 files total (main + 4 profiles)
       expect(mockedFs.writeFileSync).toHaveBeenCalledTimes(5);
     });
 
-    it('should skip existing configs when force is false', () => {
-      mockedFs.existsSync.mockImplementation(path => {
-        if (path === '/test/app/config') return true;
-        if (path === '/test/app/config/security-config.json') return true;
-        if (path === '/test/app/config/strict-config.json') return true;
+    it("should skip existing configs when force is false", () => {
+      mockedFs.existsSync.mockImplementation((path) => {
+        if (path === "/test/app/config") return true;
+        if (path === "/test/app/config/security-config.json") return true;
+        if (path === "/test/app/config/strict-config.json") return true;
         return false;
       });
 
@@ -183,25 +182,25 @@ describe('ConfigManager', () => {
 
       // Should skip existing files
       expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
-        '/test/app/config/security-config.json',
-        expect.anything()
+        "/test/app/config/security-config.json",
+        expect.anything(),
       );
       expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
-        '/test/app/config/strict-config.json',
-        expect.anything()
+        "/test/app/config/strict-config.json",
+        expect.anything(),
       );
 
       // Should still create non-existing files
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/test/app/config/relaxed-config.json',
-        expect.stringContaining('"diskEncryption"')
+        "/test/app/config/relaxed-config.json",
+        expect.stringContaining('"diskEncryption"'),
       );
     });
 
-    it('should overwrite existing configs when force is true', () => {
-      mockedFs.existsSync.mockImplementation(path => {
-        if (path === '/test/app/config') return true;
-        if (path === '/test/app/config/security-config.json') return true;
+    it("should overwrite existing configs when force is true", () => {
+      mockedFs.existsSync.mockImplementation((path) => {
+        if (path === "/test/app/config") return true;
+        if (path === "/test/app/config/security-config.json") return true;
         return false;
       });
 
@@ -209,8 +208,8 @@ describe('ConfigManager', () => {
 
       // Should overwrite existing file
       expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-        '/test/app/config/security-config.json',
-        expect.stringContaining('"diskEncryption"')
+        "/test/app/config/security-config.json",
+        expect.stringContaining('"diskEncryption"'),
       );
 
       // Should create all files
@@ -218,22 +217,24 @@ describe('ConfigManager', () => {
     });
   });
 
-  describe('hasSecurityConfig', () => {
+  describe("hasSecurityConfig", () => {
     beforeEach(() => {
-      mockedOs.platform.mockReturnValue('linux');
+      mockedOs.platform.mockReturnValue("linux");
       delete process.env.XDG_CONFIG_HOME;
     });
 
-    it('should return true if security config exists', () => {
+    it("should return true if security config exists", () => {
       mockedFs.existsSync.mockReturnValue(true);
 
       const result = ConfigManager.hasSecurityConfig();
 
       expect(result).toBe(true);
-      expect(mockedFs.existsSync).toHaveBeenCalledWith('/test/app/config/security-config.json');
+      expect(mockedFs.existsSync).toHaveBeenCalledWith(
+        "/test/app/config/security-config.json",
+      );
     });
 
-    it('should return false if security config does not exist', () => {
+    it("should return false if security config does not exist", () => {
       mockedFs.existsSync.mockReturnValue(false);
 
       const result = ConfigManager.hasSecurityConfig();
@@ -242,13 +243,13 @@ describe('ConfigManager', () => {
     });
   });
 
-  describe('loadSecurityConfig', () => {
+  describe("loadSecurityConfig", () => {
     beforeEach(() => {
-      mockedOs.platform.mockReturnValue('linux');
+      mockedOs.platform.mockReturnValue("linux");
       delete process.env.XDG_CONFIG_HOME;
     });
 
-    it('should load security config if it exists', () => {
+    it("should load security config if it exists", () => {
       const mockConfig = { diskEncryption: { enabled: true } };
       mockedFs.existsSync.mockReturnValue(true);
       mockedFs.readFileSync.mockReturnValue(JSON.stringify(mockConfig));
@@ -257,12 +258,12 @@ describe('ConfigManager', () => {
 
       expect(result).toEqual(mockConfig);
       expect(mockedFs.readFileSync).toHaveBeenCalledWith(
-        '/test/app/config/security-config.json',
-        'utf-8'
+        "/test/app/config/security-config.json",
+        "utf-8",
       );
     });
 
-    it('should return null if config does not exist', () => {
+    it("should return null if config does not exist", () => {
       mockedFs.existsSync.mockReturnValue(false);
 
       const result = ConfigManager.loadSecurityConfig();
@@ -270,103 +271,103 @@ describe('ConfigManager', () => {
       expect(result).toBeNull();
     });
 
-    it('should throw error if config is invalid JSON', () => {
+    it("should throw error if config is invalid JSON", () => {
       mockedFs.existsSync.mockReturnValue(true);
-      mockedFs.readFileSync.mockReturnValue('invalid json');
+      mockedFs.readFileSync.mockReturnValue("invalid json");
 
       expect(() => ConfigManager.loadSecurityConfig()).toThrow(
-        'Failed to load security configuration'
+        "Failed to load security configuration",
       );
     });
   });
 
-  describe('getConfigStatus', () => {
+  describe("getConfigStatus", () => {
     beforeEach(() => {
-      mockedOs.platform.mockReturnValue('linux');
+      mockedOs.platform.mockReturnValue("linux");
       delete process.env.XDG_CONFIG_HOME;
     });
 
-    it('should return complete config status', () => {
-      mockedFs.existsSync.mockImplementation(path => {
-        if (path === '/test/app/config/security-config.json') return true;
-        if (path === '/test/app/config/scheduling-config.json') return false;
+    it("should return complete config status", () => {
+      mockedFs.existsSync.mockImplementation((path) => {
+        if (path === "/test/app/config/security-config.json") return true;
+        if (path === "/test/app/config/scheduling-config.json") return false;
         return false;
       });
 
       const result = ConfigManager.getConfigStatus();
 
       expect(result).toEqual({
-        configDirectory: '/test/app/config',
-        reportsDirectory: '/test/app/reports',
+        configDirectory: "/test/app/config",
+        reportsDirectory: "/test/app/reports",
         securityConfigExists: true,
         schedulingConfigExists: false,
-        securityConfigPath: '/test/app/config/security-config.json',
-        schedulingConfigPath: '/test/app/config/scheduling-config.json'
+        securityConfigPath: "/test/app/config/security-config.json",
+        schedulingConfigPath: "/test/app/config/scheduling-config.json",
       });
     });
   });
 
-  describe('getCurrentVersion', () => {
+  describe("getCurrentVersion", () => {
     beforeEach(() => {
       // Clear all mocks before each test
       jest.clearAllMocks();
     });
 
-    it('should return current version from package.json', () => {
+    it("should return current version from package.json", () => {
       // Mock existsSync to return true for specific paths and false for others
       mockedFs.existsSync.mockImplementation((path: any) => {
         const pathStr = String(path);
-        return pathStr.includes('package.json');
+        return pathStr.includes("package.json");
       });
 
       // Mock readFileSync to return the expected version
       mockedFs.readFileSync.mockImplementation((path: any) => {
         const pathStr = String(path);
-        if (pathStr.includes('package.json')) {
-          return JSON.stringify({ version: '1.0.0' });
+        if (pathStr.includes("package.json")) {
+          return JSON.stringify({ version: "1.0.0" });
         }
-        throw new Error('File not found');
+        throw new Error("File not found");
       });
 
       const version = ConfigManager.getCurrentVersion();
 
-      expect(version).toBe('1.0.0');
+      expect(version).toBe("1.0.0");
     });
 
-    it('should handle missing package.json', () => {
+    it("should handle missing package.json", () => {
       // Mock existsSync to return false for all paths
       mockedFs.existsSync.mockReturnValue(false);
 
       // Mock readFileSync to throw for any path
       mockedFs.readFileSync.mockImplementation(() => {
-        throw new Error('File not found');
+        throw new Error("File not found");
       });
 
       const version = ConfigManager.getCurrentVersion();
 
-      expect(version).toBe('1.0.0'); // Hard-coded fallback
+      expect(version).toBe("1.0.0"); // Hard-coded fallback
     });
 
-    it('should handle invalid JSON in package.json', () => {
+    it("should handle invalid JSON in package.json", () => {
       // Mock existsSync to return true
       mockedFs.existsSync.mockReturnValue(true);
 
       // Mock readFileSync to return invalid JSON
-      mockedFs.readFileSync.mockReturnValue('invalid json');
+      mockedFs.readFileSync.mockReturnValue("invalid json");
 
       const version = ConfigManager.getCurrentVersion();
 
-      expect(version).toBe('1.0.0'); // Hard-coded fallback
+      expect(version).toBe("1.0.0"); // Hard-coded fallback
     });
   });
 
-  describe('getSystemStatus', () => {
-    it('should return system status with global install', async () => {
+  describe("getSystemStatus", () => {
+    it("should return system status with global install", async () => {
       mockedFs.existsSync.mockImplementation((path: any) => {
         const pathStr = String(path);
-        if (pathStr.includes('security-config.json')) return true;
-        if (pathStr.includes('scheduling-config.json')) return false;
-        if (pathStr.includes('/usr/local/bin/eai-security-check')) return true;
+        if (pathStr.includes("security-config.json")) return true;
+        if (pathStr.includes("scheduling-config.json")) return false;
+        if (pathStr.includes("/usr/local/bin/eai-security-check")) return true;
         return false;
       });
 
@@ -377,11 +378,11 @@ describe('ConfigManager', () => {
       expect(status.config.schedulingConfigExists).toBe(false);
     });
 
-    it('should detect local install when global not found', async () => {
+    it("should detect local install when global not found", async () => {
       mockedFs.existsSync.mockImplementation((path: any) => {
         const pathStr = String(path);
-        if (pathStr.includes('/usr/local/bin/eai-security-check')) return false;
-        if (pathStr.includes('/usr/bin/eai-security-check')) return false;
+        if (pathStr.includes("/usr/local/bin/eai-security-check")) return false;
+        if (pathStr.includes("/usr/bin/eai-security-check")) return false;
         return false;
       });
 
@@ -391,38 +392,44 @@ describe('ConfigManager', () => {
     });
   });
 
-  describe('ensureCentralizedDirectories', () => {
-    it('should create centralized directories if they do not exist', () => {
+  describe("ensureCentralizedDirectories", () => {
+    it("should create centralized directories if they do not exist", () => {
       mockedFs.existsSync.mockReturnValue(false);
       mockedFs.mkdirSync.mockImplementation();
 
       const result = ConfigManager.ensureCentralizedDirectories();
 
-      expect(mockedFs.mkdirSync).toHaveBeenCalledWith('/test/app/config', { recursive: true });
-      expect(mockedFs.mkdirSync).toHaveBeenCalledWith('/test/app/reports', { recursive: true });
-      expect(result.configDir).toBe('/test/app/config');
-      expect(result.reportsDir).toBe('/test/app/reports');
+      expect(mockedFs.mkdirSync).toHaveBeenCalledWith("/test/app/config", {
+        recursive: true,
+      });
+      expect(mockedFs.mkdirSync).toHaveBeenCalledWith("/test/app/reports", {
+        recursive: true,
+      });
+      expect(result.configDir).toBe("/test/app/config");
+      expect(result.reportsDir).toBe("/test/app/reports");
     });
 
-    it('should not create directories if they already exist', () => {
+    it("should not create directories if they already exist", () => {
       mockedFs.existsSync.mockReturnValue(true);
 
       const result = ConfigManager.ensureCentralizedDirectories();
 
       expect(mockedFs.mkdirSync).not.toHaveBeenCalled();
-      expect(result.configDir).toBe('/test/app/config');
-      expect(result.reportsDir).toBe('/test/app/reports');
+      expect(result.configDir).toBe("/test/app/config");
+      expect(result.reportsDir).toBe("/test/app/reports");
     });
   });
 
-  describe('error handling', () => {
-    it('should handle directory creation errors gracefully', () => {
+  describe("error handling", () => {
+    it("should handle directory creation errors gracefully", () => {
       mockedFs.existsSync.mockReturnValue(false);
       mockedFs.mkdirSync.mockImplementation(() => {
-        throw new Error('Permission denied');
+        throw new Error("Permission denied");
       });
 
-      expect(() => ConfigManager.ensureCentralizedDirectories()).toThrow('Permission denied');
+      expect(() => ConfigManager.ensureCentralizedDirectories()).toThrow(
+        "Permission denied",
+      );
     });
   });
 });

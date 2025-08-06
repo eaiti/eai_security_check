@@ -1,6 +1,6 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { ISecurityChecker } from '../types';
+import { exec } from "child_process";
+import { promisify } from "util";
+import { ISecurityChecker } from "../types";
 
 const execAsync = promisify(exec);
 
@@ -14,7 +14,9 @@ export class MacOSSecurityChecker implements ISecurityChecker {
   /**
    * Execute command with sudo using stored password if available
    */
-  private async execWithSudo(command: string): Promise<{ stdout: string; stderr: string }> {
+  private async execWithSudo(
+    command: string,
+  ): Promise<{ stdout: string; stderr: string }> {
     if (this.password) {
       // Use non-interactive sudo with password
       const sudoCommand = `echo "${this.password}" | sudo -S ${command}`;
@@ -27,10 +29,10 @@ export class MacOSSecurityChecker implements ISecurityChecker {
 
   async checkFileVault(): Promise<boolean> {
     try {
-      const { stdout } = await execAsync('fdesetup status');
-      return stdout.includes('FileVault is On');
+      const { stdout } = await execAsync("fdesetup status");
+      return stdout.includes("FileVault is On");
     } catch (error) {
-      console.error('Error checking FileVault status:', error);
+      console.error("Error checking FileVault status:", error);
       return false;
     }
   }
@@ -47,31 +49,38 @@ export class MacOSSecurityChecker implements ISecurityChecker {
     try {
       // Check if password is required for login (basic login protection)
       const { stdout: loginPasswordCheck } = await execAsync(
-        'defaults read com.apple.loginwindow DisableLoginItemSuppression 2>/dev/null || echo "enabled"'
+        'defaults read com.apple.loginwindow DisableLoginItemSuppression 2>/dev/null || echo "enabled"',
       );
-      const passwordEnabled = !loginPasswordCheck.includes('disabled');
+      const passwordEnabled = !loginPasswordCheck.includes("disabled");
 
       // Use AppleScript to check lock screen password requirement (works on macOS 15.5+)
       let passwordRequiredAfterLock = false;
       try {
         const applescript = `tell application "System Events" to tell security preferences to get require password to wake`;
-        const { stdout: lockScreenResult } = await execAsync(`osascript -e '${applescript}'`);
-        passwordRequiredAfterLock = lockScreenResult.trim().toLowerCase() === 'true';
+        const { stdout: lockScreenResult } = await execAsync(
+          `osascript -e '${applescript}'`,
+        );
+        passwordRequiredAfterLock =
+          lockScreenResult.trim().toLowerCase() === "true";
       } catch (applescriptError) {
-        console.warn('AppleScript method failed, falling back to defaults:', applescriptError);
+        console.warn(
+          "AppleScript method failed, falling back to defaults:",
+          applescriptError,
+        );
 
         // Fallback to traditional defaults method (may not work on newer macOS versions)
         try {
           const { stdout: screenSaverPassword } = await execAsync(
-            'defaults read com.apple.screensaver askForPassword 2>/dev/null || echo "0"'
+            'defaults read com.apple.screensaver askForPassword 2>/dev/null || echo "0"',
           );
           const { stdout: passwordDelay } = await execAsync(
-            'defaults read com.apple.screensaver askForPasswordDelay 2>/dev/null || echo "0"'
+            'defaults read com.apple.screensaver askForPasswordDelay 2>/dev/null || echo "0"',
           );
           const delay = parseInt(passwordDelay.trim());
-          passwordRequiredAfterLock = screenSaverPassword.trim() === '1' && delay <= 5; // Must be immediate or within 5 seconds
+          passwordRequiredAfterLock =
+            screenSaverPassword.trim() === "1" && delay <= 5; // Must be immediate or within 5 seconds
         } catch (fallbackError) {
-          console.warn('Fallback defaults method also failed:', fallbackError);
+          console.warn("Fallback defaults method also failed:", fallbackError);
           passwordRequiredAfterLock = false;
         }
       }
@@ -87,14 +96,14 @@ export class MacOSSecurityChecker implements ISecurityChecker {
       return {
         enabled: passwordEnabled,
         requirePasswordImmediately,
-        passwordRequiredAfterLock
+        passwordRequiredAfterLock,
       };
     } catch (error) {
-      console.error('Error checking password protection:', error);
+      console.error("Error checking password protection:", error);
       return {
         enabled: false,
         requirePasswordImmediately: false,
-        passwordRequiredAfterLock: false
+        passwordRequiredAfterLock: false,
       };
     }
   }
@@ -103,34 +112,34 @@ export class MacOSSecurityChecker implements ISecurityChecker {
     try {
       // Check screen saver timeout (in seconds)
       const { stdout } = await execAsync(
-        'defaults -currentHost read com.apple.screensaver idleTime 2>/dev/null || echo "0"'
+        'defaults -currentHost read com.apple.screensaver idleTime 2>/dev/null || echo "0"',
       );
       const timeoutSeconds = parseInt(stdout.trim());
 
       // Convert to minutes
       return Math.ceil(timeoutSeconds / 60);
     } catch (error) {
-      console.error('Error checking auto-lock timeout:', error);
+      console.error("Error checking auto-lock timeout:", error);
       return 0; // Default to 0 if unable to determine
     }
   }
 
   async getSystemInfo(): Promise<string> {
     try {
-      const { stdout } = await execAsync('sw_vers -productVersion');
+      const { stdout } = await execAsync("sw_vers -productVersion");
       return `macOS ${stdout.trim()}`;
     } catch {
-      return 'Unknown macOS version';
+      return "Unknown macOS version";
     }
   }
 
   async getCurrentMacOSVersion(): Promise<string> {
     try {
-      const { stdout } = await execAsync('sw_vers -productVersion');
+      const { stdout } = await execAsync("sw_vers -productVersion");
       return stdout.trim();
     } catch (error) {
-      console.error('Error getting macOS version:', error);
-      return '0.0.0'; // Return minimum version on error
+      console.error("Error getting macOS version:", error);
+      return "0.0.0"; // Return minimum version on error
     }
   }
 
@@ -139,7 +148,7 @@ export class MacOSSecurityChecker implements ISecurityChecker {
       // Try to get latest version from Apple's software update catalog
       // This uses softwareupdate command which may require admin privileges
       const { stdout } = await execAsync(
-        'softwareupdate --list --all | grep -E "macOS.*[0-9]+\\.[0-9]+" | head -1 | grep -o "[0-9][0-9]*\\.[0-9][0-9]*" | head -1'
+        'softwareupdate --list --all | grep -E "macOS.*[0-9]+\\.[0-9]+" | head -1 | grep -o "[0-9][0-9]*\\.[0-9][0-9]*" | head -1',
       );
       const detectedVersion = stdout.trim();
 
@@ -152,7 +161,7 @@ export class MacOSSecurityChecker implements ISecurityChecker {
 
     // Fallback to known latest version as of implementation time
     // This should be updated periodically or made configurable
-    return '15.1'; // macOS Sequoia 15.1 as of late 2024
+    return "15.1"; // macOS Sequoia 15.1 as of late 2024
   }
 
   private isValidVersion(version: string): boolean {
@@ -160,7 +169,7 @@ export class MacOSSecurityChecker implements ISecurityChecker {
   }
 
   private parseVersion(version: string): number[] {
-    return version.split('.').map(n => parseInt(n, 10));
+    return version.split(".").map((n) => parseInt(n, 10));
   }
 
   private compareVersions(current: string, target: string): number {
@@ -179,13 +188,16 @@ export class MacOSSecurityChecker implements ISecurityChecker {
     return 0; // Equal
   }
 
-  async checkOSVersion(
-    targetVersion: string
-  ): Promise<{ current: string; target: string; isLatest: boolean; passed: boolean }> {
+  async checkOSVersion(targetVersion: string): Promise<{
+    current: string;
+    target: string;
+    isLatest: boolean;
+    passed: boolean;
+  }> {
     try {
       const current = await this.getCurrentMacOSVersion();
       let target = targetVersion;
-      const isLatest = targetVersion.toLowerCase() === 'latest';
+      const isLatest = targetVersion.toLowerCase() === "latest";
 
       if (isLatest) {
         target = await this.getLatestMacOSVersion();
@@ -198,153 +210,161 @@ export class MacOSSecurityChecker implements ISecurityChecker {
         current,
         target,
         isLatest,
-        passed
+        passed,
       };
     } catch (error) {
-      console.error('Error checking OS version:', error);
+      console.error("Error checking OS version:", error);
       return {
-        current: '0.0.0',
+        current: "0.0.0",
         target: targetVersion,
-        isLatest: targetVersion.toLowerCase() === 'latest',
-        passed: false
+        isLatest: targetVersion.toLowerCase() === "latest",
+        passed: false,
       };
     }
   }
 
   getSecurityExplanations(): Record<
     string,
-    { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }
+    {
+      description: string;
+      recommendation: string;
+      riskLevel: "High" | "Medium" | "Low";
+    }
   > {
     return {
       FileVault: {
         description:
-          'FileVault provides full-disk encryption, protecting your data if your Mac is lost or stolen.',
+          "FileVault provides full-disk encryption, protecting your data if your Mac is lost or stolen.",
         recommendation:
-          'Should be ENABLED. Without FileVault, anyone with physical access can read your files by booting from external media.',
-        riskLevel: 'High'
+          "Should be ENABLED. Without FileVault, anyone with physical access can read your files by booting from external media.",
+        riskLevel: "High",
       },
-      'Password Protection': {
-        description: 'Requires a password to log into your Mac, preventing unauthorized access.',
-        recommendation:
-          'Should be ENABLED. Password protection is the first line of defense against unauthorized access.',
-        riskLevel: 'High'
-      },
-      'Immediate Password Requirement': {
+      "Password Protection": {
         description:
-          'Requires password entry when waking from screen saver or sleep, preventing unauthorized access. On macOS 15.5+, only the enabled/disabled state is detectable - the actual delay time is not accessible programmatically.',
+          "Requires a password to log into your Mac, preventing unauthorized access.",
+        recommendation:
+          "Should be ENABLED. Password protection is the first line of defense against unauthorized access.",
+        riskLevel: "High",
+      },
+      "Immediate Password Requirement": {
+        description:
+          "Requires password entry when waking from screen saver or sleep, preventing unauthorized access. On macOS 15.5+, only the enabled/disabled state is detectable - the actual delay time is not accessible programmatically.",
         recommendation:
           'Should be ENABLED. Any password requirement after lock provides security protection. For maximum security, set to "immediately", but any delay is better than no password requirement.',
-        riskLevel: 'Medium'
+        riskLevel: "Medium",
       },
-      'Auto-lock Timeout': {
+      "Auto-lock Timeout": {
         description:
-          'Automatically locks your screen after a period of inactivity to prevent unauthorized access.',
+          "Automatically locks your screen after a period of inactivity to prevent unauthorized access.",
         recommendation:
-          'Should be ≤7 minutes for security, ≤15 minutes for convenience. Shorter timeouts provide better security.',
-        riskLevel: 'Medium'
+          "Should be ≤7 minutes for security, ≤15 minutes for convenience. Shorter timeouts provide better security.",
+        riskLevel: "Medium",
       },
       Firewall: {
         description:
-          'Application firewall blocks unauthorized network connections and protects against network-based attacks.',
+          "Application firewall blocks unauthorized network connections and protects against network-based attacks.",
         recommendation:
-          'Should be ENABLED. Protects against malicious network traffic and unauthorized remote access attempts.',
-        riskLevel: 'High'
+          "Should be ENABLED. Protects against malicious network traffic and unauthorized remote access attempts.",
+        riskLevel: "High",
       },
-      'Firewall Stealth Mode': {
+      "Firewall Stealth Mode": {
         description:
-          'Makes your Mac invisible to network scans and ping requests, reducing attack surface.',
+          "Makes your Mac invisible to network scans and ping requests, reducing attack surface.",
         recommendation:
-          'Should be ENABLED for maximum security. Makes your Mac harder to discover on networks.',
-        riskLevel: 'Low'
+          "Should be ENABLED for maximum security. Makes your Mac harder to discover on networks.",
+        riskLevel: "Low",
       },
       Gatekeeper: {
         description:
           "Verifies downloaded applications are from identified developers and haven't been tampered with.",
         recommendation:
-          'Should be ENABLED. Prevents execution of malicious or unsigned software that could compromise your system.',
-        riskLevel: 'High'
+          "Should be ENABLED. Prevents execution of malicious or unsigned software that could compromise your system.",
+        riskLevel: "High",
       },
-      'System Integrity Protection': {
+      "System Integrity Protection": {
         description:
-          'SIP protects critical system files and processes from modification, even by users with admin privileges.',
+          "SIP protects critical system files and processes from modification, even by users with admin privileges.",
         recommendation:
-          'Should be ENABLED. Prevents malware and accidental modifications from corrupting macOS system files.',
-        riskLevel: 'High'
+          "Should be ENABLED. Prevents malware and accidental modifications from corrupting macOS system files.",
+        riskLevel: "High",
       },
-      'Remote Login (SSH)': {
-        description: 'SSH allows remote command-line access to your Mac over the network.',
-        recommendation:
-          'Should be DISABLED unless specifically needed. SSH access can be exploited if not properly secured.',
-        riskLevel: 'Medium'
-      },
-      'Remote Management': {
+      "Remote Login (SSH)": {
         description:
-          'Allows remote control and management of your Mac through Apple Remote Desktop or similar tools.',
+          "SSH allows remote command-line access to your Mac over the network.",
         recommendation:
-          'Should be DISABLED unless required for IT management. Provides extensive remote access capabilities.',
-        riskLevel: 'Medium'
+          "Should be DISABLED unless specifically needed. SSH access can be exploited if not properly secured.",
+        riskLevel: "Medium",
       },
-      'Automatic Updates': {
+      "Remote Management": {
         description:
-          'Automatically checks for, downloads, and/or installs software updates. Different modes provide varying levels of automation and security protection.',
+          "Allows remote control and management of your Mac through Apple Remote Desktop or similar tools.",
         recommendation:
-          'Should be ENABLED with at least automatic security updates. Choose the mode that balances security with your workflow needs.',
-        riskLevel: 'High'
+          "Should be DISABLED unless required for IT management. Provides extensive remote access capabilities.",
+        riskLevel: "Medium",
       },
-      'Automatic Update Mode': {
+      "Automatic Updates": {
         description:
-          'Determines the level of automation for software updates: disabled (no automatic checking), check-only (manual download/install), download-only (automatic download but manual install), or fully-automatic (completely automated).',
+          "Automatically checks for, downloads, and/or installs software updates. Different modes provide varying levels of automation and security protection.",
+        recommendation:
+          "Should be ENABLED with at least automatic security updates. Choose the mode that balances security with your workflow needs.",
+        riskLevel: "High",
+      },
+      "Automatic Update Mode": {
+        description:
+          "Determines the level of automation for software updates: disabled (no automatic checking), check-only (manual download/install), download-only (automatic download but manual install), or fully-automatic (completely automated).",
         recommendation:
           'At minimum use "download-only" mode for convenience, or "fully-automatic" for maximum security. Avoid "disabled" and "check-only" modes.',
-        riskLevel: 'High'
+        riskLevel: "High",
       },
-      'Security Updates': {
+      "Security Updates": {
         description:
-          'Automatically installs critical security updates without user intervention, protecting against known vulnerabilities immediately.',
+          "Automatically installs critical security updates without user intervention, protecting against known vulnerabilities immediately.",
         recommendation:
-          'Should be ENABLED. Critical security patches should be installed immediately to prevent exploitation of known vulnerabilities.',
-        riskLevel: 'High'
+          "Should be ENABLED. Critical security patches should be installed immediately to prevent exploitation of known vulnerabilities.",
+        riskLevel: "High",
       },
-      'File Sharing': {
-        description: 'Allows other devices on the network to access shared folders on your Mac.',
-        recommendation:
-          'Should be DISABLED unless actively sharing files. File sharing expands your attack surface.',
-        riskLevel: 'Medium'
-      },
-      'Screen Sharing': {
-        description: "Allows remote users to view and control your Mac's screen over the network.",
-        recommendation:
-          'Should be DISABLED unless required for remote support. Provides full remote access to your desktop.',
-        riskLevel: 'High'
-      },
-      'Media Sharing': {
+      "File Sharing": {
         description:
-          'Allows sharing of media content (music, photos, videos) to other devices on the network via iTunes/Music sharing or AirPlay.',
+          "Allows other devices on the network to access shared folders on your Mac.",
         recommendation:
-          'Should be DISABLED unless actively sharing media. Media sharing can expose personal content and consume network bandwidth.',
-        riskLevel: 'Medium'
+          "Should be DISABLED unless actively sharing files. File sharing expands your attack surface.",
+        riskLevel: "Medium",
       },
-      'OS Version': {
+      "Screen Sharing": {
         description:
-          'Ensures your macOS is up-to-date with the latest security patches and features.',
+          "Allows remote users to view and control your Mac's screen over the network.",
         recommendation:
-          'Should be current or recent version. Newer versions include important security fixes and improvements.',
-        riskLevel: 'Medium'
+          "Should be DISABLED unless required for remote support. Provides full remote access to your desktop.",
+        riskLevel: "High",
       },
-      'WiFi Network Security': {
+      "Media Sharing": {
         description:
-          'Monitors current WiFi network connection to ensure you are not connected to banned or insecure networks.',
+          "Allows sharing of media content (music, photos, videos) to other devices on the network via iTunes/Music sharing or AirPlay.",
         recommendation:
-          'Avoid connecting to untrusted, guest, or prohibited networks for work purposes. Use secure, company-approved networks.',
-        riskLevel: 'Medium'
+          "Should be DISABLED unless actively sharing media. Media sharing can expose personal content and consume network bandwidth.",
+        riskLevel: "Medium",
       },
-      'Installed Applications': {
+      "OS Version": {
         description:
-          'Monitors installed third-party applications to ensure no banned or prohibited software is installed on the system.',
+          "Ensures your macOS is up-to-date with the latest security patches and features.",
         recommendation:
-          'Remove any banned applications and only install approved software from trusted sources.',
-        riskLevel: 'Medium'
-      }
+          "Should be current or recent version. Newer versions include important security fixes and improvements.",
+        riskLevel: "Medium",
+      },
+      "WiFi Network Security": {
+        description:
+          "Monitors current WiFi network connection to ensure you are not connected to banned or insecure networks.",
+        recommendation:
+          "Avoid connecting to untrusted, guest, or prohibited networks for work purposes. Use secure, company-approved networks.",
+        riskLevel: "Medium",
+      },
+      "Installed Applications": {
+        description:
+          "Monitors installed third-party applications to ensure no banned or prohibited software is installed on the system.",
+        recommendation:
+          "Remove any banned applications and only install approved software from trusted sources.",
+        riskLevel: "Medium",
+      },
     };
   }
 
@@ -352,29 +372,31 @@ export class MacOSSecurityChecker implements ISecurityChecker {
     try {
       // Check if application firewall is enabled
       const { stdout: firewallStatus } = await execAsync(
-        '/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2>/dev/null || echo "disabled"'
+        '/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2>/dev/null || echo "disabled"',
       );
-      const enabled = firewallStatus.includes('enabled');
+      const enabled = firewallStatus.includes("enabled");
 
       // Check stealth mode
       const { stdout: stealthStatus } = await execAsync(
-        '/usr/libexec/ApplicationFirewall/socketfilterfw --getstealthmode 2>/dev/null || echo "disabled"'
+        '/usr/libexec/ApplicationFirewall/socketfilterfw --getstealthmode 2>/dev/null || echo "disabled"',
       );
-      const stealthMode = stealthStatus.includes('enabled');
+      const stealthMode = stealthStatus.includes("enabled");
 
       return { enabled, stealthMode };
     } catch (error) {
-      console.error('Error checking firewall status:', error);
+      console.error("Error checking firewall status:", error);
       return { enabled: false, stealthMode: false };
     }
   }
 
   async checkGatekeeper(): Promise<boolean> {
     try {
-      const { stdout } = await execAsync('spctl --status 2>/dev/null || echo "disabled"');
-      return stdout.includes('enabled');
+      const { stdout } = await execAsync(
+        'spctl --status 2>/dev/null || echo "disabled"',
+      );
+      return stdout.includes("enabled");
     } catch (error) {
-      console.error('Error checking Gatekeeper status:', error);
+      console.error("Error checking Gatekeeper status:", error);
       return false;
     }
   }
@@ -385,10 +407,12 @@ export class MacOSSecurityChecker implements ISecurityChecker {
 
   async checkSystemIntegrityProtection(): Promise<boolean> {
     try {
-      const { stdout } = await execAsync('csrutil status 2>/dev/null || echo "disabled"');
-      return stdout.includes('enabled');
+      const { stdout } = await execAsync(
+        'csrutil status 2>/dev/null || echo "disabled"',
+      );
+      return stdout.includes("enabled");
     } catch (error) {
-      console.error('Error checking SIP status:', error);
+      console.error("Error checking SIP status:", error);
       return false;
     }
   }
@@ -397,10 +421,11 @@ export class MacOSSecurityChecker implements ISecurityChecker {
     try {
       // Primary method: Check if SSH daemon is enabled via launchd (no sudo required)
       const { stdout: sshEnabled, stderr: sshErr } = await execAsync(
-        'defaults read /System/Library/LaunchDaemons/ssh Disabled 2>&1 || echo "1"'
+        'defaults read /System/Library/LaunchDaemons/ssh Disabled 2>&1 || echo "1"',
       );
       const sshOutput = sshEnabled + sshErr;
-      const sshEnabledViaPlist = !sshOutput.includes('does not exist') && sshOutput.trim() === '0';
+      const sshEnabledViaPlist =
+        !sshOutput.includes("does not exist") && sshOutput.trim() === "0";
 
       if (sshEnabledViaPlist) {
         return true;
@@ -409,7 +434,7 @@ export class MacOSSecurityChecker implements ISecurityChecker {
       // Secondary method: Check if SSH daemon (sshd) is currently loaded, not ssh-agent
       try {
         const { stdout: launchctlCheck } = await execAsync(
-          'launchctl list | grep "com.openssh.sshd" 2>/dev/null'
+          'launchctl list | grep "com.openssh.sshd" 2>/dev/null',
         );
         const sshRunning = launchctlCheck.length > 0;
 
@@ -423,7 +448,7 @@ export class MacOSSecurityChecker implements ISecurityChecker {
       // Tertiary method: Check if SSH is listening on port 22
       try {
         const { stdout: netstatCheck } = await execAsync(
-          'netstat -an | grep "*.22" | grep LISTEN 2>/dev/null'
+          'netstat -an | grep "*.22" | grep LISTEN 2>/dev/null',
         );
         return netstatCheck.length > 0;
       } catch {
@@ -431,7 +456,7 @@ export class MacOSSecurityChecker implements ISecurityChecker {
         return false;
       }
     } catch (error) {
-      console.error('Error checking remote login status:', error);
+      console.error("Error checking remote login status:", error);
       return false;
     }
   }
@@ -441,24 +466,24 @@ export class MacOSSecurityChecker implements ISecurityChecker {
       // Check if Remote Management functionality is actually enabled (not just menu bar visibility)
       // ScreenSharingReqPermEnabled indicates if remote management/screen sharing is enabled
       const { stdout: screenSharingPerm, stderr: screenErr } = await execAsync(
-        'defaults read /Library/Preferences/com.apple.RemoteManagement ScreenSharingReqPermEnabled 2>&1 || echo "0"'
+        'defaults read /Library/Preferences/com.apple.RemoteManagement ScreenSharingReqPermEnabled 2>&1 || echo "0"',
       );
       const screenOutput = screenSharingPerm + screenErr;
       const screenSharingEnabled =
-        !screenOutput.includes('does not exist') && screenOutput.trim() === '1';
+        !screenOutput.includes("does not exist") && screenOutput.trim() === "1";
 
       // DOCAllowRemoteConnections indicates if remote desktop connections are allowed
       const { stdout: remoteConnections, stderr: remoteErr } = await execAsync(
-        'defaults read /Library/Preferences/com.apple.RemoteDesktop DOCAllowRemoteConnections 2>&1 || echo "0"'
+        'defaults read /Library/Preferences/com.apple.RemoteDesktop DOCAllowRemoteConnections 2>&1 || echo "0"',
       );
       const remoteOutput = remoteConnections + remoteErr;
       const remoteConnectionsEnabled =
-        !remoteOutput.includes('does not exist') && remoteOutput.trim() === '1';
+        !remoteOutput.includes("does not exist") && remoteOutput.trim() === "1";
 
       // Remote Management is enabled if either screen sharing permissions or remote connections are enabled
       return screenSharingEnabled || remoteConnectionsEnabled;
     } catch (error) {
-      console.error('Error checking remote management status:', error);
+      console.error("Error checking remote management status:", error);
       return false;
     }
   }
@@ -470,62 +495,72 @@ export class MacOSSecurityChecker implements ISecurityChecker {
     automaticInstall: boolean;
     automaticSecurityInstall: boolean;
     configDataInstall: boolean;
-    updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
+    updateMode: "disabled" | "check-only" | "download-only" | "fully-automatic";
   }> {
     try {
       // Use softwareupdate command to check if automatic checking is enabled
       const { stdout: scheduleCheck } = await execAsync(
-        'softwareupdate --schedule 2>/dev/null || echo "off"'
+        'softwareupdate --schedule 2>/dev/null || echo "off"',
       );
-      const enabled = scheduleCheck.includes('Automatic checking for updates is turned on');
+      const enabled = scheduleCheck.includes(
+        "Automatic checking for updates is turned on",
+      );
 
       // Check if automatic downloading is enabled using system preferences
       const { stdout: autoDownload, stderr: autoDownloadErr } = await execAsync(
-        'defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload 2>&1 || echo "0"'
+        'defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload 2>&1 || echo "0"',
       );
       const autoDownloadOutput = autoDownload + autoDownloadErr;
-      const automaticDownload = autoDownloadOutput.includes('does not exist')
+      const automaticDownload = autoDownloadOutput.includes("does not exist")
         ? true
-        : autoDownloadOutput.trim() === '1';
+        : autoDownloadOutput.trim() === "1";
 
       // Check if automatic installation of macOS updates is enabled
-      const { stdout: autoInstallOS, stderr: autoInstallOSErr } = await execAsync(
-        'defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates 2>&1 || echo "1"'
-      );
+      const { stdout: autoInstallOS, stderr: autoInstallOSErr } =
+        await execAsync(
+          'defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates 2>&1 || echo "1"',
+        );
       const autoInstallOSOutput = autoInstallOS + autoInstallOSErr;
-      const automaticInstall = autoInstallOSOutput.includes('does not exist')
+      const automaticInstall = autoInstallOSOutput.includes("does not exist")
         ? true
-        : autoInstallOSOutput.trim() === '1';
+        : autoInstallOSOutput.trim() === "1";
 
       // Check if critical/security updates are automatically installed
-      const { stdout: securityUpdates, stderr: securityUpdatesErr } = await execAsync(
-        'defaults read /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall 2>&1 || echo "1"'
-      );
+      const { stdout: securityUpdates, stderr: securityUpdatesErr } =
+        await execAsync(
+          'defaults read /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall 2>&1 || echo "1"',
+        );
       const securityUpdatesOutput = securityUpdates + securityUpdatesErr;
-      const automaticSecurityInstall = securityUpdatesOutput.includes('does not exist')
+      const automaticSecurityInstall = securityUpdatesOutput.includes(
+        "does not exist",
+      )
         ? true
-        : securityUpdatesOutput.trim() === '1';
+        : securityUpdatesOutput.trim() === "1";
 
       // Check if system data files and security updates are automatically installed
       const { stdout: configData, stderr: configDataErr } = await execAsync(
-        'defaults read /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall 2>&1 || echo "1"'
+        'defaults read /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall 2>&1 || echo "1"',
       );
       const configDataOutput = configData + configDataErr;
-      const configDataInstall = configDataOutput.includes('does not exist')
+      const configDataInstall = configDataOutput.includes("does not exist")
         ? true
-        : configDataOutput.trim() === '1';
+        : configDataOutput.trim() === "1";
 
       // Determine update mode based on settings
-      let updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
+      let updateMode:
+        | "disabled"
+        | "check-only"
+        | "download-only"
+        | "fully-automatic";
 
       if (!enabled) {
-        updateMode = 'disabled';
+        updateMode = "disabled";
       } else if (!automaticDownload) {
-        updateMode = 'check-only';
+        updateMode = "check-only";
       } else if (!automaticInstall && !automaticSecurityInstall) {
-        updateMode = 'download-only';
+        updateMode = "download-only";
       } else {
-        updateMode = 'fully-automatic';
+        updateMode = "fully-automatic";
       }
 
       // Legacy securityUpdatesOnly for backward compatibility
@@ -538,10 +573,10 @@ export class MacOSSecurityChecker implements ISecurityChecker {
         automaticInstall,
         automaticSecurityInstall,
         configDataInstall,
-        updateMode
+        updateMode,
       };
     } catch (error) {
-      console.error('Error checking automatic updates status:', error);
+      console.error("Error checking automatic updates status:", error);
       return {
         enabled: false,
         securityUpdatesOnly: false,
@@ -549,7 +584,7 @@ export class MacOSSecurityChecker implements ISecurityChecker {
         automaticInstall: false,
         automaticSecurityInstall: false,
         configDataInstall: false,
-        updateMode: 'disabled'
+        updateMode: "disabled",
       };
     }
   }
@@ -566,28 +601,32 @@ export class MacOSSecurityChecker implements ISecurityChecker {
       try {
         // Check if file sharing is enabled in System Preferences (capability check)
         const { stdout: smbEnabled, stderr: smbErr } = await execAsync(
-          'defaults read /System/Library/LaunchDaemons/com.apple.smbd Disabled 2>&1 || echo "1"'
+          'defaults read /System/Library/LaunchDaemons/com.apple.smbd Disabled 2>&1 || echo "1"',
         );
         const smbOutput = smbEnabled + smbErr;
-        fileSharing = !smbOutput.includes('does not exist') && smbOutput.trim() === '0';
+        fileSharing =
+          !smbOutput.includes("does not exist") && smbOutput.trim() === "0";
 
         // If launchd check indicates disabled, double-check with sharing command output content
         if (!fileSharing) {
-          const { stdout: sharingCheck } = await this.execWithSudo('sharing -l 2>/dev/null');
+          const { stdout: sharingCheck } = await this.execWithSudo(
+            "sharing -l 2>/dev/null",
+          );
           // Only consider it enabled if there are actual share records (not just "No share point records")
           fileSharing =
-            sharingCheck.includes('name:') ||
-            (!sharingCheck.includes('No share point records') && sharingCheck.trim().length > 0);
+            sharingCheck.includes("name:") ||
+            (!sharingCheck.includes("No share point records") &&
+              sharingCheck.trim().length > 0);
         }
       } catch {
         // Fallback to checking if SMB daemon is loaded and not disabled
         try {
           const { stdout: smbLoaded } = await this.execWithSudo(
-            'launchctl print system/com.apple.smbd 2>/dev/null'
+            "launchctl print system/com.apple.smbd 2>/dev/null",
           );
           fileSharing =
-            !smbLoaded.includes('Could not find service') &&
-            !smbLoaded.includes('state = not running');
+            !smbLoaded.includes("Could not find service") &&
+            !smbLoaded.includes("state = not running");
         } catch {
           fileSharing = false;
         }
@@ -598,26 +637,29 @@ export class MacOSSecurityChecker implements ISecurityChecker {
       try {
         // Check if screen sharing is enabled as a capability in System Preferences
         const { stdout: screenEnabled, stderr: screenErr } = await execAsync(
-          'defaults read /System/Library/LaunchDaemons/com.apple.screensharing Disabled 2>&1 || echo "1"'
+          'defaults read /System/Library/LaunchDaemons/com.apple.screensharing Disabled 2>&1 || echo "1"',
         );
         const screenOutput = screenEnabled + screenErr;
-        screenSharing = !screenOutput.includes('does not exist') && screenOutput.trim() === '0';
+        screenSharing =
+          !screenOutput.includes("does not exist") &&
+          screenOutput.trim() === "0";
 
         // Additional check for VNC/screen sharing preference
         if (!screenSharing) {
           const { stdout: vncEnabled, stderr: vncErr } = await execAsync(
-            'defaults read /Library/Preferences/com.apple.RemoteDesktop ARD_AllLocalUsers 2>&1 || echo "0"'
+            'defaults read /Library/Preferences/com.apple.RemoteDesktop ARD_AllLocalUsers 2>&1 || echo "0"',
           );
           const vncOutput = vncEnabled + vncErr;
-          screenSharing = !vncOutput.includes('does not exist') && vncOutput.trim() === '1';
+          screenSharing =
+            !vncOutput.includes("does not exist") && vncOutput.trim() === "1";
         }
       } catch {
         // Fallback to checking if screen sharing daemon is loaded
         try {
           const { stdout: screenLoaded } = await this.execWithSudo(
-            'launchctl print system/com.apple.screensharing 2>/dev/null'
+            "launchctl print system/com.apple.screensharing 2>/dev/null",
           );
-          screenSharing = !screenLoaded.includes('Could not find service');
+          screenSharing = !screenLoaded.includes("Could not find service");
         } catch {
           screenSharing = false;
         }
@@ -628,35 +670,40 @@ export class MacOSSecurityChecker implements ISecurityChecker {
       try {
         // Check iTunes/Music sharing preferences
         const { stdout: musicSharing, stderr: musicErr } = await execAsync(
-          'defaults read ~/Library/Preferences/com.apple.Music sharingEnabled 2>&1 || echo "0"'
+          'defaults read ~/Library/Preferences/com.apple.Music sharingEnabled 2>&1 || echo "0"',
         );
         const musicOutput = musicSharing + musicErr;
-        const musicEnabled = !musicOutput.includes('does not exist') && musicOutput.trim() === '1';
+        const musicEnabled =
+          !musicOutput.includes("does not exist") && musicOutput.trim() === "1";
 
         const { stdout: photosSharing, stderr: photosErr } = await execAsync(
-          'defaults read ~/Library/Preferences/com.apple.Photos sharingEnabled 2>&1 || echo "0"'
+          'defaults read ~/Library/Preferences/com.apple.Photos sharingEnabled 2>&1 || echo "0"',
         );
         const photosOutput = photosSharing + photosErr;
         const photosEnabled =
-          !photosOutput.includes('does not exist') && photosOutput.trim() === '1';
+          !photosOutput.includes("does not exist") &&
+          photosOutput.trim() === "1";
 
         // Check for AirPlay receiver capability
         const { stdout: airplayReceiver, stderr: airplayErr } = await execAsync(
-          'defaults read ~/Library/Preferences/com.apple.controlcenter AirplayRecieverEnabled 2>&1 || echo "0"'
+          'defaults read ~/Library/Preferences/com.apple.controlcenter AirplayRecieverEnabled 2>&1 || echo "0"',
         );
         const airplayOutput = airplayReceiver + airplayErr;
         const airplayEnabled =
-          !airplayOutput.includes('does not exist') && airplayOutput.trim() === '1';
+          !airplayOutput.includes("does not exist") &&
+          airplayOutput.trim() === "1";
 
         mediaSharing = musicEnabled || photosEnabled || airplayEnabled;
 
         // Additional check for Media Sharing preference in System Preferences
         if (!mediaSharing) {
           const { stdout: mediaEnabled, stderr: mediaErr } = await execAsync(
-            'defaults read ~/Library/Preferences/com.apple.amp.mediasharingd media-sharing-enabled 2>&1 || echo "0"'
+            'defaults read ~/Library/Preferences/com.apple.amp.mediasharingd media-sharing-enabled 2>&1 || echo "0"',
           );
           const mediaOutput = mediaEnabled + mediaErr;
-          mediaSharing = !mediaOutput.includes('does not exist') && mediaOutput.trim() === '1';
+          mediaSharing =
+            !mediaOutput.includes("does not exist") &&
+            mediaOutput.trim() === "1";
         }
       } catch {
         mediaSharing = false;
@@ -666,17 +713,18 @@ export class MacOSSecurityChecker implements ISecurityChecker {
       let remoteLogin = false;
       try {
         const { stdout: sshStatus } = await this.execWithSudo(
-          'systemsetup -getremotelogin 2>/dev/null || echo "Off"'
+          'systemsetup -getremotelogin 2>/dev/null || echo "Off"',
         );
-        remoteLogin = sshStatus.includes('On');
+        remoteLogin = sshStatus.includes("On");
       } catch {
         // Fallback to checking SSH daemon capability via launchd
         try {
           const { stdout: sshEnabled, stderr: sshErr } = await execAsync(
-            'defaults read /System/Library/LaunchDaemons/ssh Disabled 2>&1 || echo "1"'
+            'defaults read /System/Library/LaunchDaemons/ssh Disabled 2>&1 || echo "1"',
           );
           const sshOutput = sshEnabled + sshErr;
-          remoteLogin = !sshOutput.includes('does not exist') && sshOutput.trim() === '0';
+          remoteLogin =
+            !sshOutput.includes("does not exist") && sshOutput.trim() === "0";
         } catch {
           remoteLogin = false;
         }
@@ -684,16 +732,24 @@ export class MacOSSecurityChecker implements ISecurityChecker {
 
       return { fileSharing, screenSharing, remoteLogin, mediaSharing };
     } catch (error) {
-      console.error('Error checking sharing services:', error);
-      return { fileSharing: false, screenSharing: false, remoteLogin: false, mediaSharing: false };
+      console.error("Error checking sharing services:", error);
+      return {
+        fileSharing: false,
+        screenSharing: false,
+        remoteLogin: false,
+        mediaSharing: false,
+      };
     }
   }
 
-  async checkCurrentWifiNetwork(): Promise<{ networkName: string | null; connected: boolean }> {
+  async checkCurrentWifiNetwork(): Promise<{
+    networkName: string | null;
+    connected: boolean;
+  }> {
     // Primary method: Use system_profiler with awk for clean network name extraction
     try {
       const { stdout } = await execAsync(
-        `system_profiler SPAirPortDataType | awk '/Current Network/ {getline;$1=$1;print $0 | "tr -d ':'";exit}' 2>/dev/null`
+        `system_profiler SPAirPortDataType | awk '/Current Network/ {getline;$1=$1;print $0 | "tr -d ':'";exit}' 2>/dev/null`,
       );
       const networkName = stdout.trim();
 
@@ -716,105 +772,119 @@ export class MacOSSecurityChecker implements ISecurityChecker {
       const sources = {
         applications: [] as string[],
         homebrew: [] as string[],
-        npm: [] as string[]
+        npm: [] as string[],
       };
 
       // Check /Applications folder for third-party apps (exclude system apps)
       try {
-        const { stdout: appsList } = await execAsync('ls /Applications/ 2>/dev/null || echo ""');
-        const allApps = appsList.split('\n').filter(app => app.trim().length > 0);
+        const { stdout: appsList } = await execAsync(
+          'ls /Applications/ 2>/dev/null || echo ""',
+        );
+        const allApps = appsList
+          .split("\n")
+          .filter((app) => app.trim().length > 0);
 
         // Filter out common system apps
         const systemApps = [
-          'App Store.app',
-          'Automator.app',
-          'Calculator.app',
-          'Calendar.app',
-          'Chess.app',
-          'Contacts.app',
-          'DVD Player.app',
-          'Dashboard.app',
-          'Dictionary.app',
-          'FaceTime.app',
-          'Font Book.app',
-          'Image Capture.app',
-          'Launchpad.app',
-          'Mail.app',
-          'Maps.app',
-          'Messages.app',
-          'Mission Control.app',
-          'Notes.app',
-          'Photo Booth.app',
-          'Photos.app',
-          'Preview.app',
-          'QuickTime Player.app',
-          'Reminders.app',
-          'Safari.app',
-          'Siri.app',
-          'Stickies.app',
-          'System Preferences.app',
-          'TextEdit.app',
-          'Time Machine.app',
-          'Utilities',
-          'VoiceOver Utility.app',
-          'System Settings.app',
-          'Finder.app',
-          'Music.app',
-          'TV.app',
-          'Podcasts.app',
-          'Books.app',
-          'News.app',
-          'Stocks.app',
-          'Home.app',
-          'Shortcuts.app'
+          "App Store.app",
+          "Automator.app",
+          "Calculator.app",
+          "Calendar.app",
+          "Chess.app",
+          "Contacts.app",
+          "DVD Player.app",
+          "Dashboard.app",
+          "Dictionary.app",
+          "FaceTime.app",
+          "Font Book.app",
+          "Image Capture.app",
+          "Launchpad.app",
+          "Mail.app",
+          "Maps.app",
+          "Messages.app",
+          "Mission Control.app",
+          "Notes.app",
+          "Photo Booth.app",
+          "Photos.app",
+          "Preview.app",
+          "QuickTime Player.app",
+          "Reminders.app",
+          "Safari.app",
+          "Siri.app",
+          "Stickies.app",
+          "System Preferences.app",
+          "TextEdit.app",
+          "Time Machine.app",
+          "Utilities",
+          "VoiceOver Utility.app",
+          "System Settings.app",
+          "Finder.app",
+          "Music.app",
+          "TV.app",
+          "Podcasts.app",
+          "Books.app",
+          "News.app",
+          "Stocks.app",
+          "Home.app",
+          "Shortcuts.app",
         ];
 
-        const thirdPartyApps = allApps.filter(app => !systemApps.includes(app));
-        sources.applications = thirdPartyApps.map(app => app.replace('.app', ''));
+        const thirdPartyApps = allApps.filter(
+          (app) => !systemApps.includes(app),
+        );
+        sources.applications = thirdPartyApps.map((app) =>
+          app.replace(".app", ""),
+        );
       } catch (error) {
-        console.warn('Error checking Applications folder:', error);
+        console.warn("Error checking Applications folder:", error);
       }
 
       // Check Homebrew cask installations
       try {
-        const { stdout: brewList } = await execAsync('brew list --cask 2>/dev/null || echo ""');
-        const brewApps = brewList.split('\n').filter(app => app.trim().length > 0);
+        const { stdout: brewList } = await execAsync(
+          'brew list --cask 2>/dev/null || echo ""',
+        );
+        const brewApps = brewList
+          .split("\n")
+          .filter((app) => app.trim().length > 0);
         sources.homebrew = brewApps;
       } catch (error) {
-        console.warn('Error checking Homebrew casks:', error);
+        console.warn("Error checking Homebrew casks:", error);
       }
 
       // Check npm global packages
       try {
         const { stdout: npmList } = await execAsync(
-          'npm list -g --depth=0 --parseable 2>/dev/null || echo ""'
+          'npm list -g --depth=0 --parseable 2>/dev/null || echo ""',
         );
         const npmPackages = npmList
-          .split('\n')
-          .filter(line => line.includes('node_modules'))
-          .map(line => line.split('/').pop())
+          .split("\n")
+          .filter((line) => line.includes("node_modules"))
+          .map((line) => line.split("/").pop())
           .filter((pkg): pkg is string => pkg !== undefined && pkg.length > 0);
         sources.npm = npmPackages;
       } catch (error) {
-        console.warn('Error checking npm global packages:', error);
+        console.warn("Error checking npm global packages:", error);
       }
 
       // Combine all installed applications
-      const installedApps = [...sources.applications, ...sources.homebrew, ...sources.npm].filter(
-        (app, index, array) => array.indexOf(app) === index
-      ); // Remove duplicates
+      const installedApps = [
+        ...sources.applications,
+        ...sources.homebrew,
+        ...sources.npm,
+      ].filter((app, index, array) => array.indexOf(app) === index); // Remove duplicates
 
       return {
         installedApps,
         bannedAppsFound: [], // Will be populated by the auditor
-        sources
+        sources,
       };
     } catch (error) {
-      console.error('Error checking installed applications:', error);
+      console.error("Error checking installed applications:", error);
       return {
         installedApps: [],
         bannedAppsFound: [],
-        sources: { applications: [], homebrew: [], npm: [] }
+        sources: { applications: [], homebrew: [], npm: [] },
       };
     }
   }

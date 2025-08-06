@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-01-01T00:00:00.000Z",
+  "platform": "darwin",
+  "profile": "developer",
+  "version": "1.1.0",
+  "results": {
+    "diskEncryption": true,
+    "firewall": true,
+    "updates": false
+  },
+  "summary": {
+    "totalChecks": 3,
+    "passed": 2,
+    "failed": 1
+  }
+}
