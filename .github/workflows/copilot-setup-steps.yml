@@ -22,7 +22,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -34,23 +34,11 @@ jobs:
       - name: Run core tests
         run: npm run test:core
 
+      - name: Run UI tests
+        run: npm run test:ui
+
       - name: Run linting
         run: npm run lint
 
-      - name: Build CLI
-        run: npm run build
-
-      - name: Install UI dependencies
-        run: cd ui && npm ci
-
-      - name: Build UI
-        run: npm run build:ui
-
-      - name: Run CLI tests
-        run: npm test
-
-      - name: Run UI tests
-        run: cd ui && npm test
-
-      - name: Run lint checks
-        run: npm run lint:all
+      - name: Verify complete build
+        run: npm run verify:quick

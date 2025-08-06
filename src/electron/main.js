@@ -525,8 +525,8 @@ function initializeElectronApp() {
       show: false,
       icon:
         process.platform === "linux"
-          ? path.join(__dirname, "../../public/icon.png")
-          : undefined,
+          ? path.join(__dirname, "../../public/icons/security-icon.svg")
+          : path.join(__dirname, "../../public/icons/security-icon.svg"),
     });
 
     // Load the Angular app
