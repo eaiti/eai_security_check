@@ -1,146 +1,123 @@
 # GitHub Copilot Instructions
 
-This file provides context and guidelines for GitHub Copilot when working with the EAI Security Check project.
+Guidelines for working with the EAI Security Check project - a cross-platform Node.js + TypeScript security auditing tool that produces end-user executables.
+
+## Project Mission
+**SECURITY IS PARAMOUNT** - This tool audits critical security settings on user systems. Code quality, reliability, and security are non-negotiable requirements since end users depend on this tool to protect their systems.
 
 ## Project Overview
+This is a **cross-platform enterprise security auditing tool** that:
+- **Checks security settings** on macOS, Linux, and Windows systems
+- **Compares settings against configurable security profiles** (strict, relaxed, developer, etc.)
+- **Produces tamper-proof reports** with cryptographic signatures for verification
+- **Enables report sharing and verification** in enterprise environments
+- **Provides educational explanations** and remediation guidance for security issues
 
-This is a cross-platform Node.js + TypeScript CLI tool for auditing security settings on macOS and Linux systems against configurable security profiles. The tool checks various security configurations and provides detailed reports with educational explanations and actionable recommendations.
+**Enterprise Focus**: Designed for corporate security compliance, audit trails, and distributed security monitoring across diverse computing environments.
 
-## Architecture
+## Project Structure
+- **CLI**: `src/` - Main TypeScript codebase with security checkers for macOS, Linux, Windows
+- **UI**: `ui/` - Angular + Electron desktop application
+- **Executables**: Built for distribution to end users via `npm run pkg:build`
+- **Tests**: Jest tests adjacent to source files (`.test.ts` files)
+- **Config**: JSON security profiles in `examples/` and `bin/config/`
 
-### Core Components
-- `src/types.ts`: TypeScript interfaces and types for security checks and configurations
-- `src/auditor.ts`: Main auditing engine (SecurityAuditor class) that orchestrates checks and generates reports
-- `src/security-checker.ts`: macOS security checking logic (MacOSSecurityChecker class) that executes system commands
-- `src/linux-security-checker.ts`: Linux security checking logic (LinuxSecurityChecker class) with cross-platform support
-- `src/platform-detector.ts`: Platform detection service (PlatformDetector class) for cross-platform compatibility
-- `src/scheduling-service.ts`: Daemon service (SchedulingService class) for automated scheduled security audits
-- `src/index.ts`: CLI interface using Commander.js with multiple commands and options
-- `src/output-utils.ts`: Output formatting utilities (OutputUtils class) supporting multiple formats
-- `src/crypto-utils.ts`: Cryptographic utilities (CryptoUtils class) for tamper-evident reports
+## Essential Development Rules
 
-### Configuration System
-- JSON-based security profiles (default, strict, relaxed, developer, eai)
-- Cross-platform configuration names (diskEncryption, packageVerification, systemIntegrityProtection)
-- Legacy macOS-specific names supported for backward compatibility
-- Profile-specific timeout and requirement variations
-- Scheduling configuration for daemon mode with email notifications and user identification
+### Code Quality (ALWAYS ENFORCE)
+- **ESLint**: Fix ALL warnings and errors before committing
+  - CLI: `npm run lint` and `npm run lint:fix`  
+  - UI: `npm run lint:ui` and `npm run lint:ui:fix`
+- **Prettier**: Format all code consistently
+  - `npm run format` or `npm run format:all`
+- **TypeScript**: Strict mode enabled (includes `noImplicitAny`, `noImplicitReturns`, `noImplicitThis`, `noImplicitOverride`, etc.)
 
-### Security Checks Implemented
+### Testing (ALWAYS REQUIRED)
+- **All tests must pass**: `npm test` (CLI) and `cd ui && npm test` (UI)
+- **New features require tests**: Mock system commands using `src/test-utils/mocks.ts`
+- **Test both success/failure scenarios** for security checks
+- **High coverage required** for security-critical code
 
-**macOS:**
-- FileVault disk encryption
-- Password protection and screen saver settings
-- Auto-lock timeout configuration
-- Application Firewall and stealth mode
-- Gatekeeper malware protection
-- System Integrity Protection (SIP)
-- Remote access services (SSH, remote management)
-- Automatic security updates
-- File and screen sharing services
+### Security Requirements
+- **No `any` types** - All code must be properly typed
+- **Input validation** - Validate all user inputs and system command outputs
+- **Error handling** - Graceful handling of all failure scenarios
+- **Cross-platform testing** - Verify functionality on target operating systems
+- **Enterprise security standards** - Code must meet enterprise-grade security requirements
+- **Tamper-proof reporting** - All reports include cryptographic signatures for integrity verification
+- **Secure command execution** - Never execute user-provided commands directly
 
-**Linux:**
-- LUKS disk encryption
-- Password protection and session lock settings
-- Auto-lock timeout configuration (GNOME/KDE)
-- Firewall (ufw/firewalld/iptables) 
-- Package verification (DNF/APT GPG)
-- System integrity (SELinux/AppArmor)
-- Remote access services (SSH, VNC)
-- Automatic security updates
-- Network sharing services (Samba/NFS)
+## Architecture Patterns
 
-## Development Guidelines
+### Security Checks
+1. Define interfaces in `src/types.ts`
+2. Implement in platform checkers (`src/checkers/`)
+3. Add configuration to security profiles
+4. Include educational explanations
+5. **Always add comprehensive tests**
 
-### Code Style
-- Use TypeScript with strict type checking
-- Follow async/await patterns for system command execution
-- Implement comprehensive error handling for system calls
-- Use descriptive variable names and include JSDoc comments for public methods
+### System Integration
+- Use `child_process.exec` for system commands
+- Handle cross-platform differences gracefully (macOS, Linux, Windows)
+- Parse command output reliably (plist, JSON, text, registry)
+- Implement proper error handling and timeouts
+- Compare actual settings against configurable security profiles
+- Generate cryptographically signed reports for enterprise verification
 
-### Testing Strategy
-- Jest test suite with TypeScript support
-- Mock system commands using test utilities in `src/test-utils/mocks.ts`
-- Test both success and failure scenarios for security checks
-- Maintain high test coverage for critical security logic
+### Key Components
+- `src/services/auditor.ts`: Main orchestration engine
+- `src/checkers/`: Platform-specific security checkers
+- `src/cli/`: Commander.js CLI interface
+- `ui/`: Angular + Electron desktop app
+- Security profiles: JSON configs for different security levels
 
-### Cross-Platform System Integration
-- Use `child_process.exec` for executing system commands
-- Handle different macOS versions and Linux distributions
-- Parse system command output reliably (plist, text formats, JSON)
-- Gracefully handle missing or unavailable system features
-- Automatic platform detection and appropriate checker selection
+## Development Workflow
+1. **Always run tests**: Ensure `npm test` passes
+2. **Fix lint issues**: Run `npm run lint:fix:all` 
+3. **Format code**: Run `npm run format:all`
+4. **Verify builds**: Run `npm run build` and `npm run build:ui`
+5. **Test cross-platform** when adding system integrations
 
-### CLI Design Principles
-- Modern CLI experience with clear help text and examples
-- Support multiple output formats (console, plain, markdown, json, email)
-- Tamper-evident reports with cryptographic verification
-- Cross-platform password prompts and secure input handling
-- Provide both detailed and summary reporting modes
-- Include educational content to help users understand security implications
-- Daemon mode for automated scheduled security audits with email notifications
+## Common Patterns & Anti-Patterns
 
-## Common Patterns
+### System Command Execution
+- **Always use `child_process.exec` wrapped in `execAsync`**
+- **Handle platform differences**: Check for multiple command variations
+- **Graceful error handling**: Continue execution when individual checks fail
+- **Parse output reliably**: Handle empty, malformed, or missing output
 
-### Adding New Security Checks
-1. Define the check interface in `src/types.ts`
-2. Implement check logic in appropriate checker (`src/security-checker.ts` for macOS, `src/linux-security-checker.ts` for Linux)
-3. Add platform-agnostic configuration options to security profiles
-4. Include educational explanations and remediation advice
-5. Add test cases with mocked system responses for both platforms if applicable
+### Error Handling Pattern
+```typescript
+try {
+  const { stdout } = await execAsync('command');
+  return stdout.includes('expected-value');
+} catch (error) {
+  console.error('Error checking feature:', error);
+  return false; // Default safe state
+}
+```
+
+### Testing Requirements
+- **Mock all system commands** using `src/test-utils/mocks.ts`
+- **Test success AND failure scenarios** for every security check
+- **Platform-specific test cases** for cross-platform features
+- **Use descriptive test names** explaining the scenario being tested
+
+### Adding New Security Checks (Step-by-Step)
+1. **Define interface** in `src/types.ts` (add to `ISecurityChecker`)
+2. **Implement in checkers**: Add method to platform-specific checker classes
+3. **Add to config profiles**: Update JSON configs in `examples/`
+4. **Write comprehensive tests**: Success, failure, and edge cases
+5. **Update documentation**: Add explanations and recommendations
 
 ### Configuration Management
-- Use JSON schema validation for configuration files
-- Support environment-specific overrides
-- Provide clear error messages for invalid configurations
-- Include example configurations for different use cases
+- **Cross-platform naming**: Use generic names (`diskEncryption` not `fileVault`)
+- **JSON schema validation** for all configuration inputs
+- **Educational explanations** for each security check and recommendation
+- **Default to secure settings** when configuration is missing
 
-### Error Handling
-- Catch and handle system command failures gracefully
-- Provide actionable error messages to users
-- Log detailed error information for debugging
-- Continue execution when individual checks fail
-
-## Dependencies
-
-### Production
-- `commander`: CLI framework for command parsing and help generation
-- `node-cron`: Task scheduling for daemon mode
-- `nodemailer`: Email sending for automated reports
-- Node.js built-in modules: `child_process`, `fs`, `path`, `crypto`
-
-### Development
-- `typescript`: Type checking and compilation
-- `jest`: Testing framework with TypeScript support
-- `@types/*`: Type definitions for Node.js and testing
-
-## Security Considerations
-
-- Never execute user-provided commands directly
-- Validate all input parameters and configuration values
-- Handle sensitive information (passwords, keys) appropriately
-- Provide clear warnings about security implications of changes
-- Test on various macOS versions and Linux distributions to ensure compatibility
-
-## File Structure Conventions
-
-- Keep source code in `src/` directory
-- Place test files adjacent to source files with `.test.ts` extension
-- Store configuration examples in `examples/` directory
-- Use descriptive filenames that reflect their purpose
-- Maintain consistent TypeScript module exports
-
-## Performance Considerations
-
-- Minimize system command execution through caching when appropriate
-- Run security checks in parallel where possible
-- Provide progress indicators for long-running operations
-- Optimize report generation for large numbers of checks
-
-## Documentation Standards
-
-- Maintain up-to-date README with installation and usage instructions
-- Document all CLI commands and options with examples
-- Include troubleshooting section for common issues
-- Keep CHANGELOG updated with user-facing changes
-- Provide clear explanations of security check purposes and implications
+## Key Technologies
+- **CLI**: Node.js, TypeScript, Commander.js, Jest
+- **UI**: Angular 20+, Electron, Material Design
+- **System**: Cross-platform command execution, JSON configs
+- **Security**: Cryptographic report verification, tamper detection
