@@ -105,10 +105,10 @@ To test the failsafe behavior locally:
 
 ```bash
 # Test Windows build and signing without certificates
-npm run pkg:windows
+npm run dist:win
 node scripts/sign-windows.js
 
-# Should create index-win.exe and index-win.exe.sha256 even without signing tools
+# Should create signed Windows installer even without signing tools
 ```
 
 The workflow will automatically handle failsafe scenarios during releases without any manual intervention.

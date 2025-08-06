@@ -1,0 +1,60 @@
+name: PR Verification
+
+on:
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+  checks: write
+
+env:
+  NODE_VERSION: '22.x'
+
+jobs:
+  verify:
+    name: Complete Verification (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+        timeout-minutes: 1
+
+      - name: Install dependencies
+        run: npm ci
+        timeout-minutes: 2
+
+      - name: Run linting
+        run: npm run lint
+        timeout-minutes: 1
+
+      - name: Check formatting
+        run: npm run format:check
+        timeout-minutes: 1
+
+      - name: Run all tests
+        run: npm run test:all
+        timeout-minutes: 2
+
+      - name: Build TypeScript
+        run: npm run build
+        timeout-minutes: 1
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-verification
+          path: |
+            coverage/
+            test-results/
+          retention-days: 1

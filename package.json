@@ -37,9 +37,13 @@
     "ci": "npm run verify",
     "check": "npx electron . check",
     "check:dev": "npx electron . check --profile developer --format human",
-    "check:strict": "npx electron . check --profile strict --format human", 
+    "check:strict": "npx electron . check --profile strict --format human",
     "validate": "npx electron . validate",
     "version:show": "npx electron . --version",
+    "check:linux": "ELECTRON_DISABLE_SANDBOX=1 npx electron . check",
+    "check:dev:linux": "ELECTRON_DISABLE_SANDBOX=1 npx electron . check --profile developer --format human",
+    "version:show:linux": "ELECTRON_DISABLE_SANDBOX=1 npx electron . --version",
+    "dist:macos": "npm run dist:mac",
     "lint": "eslint '**/*.{js,ts,html}' --ignore-pattern 'node_modules/' --ignore-pattern 'dist/' --ignore-pattern '.angular/' --ignore-pattern 'coverage/' --ignore-pattern 'release/'",
     "lint:fix": "eslint '**/*.{js,ts,html}' --ignore-pattern 'node_modules/' --ignore-pattern 'dist/' --ignore-pattern '.angular/' --ignore-pattern 'coverage/' --ignore-pattern 'release/' --fix",
     "format": "prettier --write 'src/**/*.{ts,js,html,scss}' 'ui/src/**/*.{ts,js,html,scss}' || true",
@@ -136,17 +140,14 @@
     ],
     "mac": {
       "target": "dmg",
-      "category": "public.app-category.utilities",
-      "icon": "public/favicon.ico"
+      "category": "public.app-category.utilities"
     },
     "win": {
-      "target": "nsis",
-      "icon": "public/favicon.ico"
+      "target": "nsis"
     },
     "linux": {
       "target": "AppImage",
-      "category": "Utility",
-      "icon": "public/favicon.ico"
+      "category": "Utility"
     }
   }
 }

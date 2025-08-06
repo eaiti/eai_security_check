@@ -1,8 +1,5 @@
 name: "Copilot Setup Steps"
 
-# Automatically run the setup steps when they are changed
-# Allows for streamlined validation,
-# and allow manual testing through the repository's "Actions" tab
 
 on:
   workflow_dispatch:
@@ -11,16 +8,11 @@ on:
       - .github/workflows/copilot-setup-steps.yml
 
 jobs:
-  # The job MUST be called `copilot-setup-steps`
-  # otherwise it will not be picked up by Copilot.
   copilot-setup-steps:
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
 
-    # Permissions set just for the setup steps
-    # Copilot has permissions to its branch
 
     permissions:
-      # To allow us to clone the repo for setup
       contents: read
 
     steps:
@@ -30,7 +22,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -42,23 +34,11 @@ jobs:
       - name: Run core tests
         run: npm run test:core
 
+      - name: Run UI tests
+        run: npm run test:ui
+
       - name: Run linting
         run: npm run lint
 
-      - name: Build CLI
-        run: npm run build
-
-      - name: Install UI dependencies
-        run: cd ui && npm ci
-
-      - name: Build UI
-        run: npm run build:ui
-
-      - name: Run CLI tests
-        run: npm test
-
-      - name: Run UI tests
-        run: cd ui && npm test
-
-      - name: Run lint checks
-        run: npm run lint:all
+      - name: Verify complete build
+        run: npm run verify:quick

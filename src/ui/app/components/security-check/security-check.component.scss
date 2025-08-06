@@ -2,7 +2,8 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--spacing-xl);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--background-secondary);
   min-height: 100vh;
 }
@@ -132,8 +133,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .results {
@@ -180,9 +185,15 @@
   }
 }
 
-.status-pass { color: var(--color-success); }
-.status-fail { color: var(--color-error); }
-.status-warning { color: var(--color-warning); }
+.status-pass {
+  color: var(--color-success);
+}
+.status-fail {
+  color: var(--color-error);
+}
+.status-warning {
+  color: var(--color-warning);
+}
 
 .check-results {
   display: grid;
@@ -203,17 +214,29 @@
 
   &.check-fail {
     border-left: 4px solid var(--color-error);
-    background: linear-gradient(to right, var(--color-error-light), var(--background-primary));
+    background: linear-gradient(
+      to right,
+      var(--color-error-light),
+      var(--background-primary)
+    );
   }
 
   &.check-warning {
     border-left: 4px solid var(--color-warning);
-    background: linear-gradient(to right, var(--color-warning-light), var(--background-primary));
+    background: linear-gradient(
+      to right,
+      var(--color-warning-light),
+      var(--background-primary)
+    );
   }
 
   &.check-pass {
     border-left: 4px solid var(--color-success);
-    background: linear-gradient(to right, var(--color-success-light), var(--background-primary));
+    background: linear-gradient(
+      to right,
+      var(--color-success-light),
+      var(--background-primary)
+    );
   }
 }
 
@@ -314,7 +337,7 @@
   p {
     margin: var(--spacing-md) 0;
     font-size: var(--font-size-lg);
-    
+
     &:first-of-type {
       font-weight: 600;
       color: var(--text-primary);
@@ -330,7 +353,7 @@
 
   .header {
     padding: var(--spacing-xl) var(--spacing-md);
-    
+
     h1 {
       font-size: var(--font-size-3xl);
     }
