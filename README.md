@@ -7,8 +7,8 @@ A cross-platform enterprise security auditing tool built with Node.js, TypeScrip
 **🔒 Enterprise Security**: Comprehensive auditing with tamper-proof reports, cryptographic verification, and configurable security profiles.
 
 **🖥️ Modern Desktop UI**: Intuitive Angular-based interface with comprehensive security management, automated scheduling, and professional reporting.
-└── examples/                      # Configuration examples
-```
+
+## 📁 File Structure & Configuration
 
 ### Configuration Files
 
@@ -89,9 +89,9 @@ npm run lint              # ESLint validation
 npm run format:all        # Format code and fix lint issues automatically
 npm run build            # TypeScript compilation check
 npm run format:check     # Verify code formatting compliance
-```urable security profiles.
+```
 
-**🖥️ Modern Desktop Application: Intuitive Angular-based GUI with comprehensive security auditing, report management, and automated monitoring.**
+EAI Security Check provides comprehensive security auditing across platforms with configurable security profiles.
 
 ## 🌟 Key Features
 
@@ -213,7 +213,6 @@ npm run version:show          # Test CLI version display
 3. **Review Output**: Check console output for security findings
 4. **Automate**: Integrate into scripts with `--non-interactive` flag for automated environments
 
-#### CLI Mode (Automation)
 ```bash
 # Quick security check
 npx electron . check --profile developer --format human
@@ -260,146 +259,45 @@ Intuitive configuration management with full feature parity:
 
 The unified Electron application provides a comprehensive CLI interface for automation and scripting:
 
-### Basic CLI Usage
-
 ```bash
-# Show version and help
-npx electron . --version
-npx electron . --help
+# Basic usage
+npx electron . --version                    # Show version
+npx electron . check --profile developer    # Run security check
+npx electron . validate report.json         # Validate report
 
-# Security checks with different profiles
-npx electron . check --profile developer --format human
-npx electron . check --profile strict --format json
-npx electron . check --profile eai --non-interactive
-
-# Report validation
-npx electron . validate security-report.json
-npx electron . validate /path/to/any-report.json
+# Automation
+npx electron . check --profile strict --non-interactive --format json
 ```
 
-### CLI Options
-
-```bash
-# Security Check Command
-npx electron . check [options]
-
-Options:
-  --profile <profile>     Security profile (default|strict|relaxed|developer|eai)
-  --format <format>       Output format (human|json) 
-  --non-interactive       Run without user prompts (for automation)
-  --config <path>         Custom configuration file path
-  --output <path>         Output report file path
-
-# Validation Command  
-npx electron . validate <reportPath>
-
-# Version and Help
-npx electron . --version
-npx electron . --help
-```
-
-### NPM Script Shortcuts
-
-For easier CLI usage during development:
-
-```bash
-# Convenient npm scripts
-npm run check:dev       # Quick developer profile check
-npm run check:strict    # Strict security profile check
-npm run version:show    # Show application version
-npm run validate        # Validate a report file
-```
-
-### Automation Examples
-
-```bash
-# Automated security monitoring
-npx electron . check --profile strict --non-interactive --format json > daily-security-$(date +%Y-%m-%d).json
-
-# CI/CD integration
-if ! npx electron . check --profile developer --non-interactive; then
-    echo "Security check failed"
-    exit 1
-fi
-
-# Report verification pipeline
-npx electron . validate security-report.json && echo "Report is valid"
-```
+**For detailed CLI usage, examples, and automation guides, see [Usage Examples](docs/USAGE_EXAMPLES.md).**
 
 ### 🔄 Automated Monitoring
 
-Comprehensive daemon management with **automatic system service setup**:
+Set up automated security auditing with the desktop application's daemon management:
+- **System Service Integration**: Automatic setup for macOS LaunchAgent, Linux systemd, Windows Task Scheduler
+- **Visual Scheduling**: Easy scheduling with preset intervals (daily, weekly, monthly)  
+- **Email Notifications**: SMTP configuration for automated report delivery
+- **Background Execution**: Runs independently without requiring the desktop app to be open
 
-- **One-Click System Service Setup**: Automatically configure daemon as system service (macOS LaunchAgent, Linux systemd, Windows Task Scheduler)
-- **Background Execution**: Daemon runs independently in background, no CLI required
-- **Setup Wizard**: Step-by-step configuration of automated security monitoring
-- **Visual Scheduling**: Easy cron-style scheduling with preset options (daily, weekly, monthly)
-- **Email Integration**: Configure SMTP settings for automated report delivery with full authentication support
-- **Real-time Status Monitoring**: Live daemon status, system service status, and execution information
-- **Integrated Log Viewer**: Access execution logs, clear logs, and troubleshooting information
-- **Automatic Startup**: System service ensures daemon starts on system boot
-- **Cross-Platform Service Management**: Unified interface for service installation/removal on all platforms
+**For detailed daemon setup instructions, see [Daemon Setup Guide](docs/DAEMON_SETUP.md).**
 
-#### Daemon Features
+### 🔧 Development & Testing
 
-- **🚀 Independent Execution**: Runs as separate Node.js process, not dependent on desktop application
-- **⚙️ System Integration**: Automatic service registration with OS service managers
-- **📧 Email Notifications**: SMTP configuration with SSL/TLS support and authentication
-- **🔄 Flexible Scheduling**: Configure check intervals from daily to annually
-- **📊 Report Management**: Automatic report generation, storage, and optional email delivery
-- **🛡️ Secure Configuration**: Configuration stored in user directory, isolated from system
-- **📱 Remote Management**: Full daemon control from desktop application interface
-
-### � Development & Testing
-
-Built for developers and system administrators:
-
-- **Live Updates**: Real-time status updates and progress indicators
-- **Developer Tools**: Access to underlying CLI functionality for automation
-- **Cross-Platform**: Consistent experience across Windows, macOS, and Linux
-- **Accessibility**: Full keyboard navigation and screen reader support
-
-#### Building from Source
+For developers and contributors:
 
 ```bash
-# Clone repository
+# Clone and setup
 git clone https://github.com/eaiti/eai_security_check.git
-cd eai_security_check
+cd eai_security_check && npm install
 
-# Install dependencies
-npm install
-
-# Build and run
-npm run build
-npm start
-
-# Create distributables
-npm run dist        # Build for current platform
-npm run dist:all    # Build for all platforms
+# Development
+npm run dev              # Development mode with hot reload
+npm run verify           # Full verification (tests + build + lint)
+npm run test:all         # Run all tests (295 Jest + 10 Angular)
+npm run dist             # Create distributables
 ```
 
-#### Development Commands
-
-```bash
-# Development mode with hot reload
-npm run dev
-
-# Unified application testing
-npm run test:all        # All tests (Core + UI)
-npm run test:core       # Jest tests only
-npm run test:ui         # Angular tests only
-
-# CLI functionality testing
-npm run check:dev       # Test CLI security check
-npm run version:show    # Test CLI version
-npm run validate        # Test CLI report validation
-
-# Quality assurance  
-npm run verify          # Full verification (tests + build + lint)
-npm run verify:quick    # Quick verification (core tests + lint)
-npm run lint            # ESLint check
-npm run format:all      # Format and fix all code
-```
+**For complete build instructions and development workflow, see the [Installation Guide](docs/INSTALLATION.md).**
 
 ## 📚 Documentation
 
@@ -464,7 +362,7 @@ Timestamp: 2025-08-06 14:25:33
 | **developer** | Developer-friendly | 10 min | 8+ chars | Development workstations |
 | **eai** | EAI-specific requirements | 7 min | 10+ chars | EAI organization |
 
-## � File Structure & Storage
+## 📁 File Structure & Storage
 
 EAI Security Check uses a **centralized file structure** that keeps all application data organized alongside the executable for easy management and portability.
 
@@ -507,7 +405,7 @@ EAI Security Check uses a **centralized file structure** that keeps all applicat
 
 **Note**: Previous versions used OS-specific configuration directories. Current versions use a centralized structure alongside the executable for better portability and organization. The legacy locations are no longer used.
 
-## �🐧 Platform Support
+## 🐧 Platform Support
 
 ### Primary Support (Fully Tested)
 - **macOS**: All versions, complete feature support
@@ -535,110 +433,19 @@ MIT License - see [LICENSE](LICENSE) file for details.
 5. Push to the branch (`git push origin feature/amazing-feature`)
 6. Open a Pull Request
 
-### 🧪 Development & Testing
-
-**Comprehensive Test Suite (305 tests total)**
-```bash
-# Complete test suite
-npm run test:all        # Jest (295) + Angular (10) tests
-
-# Platform testing with npm scripts
-npm run test:platform   # Auto-detect and test current platform
-npm run test:macos      # macOS-specific security feature tests
-npm run test:linux      # Linux-specific security feature tests  
-npm run test:windows    # Windows-specific security feature tests
-
-# Integrated application testing
-npm run check:dev       # Test unified CLI functionality
-npm run version:show    # Test version and help display
-npm run validate        # Test report validation features
-
-# Development workflow
-npm run verify          # Full verification: tests + build + lint + format
-npm run verify:quick    # Quick check: core tests + linting only
-npm run format:all      # Format code and fix lint issues
-```
-
-**Test Coverage Areas:**
-- ✅ **Cross-Platform Security Checkers**: macOS, Linux, Windows platform-specific auditing
-- ✅ **Unified Desktop Application**: GUI and CLI integration with full feature parity  
-- ✅ **Angular UI Components**: Dashboard, report viewer, configuration editor, daemon management
-- ✅ **Security Profile Management**: Profile creation, validation, and switching
-- ✅ **Cryptographic Operations**: Report signing, verification, and tamper detection
-- ✅ **Automated Scheduling**: Daemon installation, configuration, and lifecycle management
-- ✅ **Error Handling & Edge Cases**: Graceful failure handling across all platforms
-- ✅ **CI/CD Integration**: Non-interactive automation for enterprise environments
-
-**Platform Testing Strategy:**
-```bash
-# Unified testing approach using npm scripts
-npm run test:platform     # Auto-detects macOS/Linux/Windows and runs appropriate tests
-npm run test:all-platforms # Comprehensive testing with platform-specific validation
-
-# Individual platform testing (when on respective platforms)
-npm run test:macos        # Tests FileVault, Gatekeeper, macOS-specific features
-npm run test:linux        # Tests LUKS, firewalld, Linux distribution variations
-npm run test:windows      # Tests BitLocker, Windows Defender, PowerShell integrations
-
-# Non-interactive testing for CI/CD
-npm run check:dev -- --non-interactive --format json
-npm run test:all        # Full test suite including non-interactive CLI tests
-```
-
 ## 🚀 Troubleshooting
 
-### Desktop Application Issues
-
-**Application won't start:**
+**Common Issues:**
 - **macOS**: Right-click → Open to bypass Gatekeeper warnings
-- **Linux**: Make AppImage executable: `chmod +x EAI-Security-Check.AppImage`
+- **Linux**: Make AppImage executable: `chmod +x EAI-Security-Check.AppImage` 
 - **Windows**: Run as Administrator if Windows Defender blocks execution
-- Check system requirements: Node.js runtime is included in distributed apps
+- **Permissions**: Some security checks require admin privileges
 
-**Security checks failing:**
-- **Permissions**: Some checks require admin privileges - application will prompt when needed
-- **Platform Support**: Verify your OS version is supported
-- **System Commands**: Ensure system security tools are installed and accessible
-
-**Configuration issues:**
-- Use the visual configuration editor to validate settings
-- Reset to default profile if custom profiles cause issues
-- Check file permissions on configuration directory: `~/.eai-security-check/`
-
-**Automated monitoring not working:**
-- Verify daemon configuration in the application's daemon management interface
-- Check email settings using the built-in test email function
-- Review daemon logs accessible through the application's log viewer
-
-### Development Issues
-
-**Build failures:**
+**Development Issues:**
 ```bash
-# Clean and rebuild
-npm run clean
-rm -rf node_modules
-npm install
-npm run build
-```
-
-**Test failures:**
-```bash
-# Run specific test suites
-npm run test:core       # Node.js/TypeScript tests
-npm run test:ui         # Angular component tests
 npm run verify:quick    # Quick validation
+npm run format:all      # Fix linting issues
 ```
 
-**Linting errors:**
-```bash
-# Auto-fix most linting issues
-npm run format:all      # Format and fix lint issues
-npm run lint            # Check remaining issues
-```
-
-### Getting Help
-
-- **GitHub Issues**: [Report bugs and request features](https://github.com/eaiti/eai_security_check/issues)
-- **Documentation**: Comprehensive guides in the `docs/` directory
-- **Built-in Help**: Use the application's help system and tooltips
+**For detailed troubleshooting, see the [FAQ](FAQ.md) and [GitHub Issues](https://github.com/eaiti/eai_security_check/issues).**
 - **Security Reports**: Please use responsible disclosure for security vulnerabilities

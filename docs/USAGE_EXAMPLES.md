@@ -40,7 +40,7 @@ This guide provides practical examples for using the EAI Security Check unified 
 4. Use "Copy to Clipboard" for quick sharing
 5. Click "Download" to save locally
 
-## �️ Command Line Interface (CLI Mode)
+## 🖲️ Command Line Interface (CLI Mode)
 
 ### Basic CLI Commands
 
