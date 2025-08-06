@@ -4,50 +4,50 @@
 
 ### How do I run a custom security configuration?
 
-You can run a custom security configuration in several ways:
+You can create and use custom security configurations through the desktop application:
 
-1. **Create a custom profile**: Use the interactive mode to create a custom configuration:
-   ```bash
-   eai-security-check interactive
-   # Select "2. Configuration Management" → "Create Configuration"
-   ```
+1. **Create a custom profile through the UI**:
+   - Launch the EAI Security Check application
+   - Navigate to "Settings" → "Security Profiles"
+   - Click "Create New Profile" or duplicate an existing one
+   - Modify settings using the visual controls
+   - Save with a descriptive name
 
-2. **Use an existing profile**: Run with a specific built-in profile:
-   ```bash
-   eai-security-check check --profile strict
-   eai-security-check check --profile relaxed
-   eai-security-check check --profile developer
-   eai-security-check check --profile eai
-   ```
+2. **Use built-in profiles**:
+   - Select from predefined profiles in the settings:
+     - **default**: Recommended general-purpose settings
+     - **strict**: Maximum security for high-risk environments
+     - **relaxed**: Balanced approach prioritizing convenience  
+     - **developer**: Development-friendly settings
+     - **eai**: EAI organization-specific requirements
 
-3. **Specify a custom config file**: Point to your own configuration file:
-   ```bash
-   eai-security-check check --config /path/to/your/custom-config.json
-   ```
+3. **Import/Export configurations**:
+   - Use "Import Configuration" to load shared profiles
+   - Use "Export Configuration" to save and share custom profiles
+   - Share configuration files across team members and systems
 
-4. **Modify default configuration**: Edit the default configuration file located at:
-   **Location**: `<executable-dir>/config/security-config.json`
+### How can I set up automated monitoring?
 
-### How can I manually setup the daemon configuration?
+To set up automated security auditing with email notifications:
 
-To manually set up daemon configuration for automated security audits:
+1. **Use the Setup Wizard**:
+   - Open the application and go to "Settings" → "Automated Monitoring"  
+   - Click "Setup Automated Audits"
+   - Follow the step-by-step wizard to configure:
+     - Schedule frequency (daily, weekly, or custom)
+     - Email settings (SMTP configuration)
+     - Notification recipients
+     - Report format preferences
 
-1. **Quick setup via CLI**:
-   ```bash
-   eai-security-check daemon-setup
-   ```
+2. **Visual Scheduling**:
+   - Use the built-in scheduler to set specific days and times
+   - Choose from preset options or create custom schedules
+   - Preview schedule before activation
 
-2. **Interactive setup**:
-   ```bash
-   eai-security-check interactive
-   # Select "3. Daemon Management" → "Setup Daemon Autoconf"
-   ```
-
-3. **Manual configuration file creation**:
-   Create a file at `<executable-dir>/config/scheduling-config.json` with:
-   ```json
-   {
-     "enabled": true,
+3. **Email Integration**:
+   - Configure SMTP settings with validation
+   - Test email delivery with "Send Test Email" 
+   - Set up multiple recipient lists for different scenarios
      "intervalDays": 7,
      "email": {
        "smtp": {

@@ -1,12 +1,12 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { SecurityAuditor } from '../services/auditor';
-import { SecurityConfig } from '../types';
-import { OutputUtils, OutputFormat } from '../utils/output-utils';
-import { CryptoUtils } from '../utils/crypto-utils';
-import { PlatformDetector, Platform } from '../utils/platform-detector';
-import { ConfigManager } from '../config/config-manager';
-import { isValidProfile } from '../config/config-profiles';
+import * as fs from "fs";
+import * as path from "path";
+import { SecurityAuditor } from "../services/auditor";
+import { SecurityConfig } from "../types";
+import { OutputUtils, OutputFormat } from "../utils/output-utils";
+import { CryptoUtils } from "../utils/crypto-utils";
+import { PlatformDetector, Platform } from "../utils/platform-detector";
+import { ConfigManager } from "../config/config-manager";
+import { isValidProfile } from "../config/config-profiles";
 
 export interface SecurityCheckOptions {
   profile?: string;
@@ -48,15 +48,15 @@ export class SecurityOperations {
 
     // Try to load the profile-specific config file
     let configPath: string;
-    if (profile === 'default') {
-      configPath = path.join(configDir, 'security-config.json');
+    if (profile === "default") {
+      configPath = path.join(configDir, "security-config.json");
     } else {
       configPath = path.join(configDir, `${profile}-config.json`);
     }
 
     if (fs.existsSync(configPath)) {
       try {
-        const content = fs.readFileSync(configPath, 'utf-8');
+        const content = fs.readFileSync(configPath, "utf-8");
         return JSON.parse(content);
       } catch (error) {
         console.error(`Failed to load config from ${configPath}:`, error);
@@ -65,20 +65,22 @@ export class SecurityOperations {
     } else {
       // If the profile config doesn't exist, try to create all configs first
       try {
-        ConfigManager.createAllSecurityConfigs(false, 'default');
+        ConfigManager.createAllSecurityConfigs(false, "default");
 
         // Try to load again after creation
         if (fs.existsSync(configPath)) {
-          const content = fs.readFileSync(configPath, 'utf-8');
+          const content = fs.readFileSync(configPath, "utf-8");
           return JSON.parse(content);
         } else {
-          console.error(`Configuration file not found after creation: ${configPath}`);
+          console.error(
+            `Configuration file not found after creation: ${configPath}`,
+          );
           return null;
         }
       } catch (creationError) {
         console.error(
           `Failed to create security configuration for profile '${profile}':`,
-          creationError
+          creationError,
         );
         return null;
       }
@@ -88,10 +90,12 @@ export class SecurityOperations {
   /**
    * Run a security check with the given options
    */
-  static async runSecurityCheck(options: SecurityCheckOptions): Promise<SecurityCheckResult> {
+  static async runSecurityCheck(
+    options: SecurityCheckOptions,
+  ): Promise<SecurityCheckResult> {
     // Determine configuration source
     let config: SecurityConfig;
-    let configSource = '';
+    let configSource = "";
 
     if (options.configPath) {
       // Use explicit config file if provided
@@ -101,7 +105,7 @@ export class SecurityOperations {
         throw new Error(`Configuration file not found: ${configPath}`);
       }
 
-      const configContent = fs.readFileSync(configPath, 'utf-8');
+      const configContent = fs.readFileSync(configPath, "utf-8");
       config = JSON.parse(configContent);
       configSource = `config file: ${configPath}`;
     } else if (options.profile) {
@@ -117,31 +121,31 @@ export class SecurityOperations {
     } else {
       // Default behavior - look for config in centralized location first, then local
       const centralConfigPath = ConfigManager.getSecurityConfigPath();
-      const localConfigPath = path.resolve('./security-config.json');
+      const localConfigPath = path.resolve("./security-config.json");
 
       if (fs.existsSync(centralConfigPath)) {
-        const configContent = fs.readFileSync(centralConfigPath, 'utf-8');
+        const configContent = fs.readFileSync(centralConfigPath, "utf-8");
         config = JSON.parse(configContent);
         configSource = `config file: ${centralConfigPath}`;
       } else if (fs.existsSync(localConfigPath)) {
-        const configContent = fs.readFileSync(localConfigPath, 'utf-8');
+        const configContent = fs.readFileSync(localConfigPath, "utf-8");
         config = JSON.parse(configContent);
         configSource = `config file: ${localConfigPath}`;
       } else {
         // Generate default config if no file exists
-        const defaultConfig = this.getConfigForProfile('default');
+        const defaultConfig = this.getConfigForProfile("default");
         if (!defaultConfig) {
-          throw new Error('Failed to load default configuration');
+          throw new Error("Failed to load default configuration");
         }
         config = defaultConfig;
-        configSource = 'default profile (generated)';
+        configSource = "default profile (generated)";
       }
     }
 
     // Check platform compatibility first
     const platformInfo = await PlatformDetector.detectPlatform();
     if (!platformInfo.isSupported) {
-      throw new Error(platformInfo.warningMessage || 'Platform not supported');
+      throw new Error(platformInfo.warningMessage || "Platform not supported");
     }
 
     // Handle password for sudo operations if needed
@@ -151,14 +155,14 @@ export class SecurityOperations {
     } else if (!options.quiet) {
       // Prompt for password interactively if not in quiet mode
       try {
-        const { promptForPassword } = await import('../utils/password-utils');
+        const { promptForPassword } = await import("../utils/password-utils");
         const promptText =
           platformInfo.platform === Platform.MACOS
-            ? '🔐 Enter your macOS password: '
-            : '🔐 Enter your sudo password: ';
+            ? "🔐 Enter your macOS password: "
+            : "🔐 Enter your sudo password: ";
         password = await promptForPassword(promptText);
         if (!options.quiet) {
-          console.log('✅ Password collected.\n');
+          console.log("✅ Password collected.\n");
         }
       } catch (error) {
         throw new Error(`Password collection failed: ${error}`);
@@ -172,7 +176,7 @@ export class SecurityOperations {
     // Show version warning immediately if there are issues
     if (versionInfo.warningMessage && !options.quiet) {
       console.log(versionInfo.warningMessage);
-      console.log(''); // Add blank line for readability
+      console.log(""); // Add blank line for readability
     }
 
     if (!options.quiet) {
@@ -192,15 +196,18 @@ export class SecurityOperations {
       const summaryLine = OutputUtils.createSummaryLine(report);
       return {
         report: summaryLine,
-        overallPassed: auditResult.overallPassed
+        overallPassed: auditResult.overallPassed,
       };
     }
 
     // Validate output format
     const validFormats = Object.values(OutputFormat);
-    if (options.format && !validFormats.includes(options.format as OutputFormat)) {
+    if (
+      options.format &&
+      !validFormats.includes(options.format as OutputFormat)
+    ) {
       throw new Error(
-        `Invalid format: ${options.format}. Valid formats: ${validFormats.join(', ')}`
+        `Invalid format: ${options.format}. Valid formats: ${validFormats.join(", ")}`,
       );
     }
 
@@ -209,11 +216,15 @@ export class SecurityOperations {
     let outputFilename = options.outputPath;
 
     if (options.format && options.format !== OutputFormat.CONSOLE) {
-      const formattedOutput = OutputUtils.formatReport(report, options.format as OutputFormat, {
-        platform: platformInfo.platform,
-        timestamp: new Date().toISOString(),
-        overallPassed: auditResult.overallPassed
-      });
+      const formattedOutput = OutputUtils.formatReport(
+        report,
+        options.format as OutputFormat,
+        {
+          platform: platformInfo.platform,
+          timestamp: new Date().toISOString(),
+          overallPassed: auditResult.overallPassed,
+        },
+      );
 
       finalReport = formattedOutput.content;
 
@@ -224,19 +235,20 @@ export class SecurityOperations {
     }
 
     // Handle hashing if requested
-    let hashInfo: SecurityCheckResult['hashInfo'];
+    let hashInfo: SecurityCheckResult["hashInfo"];
     if (options.hash) {
-      const { signedContent, hashedReport } = CryptoUtils.createTamperEvidentReport(finalReport, {
-        platform: platformInfo.platform,
-        distribution: platformInfo.distribution,
-        configSource
-      });
+      const { signedContent, hashedReport } =
+        CryptoUtils.createTamperEvidentReport(finalReport, {
+          platform: platformInfo.platform,
+          distribution: platformInfo.distribution,
+          configSource,
+        });
 
       const hashShort = CryptoUtils.createShortHash(hashedReport.hash);
       hashInfo = {
         hash: hashedReport.hash,
         shortHash: hashShort,
-        timestamp: hashedReport.timestamp
+        timestamp: hashedReport.timestamp,
       };
 
       finalReport = signedContent;
@@ -262,10 +274,10 @@ export class SecurityOperations {
 
         const success = await OutputUtils.copyToClipboard(clipboardContent);
         if (!success && !options.quiet) {
-          console.error('❌ Failed to copy to clipboard');
+          console.error("❌ Failed to copy to clipboard");
         }
       } else if (!options.quiet) {
-        console.error('❌ Clipboard not available');
+        console.error("❌ Clipboard not available");
         console.log(OutputUtils.getClipboardInstallSuggestion());
       }
     }
@@ -274,7 +286,7 @@ export class SecurityOperations {
       report: finalReport,
       overallPassed: auditResult.overallPassed,
       outputPath: outputFilename,
-      hashInfo
+      hashInfo,
     };
   }
 
@@ -282,7 +294,7 @@ export class SecurityOperations {
    * Run an interactive security check with profile selection
    */
   static async runInteractiveSecurityCheck(): Promise<void> {
-    console.log('🔍 Security Check - Profile Selection\n');
+    console.log("🔍 Security Check - Profile Selection\n");
 
     const profile = await ConfigManager.promptForSecurityProfile();
     console.log(`\n🚀 Running security check with '${profile}' profile...\n`);
@@ -295,24 +307,24 @@ export class SecurityOperations {
    * Run a quick security check with default profile
    */
   static async runQuickSecurityCheck(): Promise<void> {
-    console.log('🚀 Running quick security check with default profile...\n');
+    console.log("🚀 Running quick security check with default profile...\n");
 
-    const result = await this.runSecurityCheck({ profile: 'default' });
+    const result = await this.runSecurityCheck({ profile: "default" });
     console.log(result.report);
 
     // Save report to file
     try {
       const { reportsDir } = ConfigManager.ensureCentralizedDirectories();
 
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `security-check-${timestamp}.txt`;
       const filePath = path.join(reportsDir, filename);
 
-      fs.writeFileSync(filePath, result.report, 'utf-8');
+      fs.writeFileSync(filePath, result.report, "utf-8");
       console.log(`\n📄 Report saved to: ${filePath}`);
     } catch (error) {
       console.warn(
-        `⚠️  Could not save report: ${error instanceof Error ? error.message : String(error)}`
+        `⚠️  Could not save report: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

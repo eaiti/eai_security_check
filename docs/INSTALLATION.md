@@ -1,52 +1,68 @@
 # Installation Guide
 
-This guide covers all installation methods for the EAI Security Check tool across different platforms.
+This guide covers installation methods for the EAI Security Check desktop application across different platforms.
 
 ## 📦 Installation Methods
 
-### Method 1: Standalone Executable (Recommended for End Users)
+### Method 1: Desktop Application (Recommended for All Users)
 
 **Advantages:**
-- No Node.js installation required
-- Single file, portable
+- Modern graphical interface with intuitive controls
+- No Node.js installation required  
 - Code-signed and verified binaries
-- Fastest setup
+- Complete feature set including report management
+- Cross-platform consistency
 
 **Download from GitHub Releases:**
 
+**macOS:**
 ```bash
-# macOS (Intel/Apple Silicon Universal)
-curl -L -o eai-security-check https://github.com/eaiti/eai_security_check/releases/latest/download/eai-security-check-macos
-chmod +x eai-security-check
-./eai-security-check --version
+# Download the .dmg installer
+curl -L -o EAI-Security-Check.dmg https://github.com/eaiti/eai_security_check/releases/latest/download/EAI-Security-Check-macOS.dmg
 
-# Linux (x64)
-curl -L -o eai-security-check https://github.com/eaiti/eai_security_check/releases/latest/download/eai-security-check-linux
-chmod +x eai-security-check
-./eai-security-check --version
-
-# Windows (PowerShell)
-Invoke-WebRequest -Uri https://github.com/eaiti/eai_security_check/releases/latest/download/eai-security-check-win.exe -OutFile eai-security-check.exe
-.\eai-security-check.exe --version
+# Mount and install
+open EAI-Security-Check.dmg
+# Drag application to Applications folder
 ```
 
-### Method 2: NPM Global Installation
+**Linux:**
+```bash
+# Download AppImage (works on all distributions)
+curl -L -o EAI-Security-Check.AppImage https://github.com/eaiti/eai_security_check/releases/latest/download/EAI-Security-Check-Linux.AppImage
 
-**Advantages:**
-- Easy updates via npm
-- Integrates with Node.js ecosystem
-- Access to development features
+# Make executable and run
+chmod +x EAI-Security-Check.AppImage
+./EAI-Security-Check.AppImage
+```
+
+**Windows:**
+```powershell
+# Download Windows installer
+Invoke-WebRequest -Uri https://github.com/eaiti/eai_security_check/releases/latest/download/EAI-Security-Check-Windows-Setup.exe -OutFile EAI-Security-Check-Setup.exe
+
+# Run installer (may require administrator privileges)
+.\EAI-Security-Check-Setup.exe
+```
+
+### Method 2: Development Build (For Contributors and Advanced Users)
 
 **Prerequisites:**
 - Node.js 18+ 
 - npm (included with Node.js)
+- Git
 
 ```bash
-# Install globally
-npm install -g eai-security-check
+# Clone repository
+git clone https://github.com/eaiti/eai_security_check.git
+cd eai_security_check
 
-# Verify installation
-eai-security-check --version
+# Install dependencies
+npm install
+
+# Build and run
+npm run build
+npm start
+```
 
 # Update to latest version
 npm update -g eai-security-check
@@ -164,16 +180,7 @@ Set-Location "$env:USERPROFILE\eai-security-check"
 
 After placing the executable in your preferred location, you can optionally set up global access:
 
-### Automatic Setup (Recommended)
-
-```bash
-# Run interactive management mode (includes global setup option)
-eai-security-check interactive
-
-# During interactive setup, choose "4. Global Installation" option
-```
-
-### Manual Global Setup
+### Global Setup
 
 #### macOS & Linux
 
@@ -187,7 +194,7 @@ export PATH="$PATH:/path/to/your/eai-security-check/directory"
 
 #### Windows
 
-**Option 1: Add to PATH (PowerShell as Administrator)**
+**Add to PATH (PowerShell as Administrator)**
 ```powershell
 # Add directory to system PATH (optional)
 $currentPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
@@ -195,23 +202,18 @@ $newPath = $currentPath + ";" + (Get-Location).Path
 [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
 ```
 
-**Option 2: Create Desktop/Start Menu Shortcuts**
-```powershell
-# The interactive command can create these automatically
-eai-security-check interactive
-```
-
 ## 📂 Directory Structure After Installation
 
-The tool uses a **centralized file structure** that keeps all application data organized alongside the executable for better portability and management:
+The tool uses a **user configuration directory** for storing all settings and application data:
 
 ```
-# Application files are stored alongside the executable
-/path/to/eai-security-check        # Main executable
-/path/to/config/                   # Configuration files  
-├── security-config.json           # Security profile configuration
-├── scheduling-config.json         # Daemon scheduling configuration
-├── daemon-state.json             # Daemon state tracking
+# Desktop Application: Settings managed by the app
+# User configuration directory: ~/.eai-security-check/
+~/.eai-security-check/
+├── config/                        # Configuration files  
+│   ├── security-config.json       # Security profile configuration
+│   ├── scheduling-config.json     # Daemon scheduling configuration
+│   └── daemon-state.json          # Daemon state tracking
 └── daemon-templates/             # System service templates
     ├── eai-security-check.service (Linux)
     ├── com.eai.security-check.plist (macOS)  
@@ -277,37 +279,43 @@ sudo apt install -y nodejs npm git  # Ubuntu
 
 ## 🚀 Post-Installation Steps
 
-### 1. Initialize Configuration
+### 1. Launch Desktop Application
 
-```bash
-# Run the interactive setup wizard
-eai-security-check interactive
+**For Desktop App Users:**
+- Launch the installed EAI Security Check application
+- Complete initial setup through the GUI
+- Configure security profiles and settings
+- Run your first security check
 
-# This will:
-# - Guide you through security profile selection
-# - Set up configuration directories
-# - Optionally configure global installation
-# - Set up daemon scheduling (if desired)
-# - Provide next steps and usage examples
-```
+**For Development Build Users:**
+- Navigate to your installation directory and run the executable
+- Configuration files will be created in `~/.eai-security-check/`
 
 ### 2. Run Your First Security Check
 
+**Desktop App:**
+- Use the main interface to run security checks
+- Results will be displayed in the application
+
+**Development Build:**
 ```bash
-# Quick test with default profile
+# Quick test with default profile (development builds only)
 eai-security-check check
 
-# Verify everything works correctly
+# Verify everything works correctly  
 eai-security-check check --summary
 ```
 
 ### 3. Optional: Set Up Automated Monitoring
 
-```bash
-# Configure daemon for scheduled security audits
-eai-security-check daemon --status
+**Desktop App:**
+- Use the daemon configuration section in the app
+- Configure email settings and schedules through the GUI
 
-# If not configured, the init command above includes daemon setup
+**Development Build:**
+```bash
+# Configure daemon for scheduled security audits (development builds only)
+eai-security-check daemon --status
 ```
 
 ## 🔄 Updates & Maintenance
@@ -380,15 +388,14 @@ sudo xattr -r -d com.apple.quarantine eai-security-check
 
 **Check logs and configuration:**
 ```bash
-# Show configuration directory location
-eai-security-check interactive
-# → Select "1. System Status" to view all configuration paths
+# Check configuration directory location
+# Configuration files are located in: ~/.eai-security-check/
 
-# Verbose output for debugging  
-eai-security-check check --help
+# For development builds, use verbose output for debugging  
+eai-security-check --version  # Check if executable is working
 
-# Test specific features
-eai-security-check daemon --status
+# Test daemon features (development builds)
+ls ~/.eai-security-check/logs/  # Check log files
 ```
 
 **Report Issues:**

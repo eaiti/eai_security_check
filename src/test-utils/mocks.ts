@@ -1,5 +1,5 @@
-import { MacOSSecurityChecker } from '../checkers/security-checker';
-import { LegacyMacOSSecurityChecker } from '../checkers/legacy-security-checker';
+import { MacOSSecurityChecker } from "../checkers/security-checker";
+import { LegacyMacOSSecurityChecker } from "../checkers/legacy-security-checker";
 
 export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
   async checkFileVault(): Promise<boolean> {
@@ -14,7 +14,7 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     return Promise.resolve({
       enabled: true,
       requirePasswordImmediately: true,
-      passwordRequiredAfterLock: true
+      passwordRequiredAfterLock: true,
     });
   }
 
@@ -49,7 +49,7 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     automaticInstall: boolean;
     automaticSecurityInstall: boolean;
     configDataInstall: boolean;
-    updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
+    updateMode: "disabled" | "check-only" | "download-only" | "fully-automatic";
   }> {
     return Promise.resolve({
       enabled: true,
@@ -58,7 +58,7 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
       automaticInstall: false,
       automaticSecurityInstall: true,
       configDataInstall: true,
-      updateMode: 'download-only'
+      updateMode: "download-only",
     });
   }
 
@@ -72,43 +72,48 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
       fileSharing: false,
       screenSharing: false,
       remoteLogin: false,
-      mediaSharing: false
+      mediaSharing: false,
     });
   }
 
   async getSystemInfo(): Promise<string> {
-    return Promise.resolve('macOS 14.5 (Test Environment)');
+    return Promise.resolve("macOS 14.5 (Test Environment)");
   }
 
   async getCurrentMacOSVersion(): Promise<string> {
-    return Promise.resolve('14.5');
+    return Promise.resolve("14.5");
   }
 
   async getLatestMacOSVersion(): Promise<string> {
-    return Promise.resolve('15.1');
+    return Promise.resolve("15.1");
   }
 
-  async checkOSVersion(
-    targetVersion: string
-  ): Promise<{ current: string; target: string; isLatest: boolean; passed: boolean }> {
-    const current = '14.5';
-    const isLatest = targetVersion.toLowerCase() === 'latest';
-    const target = isLatest ? '15.1' : targetVersion;
+  async checkOSVersion(targetVersion: string): Promise<{
+    current: string;
+    target: string;
+    isLatest: boolean;
+    passed: boolean;
+  }> {
+    const current = "14.5";
+    const isLatest = targetVersion.toLowerCase() === "latest";
+    const target = isLatest ? "15.1" : targetVersion;
 
     // Mock logic: 14.5 passes for targets 14.5 and below, fails for higher versions
-    const passed = isLatest ? false : this.mockCompareVersions(current, target) >= 0;
+    const passed = isLatest
+      ? false
+      : this.mockCompareVersions(current, target) >= 0;
 
     return Promise.resolve({
       current,
       target,
       isLatest,
-      passed
+      passed,
     });
   }
 
   private mockCompareVersions(current: string, target: string): number {
-    const currentParts = current.split('.').map(n => parseInt(n, 10));
-    const targetParts = target.split('.').map(n => parseInt(n, 10));
+    const currentParts = current.split(".").map((n) => parseInt(n, 10));
+    const targetParts = target.split(".").map((n) => parseInt(n, 10));
 
     const maxLength = Math.max(currentParts.length, targetParts.length);
     while (currentParts.length < maxLength) currentParts.push(0);
@@ -121,9 +126,12 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
     return 0;
   }
 
-  async checkCurrentWifiNetwork(): Promise<{ networkName: string | null; connected: boolean }> {
+  async checkCurrentWifiNetwork(): Promise<{
+    networkName: string | null;
+    connected: boolean;
+  }> {
     // Mock: Return a test network name for testing
-    return Promise.resolve({ networkName: 'TestNetwork', connected: true });
+    return Promise.resolve({ networkName: "TestNetwork", connected: true });
   }
 
   async checkInstalledApplications(): Promise<{
@@ -133,70 +141,78 @@ export class MockMacOSSecurityChecker extends MacOSSecurityChecker {
   }> {
     // Mock: Return a test set of installed applications
     const sources = {
-      applications: ['Chrome', 'Firefox', 'Slack', 'TestApp'],
-      homebrew: ['git', 'node', 'wget'],
-      npm: ['typescript', 'jest', 'eslint']
+      applications: ["Chrome", "Firefox", "Slack", "TestApp"],
+      homebrew: ["git", "node", "wget"],
+      npm: ["typescript", "jest", "eslint"],
     };
 
-    const installedApps = [...sources.applications, ...sources.homebrew, ...sources.npm];
+    const installedApps = [
+      ...sources.applications,
+      ...sources.homebrew,
+      ...sources.npm,
+    ];
 
     return Promise.resolve({
       installedApps,
       bannedAppsFound: [],
-      sources
+      sources,
     });
   }
 
   getSecurityExplanations(): Record<
     string,
-    { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }
+    {
+      description: string;
+      recommendation: string;
+      riskLevel: "High" | "Medium" | "Low";
+    }
   > {
     return {
       FileVault: {
-        description: 'Test description for FileVault.',
-        recommendation: 'Test recommendation for FileVault.',
-        riskLevel: 'High'
+        description: "Test description for FileVault.",
+        recommendation: "Test recommendation for FileVault.",
+        riskLevel: "High",
       },
-      'Automatic Updates': {
-        description: 'Test description for Automatic Updates.',
-        recommendation: 'Test recommendation for Automatic Updates.',
-        riskLevel: 'High'
+      "Automatic Updates": {
+        description: "Test description for Automatic Updates.",
+        recommendation: "Test recommendation for Automatic Updates.",
+        riskLevel: "High",
       },
-      'Automatic Update Mode': {
-        description: 'Test description for Automatic Update Mode.',
-        recommendation: 'Test recommendation for Automatic Update Mode.',
-        riskLevel: 'High'
+      "Automatic Update Mode": {
+        description: "Test description for Automatic Update Mode.",
+        recommendation: "Test recommendation for Automatic Update Mode.",
+        riskLevel: "High",
       },
-      'Security Updates': {
-        description: 'Test description for Security Updates.',
-        recommendation: 'Test recommendation for Security Updates.',
-        riskLevel: 'High'
+      "Security Updates": {
+        description: "Test description for Security Updates.",
+        recommendation: "Test recommendation for Security Updates.",
+        riskLevel: "High",
       },
-      'OS Version': {
-        description: 'Test description for OS Version.',
-        recommendation: 'Test recommendation for OS Version.',
-        riskLevel: 'Medium'
+      "OS Version": {
+        description: "Test description for OS Version.",
+        recommendation: "Test recommendation for OS Version.",
+        riskLevel: "Medium",
       },
-      'WiFi Network Security': {
-        description: 'Test description for WiFi Network Security.',
-        recommendation: 'Test recommendation for WiFi Network Security.',
-        riskLevel: 'Medium'
+      "WiFi Network Security": {
+        description: "Test description for WiFi Network Security.",
+        recommendation: "Test recommendation for WiFi Network Security.",
+        riskLevel: "Medium",
       },
-      'Installed Applications': {
-        description: 'Test description for Installed Applications.',
-        recommendation: 'Test recommendation for Installed Applications.',
-        riskLevel: 'Medium'
-      }
+      "Installed Applications": {
+        description: "Test description for Installed Applications.",
+        recommendation: "Test recommendation for Installed Applications.",
+        riskLevel: "Medium",
+      },
     };
   }
 }
 
 export class MockLegacyMacOSSecurityChecker extends LegacyMacOSSecurityChecker {
   async getCurrentMacOSVersion(): Promise<string> {
-    return Promise.resolve('14.5');
+    return Promise.resolve("14.5");
   }
 
   async getSystemInfo(): Promise<string> {
-    return Promise.resolve('macOS 14.5 (Legacy Test Environment)');
+    return Promise.resolve("macOS 14.5 (Legacy Test Environment)");
   }
 }

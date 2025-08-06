@@ -23,7 +23,7 @@ jobs:
       # To allow us to clone the repo for setup
       contents: read
 
-    # The setup steps - install Python and our dependencies
+    # The setup steps - install Node.js and dependencies
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,8 +34,17 @@ jobs:
           node-version: "22"
           cache: "npm"
 
-      - name: Install JavaScript dependencies
+      - name: Install dependencies
         run: npm ci
+
+      - name: Build TypeScript and Angular
+        run: npm run build
+
+      - name: Run core tests
+        run: npm run test:core
+
+      - name: Run linting
+        run: npm run lint
 
       - name: Build CLI
         run: npm run build

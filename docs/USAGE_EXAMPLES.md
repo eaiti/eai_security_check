@@ -1,113 +1,245 @@
 # Usage Examples
 
-This guide provides practical examples for using the EAI Security Check tool in various scenarios and environments.
+This guide provides practical examples for using the EAI Security Check unified application in both desktop (GUI) and command-line (CLI) modes.
 
-## 🎯 Basic Usage Examples
+## 🖥️ Desktop Application (GUI Mode)
 
 ### Quick Security Check
 
-```bash
-# Run security audit with default profile
-eai-security-check check
-
-# Output shows real-time security status
-# ✅ Disk Encryption: FileVault enabled  
-# ❌ Firewall: Application Firewall disabled
-# 📊 Summary: 6/9 checks passed, 2 failed, 1 warning
-```
+**Using the Desktop Application:**
+1. Launch EAI Security Check from your applications menu
+2. Click "Run Security Audit" on the dashboard
+3. View real-time results with color-coded status indicators:
+   - ✅ **Green**: Security check passed
+   - ⚠️ **Yellow**: Warning - review recommendation
+   - ❌ **Red**: Failed - immediate attention required
 
 ### Profile-Based Checks
 
+**Visual Profile Selection:**
+1. Navigate to "Settings" → "Security Profiles"
+2. Choose from built-in profiles:
+   - **default**: Recommended settings for general users
+   - **strict**: Maximum security for high-risk environments  
+   - **relaxed**: Balanced approach prioritizing convenience
+   - **developer**: Development-friendly settings
+   - **eai**: EAI organization-specific requirements
+3. Click "Run Audit" to check against selected profile
+
+### Report Management
+
+**Export and Share Results:**
+1. After running an audit, access the "Reports" section
+2. Select any historical report
+3. Use the format converter to export in multiple formats:
+   - **JSON**: Structured data for automation
+   - **HTML**: Web-friendly with styling
+   - **Markdown**: Documentation-ready format
+   - **CSV**: Spreadsheet-compatible data
+   - **Plain Text**: Simple, readable format
+4. Use "Copy to Clipboard" for quick sharing
+5. Click "Download" to save locally
+
+## �️ Command Line Interface (CLI Mode)
+
+### Basic CLI Commands
+
 ```bash
-# Use built-in security profiles
-eai-security-check check default    # Recommended settings
-eai-security-check check strict     # Maximum security  
-eai-security-check check relaxed    # Balanced approach
-eai-security-check check developer  # Development-friendly
-eai-security-check check eai        # EAI-specific requirements
+# Show version and help
+npx electron . --version
+npx electron . --help
 
-# Compare profiles
-eai-security-check check strict --summary
-eai-security-check check relaxed --summary
+# Quick security check with human-readable output
+npx electron . check --profile developer --format human
+
+# Automated check with JSON output
+npx electron . check --profile strict --format json --non-interactive
 ```
-
-### Output Formats
-
-```bash
-# Console output (default) - colorized with emojis
-eai-security-check check
-
-# Plain text - no colors or formatting
-eai-security-check check --format plain
-
-# Markdown - documentation-ready
-eai-security-check check --format markdown
-
-# JSON - structured data for automation
-eai-security-check check --format json
-
-# Email format - optimized for email sharing
-eai-security-check check --format email
-```
-
-## 📄 Report Generation
 
 ### Save Reports to Files
 
+**CLI Method (Automated):**
 ```bash
-# Save detailed report to file
-eai-security-check check -o ~/security-report.txt
+# Save detailed report to JSON file
+npx electron . check --profile strict --format json --output ~/security-report.json
 
-# Generate markdown report for documentation
-eai-security-check check --format markdown -o ~/security-report.md
+# Save human-readable report 
+npx electron . check --profile developer --format human --output ~/security-report.txt
 
-# Create JSON report for automation
-eai-security-check check --format json -o ~/security-report.json
-
-# Email-formatted report
-eai-security-check check --format email -o ~/security-email.txt
+# Non-interactive for automation
+npx electron . check --profile eai --non-interactive --format json --output ~/automated-security-check.json
 ```
 
-### Tamper-Evident Reports
-
-```bash
-# Generate cryptographically signed report
-eai-security-check check --hash -o ~/secure-report.txt
-
-# Sign JSON report for API integration
-eai-security-check check --format json --hash -o ~/api-report.json
-
-# Verify previously generated report
-eai-security-check verify ~/secure-report.txt
-
-# Example verification output:
-# ✅ Report verification PASSED
-# 🔐 Hash: AD545088  
-# 📅 Generated: 1/15/2024, 2:30:15 PM
-# 💻 Platform: macOS
-```
-
-### Summary and Sharing
-
-```bash
-# Generate one-line summary for quick sharing
-eai-security-check check --summary
-
-# Output: Security Audit: 6/9 passed, 2 failed, 1 warning (1/15/2024, 2:30 PM)
-
-# Copy summary to clipboard for sharing
-eai-security-check check --summary --clipboard
-
-# Copy full report to clipboard
-eai-security-check check --clipboard
-```
+**GUI Method (Interactive):**
+1. Run security check in desktop application
+2. Navigate to "Reports" section  
+3. Select report and click "Download"
+4. Choose format (JSON, HTML, Markdown, CSV, Plain Text)
 
 ## 🔧 Custom Configuration Examples
 
-### Using Custom Configuration Files
+### Creating Custom Security Profiles
 
+**Using the Visual Profile Editor:**
+1. Open the application and navigate to "Settings" → "Security Profiles"
+2. Click "Create New Profile" or "Duplicate Existing"
+3. Modify security requirements using the visual controls:
+   - **Auto-lock timeout**: Slider control with minute increments
+   - **Password requirements**: Character length and complexity options
+   - **Firewall settings**: Enable/disable with explanation tooltips
+   - **System integrity**: Toggle critical security features
+4. Save with a descriptive name
+5. Test the profile by running an audit
+
+### Enterprise Configuration
+
+**Setting up organization-wide profiles:**
+1. Create a custom profile with enterprise requirements
+2. Export the profile using "Export Configuration"
+3. Share the configuration file with team members
+4. Import on other systems using "Import Configuration"
+5. Set as default profile for consistent auditing
+
+### Development Environment Setup
+
+**Developer-friendly configuration:**
+1. Start with the "developer" profile template
+2. Adjust settings for development workflow:
+   - **Relaxed auto-lock**: 15-20 minutes for active development
+   - **Flexible firewall**: Allow development servers and tools
+   - **Modified sharing**: Enable necessary development services
+3. Save as "custom-dev" profile
+4. Use for all development workstations
+
+## 🤖 Automated Monitoring Examples
+
+### GUI-Based Scheduled Audits
+
+**Using the Daemon Setup Wizard:**
+1. Navigate to "Settings" → "Automated Monitoring"
+2. Click "Setup Automated Audits"
+3. Configure schedule options:
+   - **Daily**: High-security environments
+   - **Weekly**: Standard corporate environments  
+   - **Custom**: Specific days/times using visual scheduler
+4. Set up email notifications:
+   - **SMTP Configuration**: Visual form with validation
+   - **Recipient Lists**: Add multiple notification addresses
+   - **Report Format**: Choose email-optimized formatting
+5. Test configuration with "Send Test Email"
+6. Activate automated monitoring
+
+### CLI-Based Automation
+
+**Simple Automation Scripts:**
 ```bash
-# Create custom configuration
+#!/bin/bash
+# Daily security check script
+DATE=$(date +%Y-%m-%d)
+REPORT_FILE="security-check-$DATE.json"
+
+# Run non-interactive security check
+npx electron . check --profile strict --non-interactive --format json --output "$REPORT_FILE"
+
+# Check exit code
+if [ $? -eq 0 ]; then
+    echo "✅ Security check passed - $DATE"
+else
+    echo "❌ Security check failed - $DATE"
+    # Send alert or take remediation action
+fi
+```
+
+**Advanced Automation with Error Handling:**
+```bash
+#!/bin/bash
+# Enterprise security monitoring script
+
+set -e
+
+LOG_DIR="/var/log/security-checks"
+REPORT_DIR="/opt/security-reports"
+DATE=$(date +%Y-%m-%d_%H-%M-%S)
+
+mkdir -p "$LOG_DIR" "$REPORT_DIR"
+
+# Run security check with comprehensive logging
+{
+    echo "Starting security check at $(date)"
+    
+    if npx electron . check --profile eai --non-interactive --format json --output "$REPORT_DIR/security-$DATE.json"; then
+        echo "✅ Security check completed successfully"
+        
+        # Validate the report
+        if npx electron . validate "$REPORT_DIR/security-$DATE.json"; then
+            echo "✅ Report validation successful"
+        else
+            echo "⚠️ Report validation failed"
+        fi
+        
+    else
+        echo "❌ Security check failed"
+        exit 1
+    fi
+    
+} >> "$LOG_DIR/security-check.log" 2>&1
+```
+
+**CI/CD Integration:**
+```bash
+#!/bin/bash
+# CI/CD security gate script
+echo "🔒 Running security compliance check..."
+
+# Non-interactive security check for CI/CD
+if npx electron . check --profile developer --non-interactive --format json > security-ci-report.json; then
+    echo "✅ Security compliance check passed"
+    
+    # Extract key metrics for CI/CD dashboard
+    PASSED=$(cat security-ci-report.json | jq '.summary.passed')
+    FAILED=$(cat security-ci-report.json | jq '.summary.failed')
+    TOTAL=$(cat security-ci-report.json | jq '.summary.totalChecks')
+    
+    echo "📊 Results: $PASSED/$TOTAL checks passed, $FAILED failed"
+    
+    # Fail build if critical security checks fail
+    if [ "$FAILED" -gt 0 ]; then
+        echo "❌ Build failed due to security compliance issues"
+        exit 1
+    fi
+    
+else
+    echo "❌ Security compliance check failed"
+    exit 1
+fi
+```
+
+### Email Notification Examples
+
+**Configuring different notification scenarios:**
+
+**Simple Daily Monitoring:**
+- Schedule: Every day at 8:00 AM
+- Recipients: IT team email alias
+- Format: Email-optimized summary
+- Trigger: Send on failures only
+
+**Comprehensive Weekly Reports:**
+- Schedule: Every Monday at 9:00 AM
+- Recipients: Security team + management
+- Format: Detailed HTML report
+- Trigger: Send all results (pass/fail/warning)
+
+**High-Security Real-Time Alerts:**
+- Schedule: Every 4 hours
+- Recipients: Security operations center
+- Format: JSON for automated processing
+- Trigger: Critical failures only
+### Custom Configuration Files
+
+**CLI Method:**
+```bash
+# Create custom configuration file
 cat > my-config.json << 'EOF'
 {
   "diskEncryption": { "enabled": true },
@@ -125,17 +257,27 @@ cat > my-config.json << 'EOF'
 EOF
 
 # Use custom configuration
-eai-security-check check -c my-config.json
+npx electron . check --config my-config.json --format human
 
 # Save custom report
-eai-security-check check -c my-config.json -o custom-audit.txt
+npx electron . check --config my-config.json --output custom-audit.json
+```
+
+**GUI Method:**
+1. Open application, navigate to "Settings" → "Security Profiles"
+2. Create or modify profiles using visual editor
+3. Export configuration files for sharing or CLI use
 ```
 
 ### Configuration Validation
 
+**CLI Method:**
 ```bash
 # Test configuration file for errors
-eai-security-check check -c invalid-config.json
+npx electron . check --config invalid-config.json
+
+# Validate existing reports
+npx electron . validate security-report.json
 
 # Example error output:
 # ❌ Configuration Error: password.minLength must be between 1-128
@@ -143,19 +285,25 @@ eai-security-check check -c invalid-config.json
 # ❌ Configuration failed validation
 ```
 
+**GUI Method:**
+1. Use the visual configuration editor with real-time validation
+2. Import configuration files to check for errors
+3. Built-in validation prevents invalid configurations
+
 ## 🖥️ Platform-Specific Examples
 
 ### macOS Examples
 
+**CLI Usage:**
 ```bash
 # Complete macOS security audit
-eai-security-check check default
+npx electron . check --profile default --format human
 
-# Check macOS-specific features
-eai-security-check check strict --format markdown -o macos-security-report.md
+# Check macOS-specific features with strict profile
+npx electron . check --profile strict --format json --output macos-security-report.json
 
-# Developer workstation setup
-eai-security-check check developer
+# Developer workstation setup (non-interactive)
+npx electron . check --profile developer --non-interactive
 
 # Example output focusing on macOS features:
 # ✅ FileVault: Enabled for primary disk
@@ -164,14 +312,21 @@ eai-security-check check developer
 # ✅ XProtect: Malware detection active
 ```
 
+**GUI Usage:**
+1. Launch application on macOS
+2. macOS-specific checks automatically detected
+3. View results with platform-specific explanations
+4. Access macOS security recommendations and remediation steps
+
 ### Linux Examples
 
+**CLI Usage:**
 ```bash
 # Fedora/RHEL security audit (primary support)
-eai-security-check check default
+npx electron . check --profile default --non-interactive --format json
 
 # Ubuntu/Debian audit (limited testing)
-eai-security-check check relaxed  # May have fewer false positives
+npx electron . check --profile relaxed --format human  # May have fewer false positives
 
 # Server-focused configuration
 cat > linux-server-config.json << 'EOF'
@@ -192,17 +347,18 @@ cat > linux-server-config.json << 'EOF'
 }
 EOF
 
-eai-security-check check -c linux-server-config.json
+npx electron . check --config linux-server-config.json --non-interactive
 ```
 
 ### Windows Examples
 
+**CLI Usage:**
 ```bash
 # Windows security audit
-eai-security-check.exe check default
+npx electron . check --profile default --format human
 
 # Corporate Windows setup
-eai-security-check.exe check strict --format json -o windows-audit.json
+npx electron . check --profile strict --format json --output windows-audit.json --non-interactive
 
 # Example focusing on Windows features:
 # ✅ BitLocker: Drive encryption enabled

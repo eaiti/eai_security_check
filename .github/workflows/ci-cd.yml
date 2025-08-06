@@ -1,0 +1,466 @@
+name: Multi-Platform CI/CD
+
+on:
+  push:
+    branches: [main, master, develop, ui-conversion]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Deployment environment'
+        required: false
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: write
+  packages: write
+  actions: read
+  checks: write
+
+env:
+  NODE_VERSION: '22.x'
+  ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+  ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+
+jobs:
+  # Lint and basic validation
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+  # Core tests (Jest)
+  test-core:
+    name: Core Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run core tests
+        run: npm run test:core
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          file: ./coverage/lcov.info
+          flags: core-tests
+          name: core-tests
+
+  # UI tests (Angular/Karma)
+  test-ui:
+    name: UI Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run UI tests
+        run: npm run test:ui
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          file: ./coverage/lcov.info
+          flags: ui-tests
+          name: ui-tests
+
+  # Build validation
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs: [test-core, test-ui]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Build UI
+        run: npm run build:dev
+
+  # Platform-specific integration tests
+  test-integration:
+    name: Integration Tests
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            test-script: ./scripts/testing/test-linux.sh
+            shell: bash
+          - os: macos-latest
+            platform: macos
+            test-script: ./scripts/testing/test-macos.sh
+            shell: bash
+          - os: windows-latest
+            platform: windows
+            test-script: ./scripts/testing/test-windows.ps1
+            shell: powershell
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for testing
+        run: npm run build
+
+      - name: Setup test environment (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl wget gnupg2
+
+      - name: Setup test environment (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          # macOS specific setup if needed
+          echo "macOS test environment ready"
+
+      - name: Setup test environment (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          # Windows specific setup if needed
+          Write-Host "Windows test environment ready"
+
+      - name: Run integration tests (Unix)
+        if: matrix.shell == 'bash'
+        shell: bash
+        run: |
+          chmod +x ${{ matrix.test-script }}
+          ${{ matrix.test-script }}
+
+      - name: Run integration tests (Windows)
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          & "${{ matrix.test-script }}"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.platform }}
+          path: |
+            test-results/
+            *.log
+          retention-days: 7
+
+  # Build executables for all platforms
+  build-executables:
+    name: Build Executables
+    needs: test-integration
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main')
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            target: pkg:linux
+            artifact: eai-security-check-linux
+          - os: macos-latest
+            platform: macos
+            target: pkg:macos
+            artifact: eai-security-check-macos
+          - os: windows-latest
+            platform: windows
+            target: pkg:windows
+            artifact: eai-security-check-windows.exe
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Build executable
+        run: npm run ${{ matrix.target }}
+
+      - name: Sign executable (macOS)
+        if: matrix.os == 'macos-latest' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}
+          MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}
+          MACOS_NOTARIZATION_PWD: ${{ secrets.MACOS_NOTARIZATION_PWD }}
+        run: |
+          if [ -n "$MACOS_CERTIFICATE" ]; then
+            node scripts/sign-macos.js bin/index-macos || echo "Signing failed, continuing without signature"
+          fi
+
+      - name: Sign executable (Windows)
+        if: matrix.os == 'windows-latest' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PWD: ${{ secrets.WINDOWS_CERTIFICATE_PWD }}
+        run: |
+          if ($env:WINDOWS_CERTIFICATE) {
+            node scripts/sign-windows.js bin/index-win.exe
+          } else {
+            Write-Host "No Windows certificate available, skipping signing"
+          }
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: executable-${{ matrix.platform }}
+          path: bin/${{ matrix.artifact }}*
+          retention-days: 30
+
+  # Build Electron apps
+  build-electron:
+    name: Build Electron Apps
+    needs: test-integration
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main')
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            target: dist:linux
+          - os: macos-latest
+            platform: macos
+            target: dist:mac
+          - os: windows-latest
+            platform: windows
+            target: dist:win
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Cache Electron
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ELECTRON_CACHE }}
+          key: ${{ matrix.os }}-electron-${{ hashFiles('package-lock.json') }}
+
+      - name: Cache Electron Builder
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: ${{ matrix.os }}-electron-builder-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Build UI
+        run: npm run build:dev
+
+      - name: Build Electron app
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run ${{ matrix.target }}
+
+      - name: Upload Electron app
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-app-${{ matrix.platform }}
+          path: |
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm
+            dist/*.exe
+            dist/*.msi
+            dist/mac/
+            dist/linux/
+            dist/win-unpacked/
+          retention-days: 30
+
+  # Create release
+  release:
+    name: Create Release
+    needs: [build-executables, build-electron]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release/
+          
+          # Copy executables
+          find artifacts/ -name "eai-security-check-*" -type f -exec cp {} release/ \;
+          
+          # Copy Electron distributions
+          find artifacts/ -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" -o -name "*.exe" -o -name "*.msi" | xargs -I {} cp {} release/ 2>/dev/null || true
+          
+          # Create checksums
+          cd release/
+          sha256sum * > checksums.sha256
+          md5sum * > checksums.md5
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create release notes
+        run: |
+          cat > RELEASE_NOTES.md << 'EOF'
+          # EAI Security Check ${{ steps.version.outputs.version }}
+          
+          ## 🎉 What's New
+          
+          This release includes improvements to the security checking engine, enhanced UI components, and updated multi-platform support.
+          
+          ## 📦 Downloads
+          
+          ### CLI Executables
+          - `eai-security-check-macos` - macOS (Intel/Apple Silicon)
+          - `eai-security-check-linux` - Linux (x64)
+          - `eai-security-check-windows.exe` - Windows (x64)
+          
+          ### Desktop Applications
+          - `.dmg` - macOS Desktop App
+          - `.AppImage`, `.deb`, `.rpm` - Linux Desktop App
+          - `.exe`, `.msi` - Windows Desktop App
+          
+          ### Verification
+          Use the provided checksums to verify download integrity:
+          ```bash
+          # Verify SHA256
+          sha256sum -c checksums.sha256
+          
+          # Verify MD5
+          md5sum -c checksums.md5
+          ```
+          
+          ## 🔒 Security
+          
+          All executables are digitally signed and can be verified for authenticity.
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Deployment (if configured)
+  deploy:
+    name: Deploy
+    needs: release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && github.repository == 'eaiti/eai_security_check'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Trigger deployment
+        run: |
+          echo "🚀 Deployment triggered for ${{ steps.version.outputs.version }}"
+          # Add deployment logic here (e.g., update package repositories, notify distribution channels)

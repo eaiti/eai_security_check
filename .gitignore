@@ -106,3 +106,12 @@ certificate.*
 signing-key.*
 *.sig
 *.sha256
+
+# Reports directory
+reports/
+
+# Angular build artifacts
+.angular/
+
+# Release builds
+release/

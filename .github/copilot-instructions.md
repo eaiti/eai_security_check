@@ -26,17 +26,36 @@ This is a **cross-platform enterprise security auditing tool** that:
 
 ### Code Quality (ALWAYS ENFORCE)
 - **ESLint**: Fix ALL warnings and errors before committing
-  - CLI: `npm run lint` and `npm run lint:fix`  
-  - UI: `npm run lint:ui` and `npm run lint:ui:fix`
+  - Use `npm run lint` and `npm run lint:fix` for all code
 - **Prettier**: Format all code consistently
-  - `npm run format` or `npm run format:all`
+  - `npm run format:all` (includes linting fixes)
 - **TypeScript**: Strict mode enabled (includes `noImplicitAny`, `noImplicitReturns`, `noImplicitThis`, `noImplicitOverride`, etc.)
+- **UI TypeScript**: Modified for Angular compatibility with `"strictNullChecks": false` in `ui/tsconfig.app.json`
 
-### Testing (ALWAYS REQUIRED)
-- **All tests must pass**: `npm test` (CLI) and `cd ui && npm test` (UI)
-- **New features require tests**: Mock system commands using `src/test-utils/mocks.ts`
-- **Test both success/failure scenarios** for security checks
-- **High coverage required** for security-critical code
+### Testing Structure & Requirements (ALWAYS REQUIRED)
+**Dual Testing Framework:**
+- **Core Tests (Jest)**: 295 tests covering Node.js/TypeScript logic
+  - Location: `src/**/*.test.ts` files adjacent to source
+  - Run with: `npm run test:core` or `jest`
+  - Coverage: Security checkers, services, utilities, CLI handlers
+  
+- **UI Tests (Angular/Jasmine/Karma)**: 10 tests covering Angular components
+  - Location: `ui/src/app/**/*.spec.ts`
+  - Run with: `npm run test:ui` 
+  - Coverage: Dashboard component, Angular services, UI logic
+
+**Test Separation:**
+- Jest excludes UI tests via `jest.config.js` `testPathIgnorePatterns: ["<rootDir>/ui/"]`
+- Angular tests run independently without Jest conflicts
+- Never mix Jest and Angular test execution in same process
+
+**Testing Commands:**
+- `npm run test:all` - Run both Jest and Angular tests sequentially
+- `npm run test:core` - Jest tests only (295 tests)
+- `npm run test:ui` - Angular tests only (10 tests) 
+- `npm run test` - Legacy combined command
+- `npm run verify` - Full verification (tests + build + lint + format check)
+- `npm run verify:quick` - Core tests + linting only
 
 ### Security Requirements
 - **No `any` types** - All code must be properly typed
@@ -72,21 +91,28 @@ This is a **cross-platform enterprise security auditing tool** that:
 - Security profiles: JSON configs for different security levels
 
 ## Development Workflow
-1. **Always run tests**: Ensure `npm test` passes
-2. **Fix lint issues**: Run `npm run lint:fix:all` 
-3. **Format code**: Run `npm run format:all`
-4. **Verify builds**: Run `npm run build` and `npm run build:ui`
-5. **Test cross-platform** when adding system integrations
+1. **Always run tests**: Use `npm run verify:quick` for rapid feedback or `npm run verify` for full validation
+2. **Test-driven development**: Write tests first, especially for security checks
+3. **Fix all issues**: Ensure zero warnings/errors in tests, builds, and linting
+4. **Format code**: Use `npm run format:all` for consistent formatting + linting
+5. **Verify builds**: `npm run build` produces clean builds (TypeScript module warnings are acceptable)
+6. **Test cross-platform** when adding system integrations
 
-## Common Patterns & Anti-Patterns
+## Testing Implementation Patterns
 
-### System Command Execution
-- **Always use `child_process.exec` wrapped in `execAsync`**
-- **Handle platform differences**: Check for multiple command variations
-- **Graceful error handling**: Continue execution when individual checks fail
-- **Parse output reliably**: Handle empty, malformed, or missing output
+### Jest Test Structure (Core Tests)
+- **Mock system commands** using `src/test-utils/mocks.ts`
+- **Test success AND failure scenarios** for every security check
+- **Platform-specific test cases** for cross-platform features
+- **Use descriptive test names** explaining the scenario being tested
 
-### Error Handling Pattern
+### Angular Test Structure (UI Tests)  
+- **Component testing** with proper service mocking using `jasmine.createSpyObj`
+- **Service method alignment** - ensure mocks match actual service method names
+- **Provider configuration** - include all required Angular dependencies (Router, ActivatedRoute, etc.)
+- **Comprehensive coverage** of component lifecycle and user interactions
+
+### Error Handling Pattern (Both Frameworks)
 ```typescript
 try {
   const { stdout } = await execAsync('command');
@@ -96,12 +122,6 @@ try {
   return false; // Default safe state
 }
 ```
-
-### Testing Requirements
-- **Mock all system commands** using `src/test-utils/mocks.ts`
-- **Test success AND failure scenarios** for every security check
-- **Platform-specific test cases** for cross-platform features
-- **Use descriptive test names** explaining the scenario being tested
 
 ### Adding New Security Checks (Step-by-Step)
 1. **Define interface** in `src/types.ts` (add to `ISecurityChecker`)

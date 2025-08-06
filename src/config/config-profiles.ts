@@ -2,9 +2,15 @@
  * Predefined security configuration profiles
  */
 
-import { SecurityConfig } from '../types';
+import { SecurityConfig } from "../types";
 
-export const VALID_PROFILES = ['default', 'strict', 'relaxed', 'developer', 'eai'] as const;
+export const VALID_PROFILES = [
+  "default",
+  "strict",
+  "relaxed",
+  "developer",
+  "eai",
+] as const;
 export type SecurityProfile = (typeof VALID_PROFILES)[number];
 
 /**
@@ -13,7 +19,7 @@ export type SecurityProfile = (typeof VALID_PROFILES)[number];
 const baseConfig = {
   diskEncryption: { enabled: true },
   packageVerification: { enabled: true },
-  systemIntegrityProtection: { enabled: true }
+  systemIntegrityProtection: { enabled: true },
 };
 
 /**
@@ -21,12 +27,12 @@ const baseConfig = {
  */
 export function getConfigByProfile(profile: string): SecurityConfig {
   switch (profile) {
-    case 'strict':
+    case "strict":
       return {
         ...baseConfig,
         passwordProtection: {
           enabled: true,
-          requirePasswordImmediately: true
+          requirePasswordImmediately: true,
         },
         password: {
           required: false,
@@ -35,7 +41,7 @@ export function getConfigByProfile(profile: string): SecurityConfig {
           requireLowercase: false,
           requireNumber: false,
           requireSpecialChar: false,
-          maxAgeDays: 180
+          maxAgeDays: 180,
         },
         autoLock: { maxTimeoutMinutes: 3 },
         firewall: { enabled: true, stealthMode: true },
@@ -44,35 +50,41 @@ export function getConfigByProfile(profile: string): SecurityConfig {
         automaticUpdates: {
           enabled: true,
           automaticInstall: true,
-          automaticSecurityInstall: true
+          automaticSecurityInstall: true,
         },
         sharingServices: {
           fileSharing: false,
           screenSharing: false,
-          remoteLogin: false
+          remoteLogin: false,
         },
-        osVersion: { targetVersion: 'latest' },
+        osVersion: { targetVersion: "latest" },
         wifiSecurity: {
-          bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi', 'Free WiFi']
+          bannedNetworks: [
+            "EAIguest",
+            "xfinitywifi",
+            "Guest",
+            "Public WiFi",
+            "Free WiFi",
+          ],
         },
         installedApps: {
           bannedApplications: [
-            'BitTorrent',
-            'uTorrent',
-            'Limewire',
-            'TeamViewer',
-            'AnyDesk',
-            'Skype'
-          ]
-        }
+            "BitTorrent",
+            "uTorrent",
+            "Limewire",
+            "TeamViewer",
+            "AnyDesk",
+            "Skype",
+          ],
+        },
       };
 
-    case 'relaxed':
+    case "relaxed":
       return {
         ...baseConfig,
         passwordProtection: {
           enabled: true,
-          requirePasswordImmediately: false
+          requirePasswordImmediately: false,
         },
         password: {
           required: false,
@@ -81,7 +93,7 @@ export function getConfigByProfile(profile: string): SecurityConfig {
           requireLowercase: false,
           requireNumber: false,
           requireSpecialChar: false,
-          maxAgeDays: 180
+          maxAgeDays: 180,
         },
         autoLock: { maxTimeoutMinutes: 15 },
         firewall: { enabled: true, stealthMode: false },
@@ -90,21 +102,21 @@ export function getConfigByProfile(profile: string): SecurityConfig {
         automaticUpdates: {
           enabled: true,
           downloadOnly: false,
-          automaticSecurityInstall: false
+          automaticSecurityInstall: false,
         },
         sharingServices: {
           fileSharing: false,
           screenSharing: false,
-          remoteLogin: false
-        }
+          remoteLogin: false,
+        },
       };
 
-    case 'developer':
+    case "developer":
       return {
         ...baseConfig,
         passwordProtection: {
           enabled: true,
-          requirePasswordImmediately: true
+          requirePasswordImmediately: true,
         },
         password: {
           required: true,
@@ -113,7 +125,7 @@ export function getConfigByProfile(profile: string): SecurityConfig {
           requireLowercase: true,
           requireNumber: true,
           requireSpecialChar: true,
-          maxAgeDays: 180
+          maxAgeDays: 180,
         },
         autoLock: { maxTimeoutMinutes: 10 },
         firewall: { enabled: true, stealthMode: false },
@@ -122,21 +134,21 @@ export function getConfigByProfile(profile: string): SecurityConfig {
         automaticUpdates: {
           enabled: true,
           downloadOnly: true,
-          automaticSecurityInstall: true
+          automaticSecurityInstall: true,
         },
         sharingServices: {
           fileSharing: true,
           screenSharing: true,
-          remoteLogin: true
-        }
+          remoteLogin: true,
+        },
       };
 
-    case 'eai':
+    case "eai":
       return {
         diskEncryption: { enabled: true },
         passwordProtection: {
           enabled: true,
-          requirePasswordImmediately: true
+          requirePasswordImmediately: true,
         },
         password: {
           required: true,
@@ -145,7 +157,7 @@ export function getConfigByProfile(profile: string): SecurityConfig {
           requireLowercase: false,
           requireNumber: false,
           requireSpecialChar: false,
-          maxAgeDays: 180
+          maxAgeDays: 180,
         },
         autoLock: { maxTimeoutMinutes: 7 },
         firewall: { enabled: false, stealthMode: false },
@@ -156,28 +168,28 @@ export function getConfigByProfile(profile: string): SecurityConfig {
         automaticUpdates: {
           enabled: true,
           automaticInstall: true,
-          automaticSecurityInstall: true
+          automaticSecurityInstall: true,
         },
         sharingServices: {
           fileSharing: false,
           screenSharing: false,
-          remoteLogin: false
+          remoteLogin: false,
         },
-        osVersion: { targetVersion: 'latest' },
+        osVersion: { targetVersion: "latest" },
         installedApps: {
           bannedApplications: [
-            'BitTorrent',
-            'uTorrent',
-            'Limewire',
-            'TeamViewer',
-            'AnyDesk',
-            'Skype',
-            'Steam'
-          ]
+            "BitTorrent",
+            "uTorrent",
+            "Limewire",
+            "TeamViewer",
+            "AnyDesk",
+            "Skype",
+            "Steam",
+          ],
         },
         wifiSecurity: {
-          bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest', 'Public WiFi']
-        }
+          bannedNetworks: ["EAIguest", "xfinitywifi", "Guest", "Public WiFi"],
+        },
       };
 
     default: // 'default' profile
@@ -185,7 +197,7 @@ export function getConfigByProfile(profile: string): SecurityConfig {
         ...baseConfig,
         passwordProtection: {
           enabled: true,
-          requirePasswordImmediately: true
+          requirePasswordImmediately: true,
         },
         password: {
           required: false,
@@ -194,7 +206,7 @@ export function getConfigByProfile(profile: string): SecurityConfig {
           requireLowercase: false,
           requireNumber: false,
           requireSpecialChar: false,
-          maxAgeDays: 180
+          maxAgeDays: 180,
         },
         autoLock: { maxTimeoutMinutes: 7 },
         firewall: { enabled: true, stealthMode: true },
@@ -203,16 +215,16 @@ export function getConfigByProfile(profile: string): SecurityConfig {
         automaticUpdates: {
           enabled: true,
           automaticInstall: true,
-          automaticSecurityInstall: true
+          automaticSecurityInstall: true,
         },
         sharingServices: {
           fileSharing: false,
           screenSharing: false,
-          remoteLogin: false
+          remoteLogin: false,
         },
         wifiSecurity: {
-          bannedNetworks: ['EAIguest', 'xfinitywifi', 'Guest']
-        }
+          bannedNetworks: ["EAIguest", "xfinitywifi", "Guest"],
+        },
       };
   }
 }

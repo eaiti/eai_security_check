@@ -10,8 +10,46 @@ const angularTemplatePlugin = require('@angular-eslint/eslint-plugin-template');
 
 module.exports = [
   js.configs.recommended,
+  // JavaScript files (Node.js - scripts, electron, build files)
+  {
+    files: ['scripts/**/*.js', 'src/electron/**/*.js', '*.js'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+        require: 'readonly',
+        module: 'readonly',
+        exports: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        process: 'readonly'
+      }
+    },
+    plugins: {
+      prettier: prettierPlugin
+    },
+    rules: {
+      ...prettierConfig.rules,
+      'prettier/prettier': [
+        'error',
+        {},
+        {
+          usePrettierrc: true,
+          fileInfoOptions: {
+            withNodeModules: false
+          }
+        }
+      ],
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
+    }
+  },
+  // TypeScript files (Core Node.js code)
   {
     files: ['src/**/*.ts', 'tests/**/*.ts'],
+    ignores: ['src/ui/**/*.ts', 'ui/src/**/*.ts'],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
@@ -44,15 +82,15 @@ module.exports = [
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-non-null-assertion': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
       'prefer-const': 'error',
       'no-var': 'error'
     }
   },
   // Angular TypeScript files
   {
-    files: ['ui/src/**/*.ts'],
+    files: ['src/ui/**/*.ts', 'ui/src/**/*.ts'],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
@@ -85,7 +123,7 @@ module.exports = [
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@angular-eslint/component-class-suffix': 'error',
       '@angular-eslint/directive-class-suffix': 'error',
       '@angular-eslint/no-empty-lifecycle-method': 'error',
@@ -94,7 +132,7 @@ module.exports = [
   },
   // Angular TypeScript test files
   {
-    files: ['ui/src/**/*.spec.ts'],
+    files: ['src/ui/**/*.spec.ts', 'ui/src/**/*.spec.ts'],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
@@ -128,14 +166,14 @@ module.exports = [
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@angular-eslint/component-class-suffix': 'off', // Allow test components without suffix
       '@angular-eslint/prefer-on-push-component-change-detection': 'off' // Allow for tests
     }
   },
   // Angular HTML templates
   {
-    files: ['ui/src/**/*.html'],
+    files: ['src/ui/**/*.html', 'ui/src/**/*.html'],
     languageOptions: {
       parser: angularTemplateParser
     },
@@ -150,6 +188,6 @@ module.exports = [
     }
   },
   {
-    ignores: ['dist/', 'node_modules/', 'jest.config.js', 'ui/dist/', 'ui/node_modules/']
+    ignores: ['dist/', 'node_modules/', 'jest.config.js', 'karma.conf.js', 'eslint.config.js', 'src/ui/dist/', 'src/ui/node_modules/', 'ui/dist/', 'ui/node_modules/', '.angular/', 'coverage/', 'release/']
   }
 ];

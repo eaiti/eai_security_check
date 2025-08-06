@@ -193,17 +193,17 @@ Enhanced reports include additional fields:
 
 ## Testing
 
-Run the comprehensive test suite covering security, CLI functionality, and interactive modes:
+Run the comprehensive test suite covering security, desktop application functionality, and service components:
 
 ```bash
-# Full test suite (283 tests)
+# Full test suite (305 tests: 295 Jest + 10 Angular)
 npm test
 
 # Security-specific tests
 npm test -- src/utils/crypto-utils.test.ts
 
-# CLI interactive mode tests (36 tests)
-npm test -- src/cli/index.test.ts
+# Desktop application tests (Angular)
+cd ui && npm test
 ```
 
 Key test scenarios:

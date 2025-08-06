@@ -12,25 +12,21 @@
  * - GPG_PASSPHRASE: Passphrase for the GPG key (optional if key has no passphrase)
  */
 
-const { execSync, spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+const { execSync, spawn } = require("child_process");
+const fs = require("fs");
+const path = require("path");
 
-const EXECUTABLE_NAME = 'index-linux';
-const BIN_DIR = path.join(__dirname, '..', 'bin');
+const EXECUTABLE_NAME = "index-linux";
+const BIN_DIR = path.join(__dirname, "..", "bin");
 const EXECUTABLE_PATH = path.join(BIN_DIR, EXECUTABLE_NAME);
-const SIGNATURE_PATH = path.join(BIN_DIR, EXECUTABLE_NAME + '.sig');
+const SIGNATURE_PATH = path.join(BIN_DIR, EXECUTABLE_NAME + ".sig");
 
 function log(message) {
   console.log(`[Linux Signing] ${message}`);
 }
 
-function error(message) {
-  console.error(`[Linux Signing] ERROR: ${message}`);
-}
-
 function checkRequirements() {
-  log('Checking requirements...');
+  log("Checking requirements...");
 
   // Check if executable exists
   if (!fs.existsSync(EXECUTABLE_PATH)) {
@@ -39,20 +35,20 @@ function checkRequirements() {
 
   // Check if gpg is available
   try {
-    execSync('which gpg', { stdio: 'ignore' });
-  } catch (e) {
-    throw new Error('gpg tool not found. Please install GnuPG.');
+    execSync("which gpg", { stdio: "ignore" });
+  } catch {
+    throw new Error("gpg tool not found. Please install GnuPG.");
   }
 
   // Check environment variables
-  const requiredEnvVars = ['GPG_SIGNING_KEY'];
+  const requiredEnvVars = ["GPG_SIGNING_KEY"];
   for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
       throw new Error(`Required environment variable ${envVar} not set`);
     }
   }
 
-  log('Requirements check passed');
+  log("Requirements check passed");
 }
 
 function checkGpgKey() {
@@ -63,11 +59,11 @@ function checkGpgKey() {
   try {
     // List secret keys to verify the signing key exists
     const output = execSync(`gpg --list-secret-keys "${signingKey}"`, {
-      encoding: 'utf8',
-      stdio: 'pipe'
+      encoding: "utf8",
+      stdio: "pipe",
     });
     if (output.includes(signingKey)) {
-      log('GPG signing key found');
+      log("GPG signing key found");
     } else {
       throw new Error(`GPG signing key not found: ${signingKey}`);
     }
@@ -77,7 +73,7 @@ function checkGpgKey() {
 }
 
 function signExecutable() {
-  log('Creating GPG signature...');
+  log("Creating GPG signature...");
 
   const signingKey = process.env.GPG_SIGNING_KEY;
   const passphrase = process.env.GPG_PASSPHRASE;
@@ -88,16 +84,16 @@ function signExecutable() {
   }
 
   const gpgArgs = [
-    '--detach-sign',
-    '--armor',
-    '--local-user',
+    "--detach-sign",
+    "--armor",
+    "--local-user",
     signingKey,
-    '--output',
-    SIGNATURE_PATH
+    "--output",
+    SIGNATURE_PATH,
   ];
 
   if (passphrase) {
-    gpgArgs.push('--batch', '--yes', '--passphrase-fd', '0');
+    gpgArgs.push("--batch", "--yes", "--passphrase-fd", "0");
   }
 
   gpgArgs.push(EXECUTABLE_PATH);
@@ -107,37 +103,44 @@ function signExecutable() {
   try {
     if (passphrase) {
       // Use spawn to pass passphrase via stdin
-      const gpgProcess = spawn('gpg', gpgArgs, { stdio: ['pipe', 'pipe', 'pipe'] });
+      const gpgProcess = spawn("gpg", gpgArgs, {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
 
       gpgProcess.stdin.write(passphrase);
       gpgProcess.stdin.end();
 
-      let stdout = '';
-      let stderr = '';
+      let stdout = "";
+      let stderr = "";
 
-      gpgProcess.stdout.on('data', data => {
+      gpgProcess.stdout.on("data", (data) => {
         stdout += data.toString();
       });
 
-      gpgProcess.stderr.on('data', data => {
+      gpgProcess.stderr.on("data", (data) => {
         stderr += data.toString();
       });
 
       return new Promise((resolve, reject) => {
-        gpgProcess.on('close', code => {
+        gpgProcess.on("close", (code) => {
           if (code === 0) {
-            log('GPG signing successful');
+            log("GPG signing successful");
             if (stdout) log(`Output: ${stdout}`);
             resolve();
           } else {
-            reject(new Error(`GPG signing failed with code ${code}: ${stderr}`));
+            reject(
+              new Error(`GPG signing failed with code ${code}: ${stderr}`),
+            );
           }
         });
       });
     } else {
       // No passphrase, use execSync
-      const output = execSync(`gpg ${gpgArgs.join(' ')}`, { encoding: 'utf8', stdio: 'pipe' });
-      log('GPG signing successful');
+      const output = execSync(`gpg ${gpgArgs.join(" ")}`, {
+        encoding: "utf8",
+        stdio: "pipe",
+      });
+      log("GPG signing successful");
       if (output) {
         log(`Output: ${output}`);
       }
@@ -148,7 +151,7 @@ function signExecutable() {
 }
 
 function verifySignature() {
-  log('Verifying GPG signature...');
+  log("Verifying GPG signature...");
 
   if (!fs.existsSync(SIGNATURE_PATH)) {
     throw new Error(`Signature file not found: ${SIGNATURE_PATH}`);
@@ -156,15 +159,15 @@ function verifySignature() {
 
   try {
     const verifyCommand = `gpg --verify "${SIGNATURE_PATH}" "${EXECUTABLE_PATH}"`;
-    const output = execSync(verifyCommand, { encoding: 'utf8', stdio: 'pipe' });
-    log('Signature verification successful');
+    const output = execSync(verifyCommand, { encoding: "utf8", stdio: "pipe" });
+    log("Signature verification successful");
     if (output) {
       log(`Verification output: ${output}`);
     }
   } catch (e) {
     // GPG verification output goes to stderr even on success
-    if (e.stderr && e.stderr.includes('Good signature')) {
-      log('Signature verification successful');
+    if (e.stderr && e.stderr.includes("Good signature")) {
+      log("Signature verification successful");
       log(`Verification output: ${e.stderr}`);
     } else {
       throw new Error(`Signature verification failed: ${e.message}`);
@@ -173,14 +176,17 @@ function verifySignature() {
 }
 
 function createChecksumFile() {
-  log('Creating checksum file...');
+  log("Creating checksum file...");
 
-  const checksumPath = path.join(BIN_DIR, EXECUTABLE_NAME + '.sha256');
+  const checksumPath = path.join(BIN_DIR, EXECUTABLE_NAME + ".sha256");
 
   try {
-    const output = execSync(`sha256sum "${EXECUTABLE_PATH}"`, { encoding: 'utf8', cwd: BIN_DIR });
+    const output = execSync(`sha256sum "${EXECUTABLE_PATH}"`, {
+      encoding: "utf8",
+      cwd: BIN_DIR,
+    });
     // Extract just the hash and filename (remove the path)
-    const hash = output.split(' ')[0];
+    const hash = output.split(" ")[0];
     const checksumContent = `${hash}  ${EXECUTABLE_NAME}`;
 
     fs.writeFileSync(checksumPath, checksumContent);
@@ -193,7 +199,7 @@ function createChecksumFile() {
 
 async function main() {
   try {
-    log('Starting Linux signing process...');
+    log("Starting Linux signing process...");
 
     checkRequirements();
     checkGpgKey();
@@ -201,27 +207,31 @@ async function main() {
     verifySignature();
     createChecksumFile();
 
-    log('Linux signing process completed successfully!');
+    log("Linux signing process completed successfully!");
     log(`Signed executable: ${EXECUTABLE_PATH}`);
     log(`GPG signature: ${SIGNATURE_PATH}`);
     log(`Checksum: ${EXECUTABLE_PATH}.sha256`);
   } catch (e) {
     console.warn(`[Linux Signing] WARNING: Signing failed - ${e.message}`);
-    console.warn('[Linux Signing] WARNING: Build will continue without GPG signatures');
     console.warn(
-      '[Linux Signing] WARNING: Users will not be able to verify executable authenticity via GPG'
+      "[Linux Signing] WARNING: Build will continue without GPG signatures",
     );
     console.warn(
-      '[Linux Signing] INFO: To enable GPG signing, configure GPG keys and environment variables'
+      "[Linux Signing] WARNING: Users will not be able to verify executable authenticity via GPG",
+    );
+    console.warn(
+      "[Linux Signing] INFO: To enable GPG signing, configure GPG keys and environment variables",
     );
 
     // Still try to create checksum file for integrity verification
     try {
       createChecksumFile();
-      console.warn('[Linux Signing] INFO: Checksum file created for integrity verification');
+      console.warn(
+        "[Linux Signing] INFO: Checksum file created for integrity verification",
+      );
     } catch (checksumError) {
       console.warn(
-        `[Linux Signing] WARNING: Could not create checksum file: ${checksumError.message}`
+        `[Linux Signing] WARNING: Could not create checksum file: ${checksumError.message}`,
       );
     }
 
@@ -234,4 +244,10 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { main, checkRequirements, signExecutable, verifySignature, createChecksumFile };
+module.exports = {
+  main,
+  checkRequirements,
+  signExecutable,
+  verifySignature,
+  createChecksumFile,
+};

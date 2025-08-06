@@ -1,4 +1,4 @@
-import { MacOSSecurityChecker } from './security-checker';
+import { MacOSSecurityChecker } from "./security-checker";
 
 /**
  * Legacy macOS Security Checker for versions below 15.0
@@ -15,7 +15,11 @@ export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
     requirePasswordImmediately: boolean;
     passwordRequiredAfterLock: boolean;
   }> {
-    return { enabled: false, requirePasswordImmediately: false, passwordRequiredAfterLock: false };
+    return {
+      enabled: false,
+      requirePasswordImmediately: false,
+      passwordRequiredAfterLock: false,
+    };
   }
 
   async checkAutoLockTimeout(): Promise<number> {
@@ -49,7 +53,7 @@ export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
     automaticInstall: boolean;
     automaticSecurityInstall: boolean;
     configDataInstall: boolean;
-    updateMode: 'disabled' | 'check-only' | 'download-only' | 'fully-automatic';
+    updateMode: "disabled" | "check-only" | "download-only" | "fully-automatic";
   }> {
     return {
       enabled: false,
@@ -58,7 +62,7 @@ export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
       automaticInstall: false,
       automaticSecurityInstall: false,
       configDataInstall: false,
-      updateMode: 'disabled'
+      updateMode: "disabled",
     };
   }
 
@@ -68,10 +72,18 @@ export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
     remoteLogin: boolean;
     mediaSharing: boolean;
   }> {
-    return { fileSharing: false, screenSharing: false, remoteLogin: false, mediaSharing: false };
+    return {
+      fileSharing: false,
+      screenSharing: false,
+      remoteLogin: false,
+      mediaSharing: false,
+    };
   }
 
-  async checkCurrentWifiNetwork(): Promise<{ networkName: string | null; connected: boolean }> {
+  async checkCurrentWifiNetwork(): Promise<{
+    networkName: string | null;
+    connected: boolean;
+  }> {
     return { networkName: null, connected: false };
   }
 
@@ -83,27 +95,35 @@ export class LegacyMacOSSecurityChecker extends MacOSSecurityChecker {
     return {
       installedApps: [],
       bannedAppsFound: [],
-      sources: { applications: [], homebrew: [], npm: [] }
+      sources: { applications: [], homebrew: [], npm: [] },
     };
   }
 
   getSecurityExplanations(): Record<
     string,
-    { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }
+    {
+      description: string;
+      recommendation: string;
+      riskLevel: "High" | "Medium" | "Low";
+    }
   > {
     const baseExplanations = super.getSecurityExplanations();
 
     // Override explanations to indicate legacy macOS limitations
     const legacyExplanations: Record<
       string,
-      { description: string; recommendation: string; riskLevel: 'High' | 'Medium' | 'Low' }
+      {
+        description: string;
+        recommendation: string;
+        riskLevel: "High" | "Medium" | "Low";
+      }
     > = {};
 
     for (const [key, value] of Object.entries(baseExplanations)) {
       legacyExplanations[key] = {
         ...value,
         description: `${value.description} Note: This security check is not fully supported on macOS versions below 15.0.`,
-        recommendation: `${value.recommendation} However, automated checking is not available on your macOS version - please verify settings manually.`
+        recommendation: `${value.recommendation} However, automated checking is not available on your macOS version - please verify settings manually.`,
       };
     }
 

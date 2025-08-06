@@ -13,17 +13,16 @@ The EAI Security Check tool uses JSON-based configuration files to define securi
 
 ## 🏠 Configuration Directory
 
-EAI Security Check uses a **centralized file structure** alongside the executable for better organization and portability:
+EAI Security Check uses a **user configuration directory** for storing all settings and data:
 
-### Centralized Structure (Recommended)
+### User Configuration Structure
 
 ```bash
-# Executable location (example):
-/path/to/eai-security-check
+# User configuration directory:
+~/.eai-security-check/
 
-# Centralized configuration:
-/path/to/
-├── eai-security-check           # Main executable
+# Configuration structure:
+~/.eai-security-check/
 ├── config/                      # Configuration files
 │   ├── security-config.json     # Security requirements
 │   └── scheduling-config.json   # Daemon configuration
@@ -34,9 +33,11 @@ EAI Security Check uses a **centralized file structure** alongside the executabl
     └── eai-security-check.error.log
 ```
 
-### Previous Installation Locations
+### Cross-Platform Compatibility
 
-**Note**: Previous versions used OS-specific configuration directories. Current versions use the centralized structure for better portability and organization.
+The user configuration directory is consistent across all platforms:
+- **macOS/Linux**: `~/.eai-security-check/`
+- **Windows**: `%USERPROFILE%\.eai-security-check\`
 
 **Benefits of Centralized Structure:**
 ✅ **Portable**: Move executable directory, everything moves with it  
@@ -58,14 +59,16 @@ EAI Security Check uses a **centralized file structure** alongside the executabl
 
 ### Using Built-in Profiles
 
-```bash
-# Use a specific profile
-eai-security-check check default    # Recommended settings
-eai-security-check check strict     # Maximum security
-eai-security-check check relaxed    # Balanced approach
-eai-security-check check developer  # Developer-friendly
-eai-security-check check eai        # EAI-specific requirements
-```
+**In the Desktop Application:**
+1. Open EAI Security Check
+2. Go to **Configuration** → **Security Profiles**
+3. Select from the available profiles:
+   - **default** - Recommended settings for most users
+   - **strict** - Maximum security for sensitive environments
+   - **relaxed** - Balanced approach with fewer restrictions
+   - **developer** - Developer-friendly settings
+   - **eai** - EAI organization-specific requirements
+4. Click **Apply Profile** to use the selected configuration
 
 ## 🔧 Security Configuration Options
 
@@ -462,25 +465,25 @@ cat > my-security-config.json << 'EOF'
 }
 EOF
 
-# Use your custom configuration
-eai-security-check check -c my-security-config.json
-
-# Save results with custom configuration
-eai-security-check check -c my-security-config.json -o security-report.txt
+# Use your custom configuration in the desktop app
+**Using the Desktop Application:**
+1. Open EAI Security Check
+2. Go to **Configuration** → **Load Configuration**
+3. Browse and select your `my-security-config.json` file
+4. The app will load and apply your custom configuration
+5. Run a security check to generate reports with these settings
 ```
 
 ### Configuration Validation
 
-The tool automatically validates configurations:
+The desktop application automatically validates configurations:
 
-```bash
-# Test configuration file
-eai-security-check check -c invalid-config.json
-
-# Example error output:
-# ❌ Configuration Error: Invalid password.minLength: must be between 1-128
-# ❌ Configuration Error: Unknown field 'invalidOption' in configuration
-```
+**Using the Desktop Application:**
+- When loading a configuration file, the app will display validation errors
+- Invalid configurations will show specific error messages
+- Example validation errors:
+  - ❌ Configuration Error: Invalid password.minLength: must be between 1-128
+  - ❌ Configuration Error: Unknown field 'invalidOption' in configuration
 
 ## 🌍 Cross-Platform Configuration Differences
 
