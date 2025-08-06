@@ -77,8 +77,8 @@ async function handleCheckCommand() {
   // Parse command line options
   const options = parseCheckOptions();
 
-  // Initialize core services
-  const securityAuditor = new SecurityAuditor();
+  // Initialize core services with password if provided
+  const securityAuditor = new SecurityAuditor(options.password);
 
   try {
     // Load configuration
@@ -248,6 +248,7 @@ function parseCheckOptions() {
   const options = {
     profile: "developer",
     format: "json",
+    nonInteractive: true, // Default to non-interactive for production builds
   };
 
   for (let i = 2; i < args.length; i++) {
@@ -263,8 +264,12 @@ function parseCheckOptions() {
       options.outputPath = args[++i];
     } else if (arg === "--format" || arg === "-f") {
       options.format = args[++i];
+    } else if (arg === "--password") {
+      options.password = args[++i];
     } else if (arg === "--non-interactive") {
       options.nonInteractive = true;
+    } else if (arg === "--interactive") {
+      options.nonInteractive = false;
     }
   }
 

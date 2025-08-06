@@ -1,4 +1,3 @@
-import { password } from "@inquirer/prompts";
 import { exec } from "child_process";
 import { promisify } from "util";
 
@@ -291,65 +290,5 @@ export function validatePassword(
 }
 
 /**
- * Prompts user for password with hidden input
+ * Non-interactive password validation - for production builds, validation should be done separately
  */
-export async function promptForPassword(
-  prompt: string = "Enter password: ",
-): Promise<string> {
-  return await password({
-    message: prompt,
-    mask: "*",
-  });
-}
-
-/**
- * Prompts for password with validation, retries on invalid input
- */
-export async function promptForValidPassword(
-  maxRetries: number = 3,
-  profile: string = "default",
-): Promise<string> {
-  const requirements = getPasswordRequirements(profile);
-
-  // First check password expiration before prompting
-  const expirationCheck = await checkPasswordExpiration(
-    requirements.maxAgeDays,
-  );
-  if (!expirationCheck.isValid) {
-    throw new Error(`Password validation failed: ${expirationCheck.message}`);
-  }
-
-  // If expiration check passed but had a warning, show it
-  if (
-    expirationCheck.message.includes("could not be determined") ||
-    expirationCheck.message.includes("check failed")
-  ) {
-    console.log(`⚠️  ${expirationCheck.message}`);
-  } else {
-    console.log(`✅ ${expirationCheck.message}`);
-  }
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const password = await promptForPassword(
-        attempt === 1
-          ? "🔐 Enter your macOS password (required for some security checks): "
-          : `🔐 Enter your macOS password (attempt ${attempt}/${maxRetries}): `,
-      );
-
-      const validation = validatePassword(password, profile);
-      if (validation.isValid) {
-        return password;
-      }
-
-      console.log(`❌ ${validation.message}`);
-      if (attempt < maxRetries) {
-        console.log("Please try again.\n");
-      }
-    } catch (error) {
-      console.log(`❌ Error reading password: ${error}`);
-    }
-  }
-
-  throw new Error("Maximum password attempts exceeded");
-}

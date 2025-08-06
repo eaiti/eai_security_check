@@ -1,18 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { select, confirm, input } from "@inquirer/prompts";
 import { exec } from "child_process";
 import { promisify } from "util";
-import {
-  SecurityConfig,
-  SchedulingConfig,
-  ScpConfig,
-  EmailConfig,
-} from "../types";
+import { SecurityConfig, SchedulingConfig } from "../types";
 import { getConfigByProfile } from "./config-profiles";
 import { Platform, PlatformDetector } from "../utils/platform-detector";
-import { SchedulingService } from "../services/scheduling-service";
 
 // Define pkg property interface for process
 interface ProcessWithPkg extends NodeJS.Process {
@@ -800,39 +793,6 @@ export class ConfigManager {
   }
 
   /**
-   * Reset all configurations (with confirmation)
-   */
-  static async promptForConfigReset(): Promise<boolean> {
-    console.log("\n🔄 Configuration Reset");
-    console.log(
-      "This will remove all existing configurations and start fresh.",
-    );
-    console.log("⚠️  This action cannot be undone!\n");
-
-    const configStatus = this.getConfigStatus();
-    console.log("📋 Current configurations that will be removed:");
-    if (configStatus.securityConfigExists) {
-      console.log(`  • Security configs: ${configStatus.configDirectory}`);
-    }
-    if (configStatus.schedulingConfigExists) {
-      console.log(`  • Daemon config: ${configStatus.schedulingConfigPath}`);
-    }
-
-    const versionFile = this.getVersionFilePath();
-    if (fs.existsSync(versionFile)) {
-      console.log(`  • Version tracking: ${versionFile}`);
-    }
-
-    console.log("");
-    const answer = await input({
-      message: "Are you sure you want to reset all configurations? (yes/N):",
-      default: "N",
-    });
-
-    return answer.toLowerCase() === "yes";
-  }
-
-  /**
    * Remove all configuration files
    */
   static resetAllConfigurations(): void {
@@ -917,403 +877,6 @@ export class ConfigManager {
         `⚠️  Skipped existing configs: ${skippedProfiles.join(", ")}`,
       );
     }
-  }
-
-  /**
-   * Create a scheduling configuration file with interactive prompts
-   */
-  static async createSchedulingConfigInteractive(
-    defaultProfile: string = "default",
-  ): Promise<void> {
-    console.log("🔧 Setting up daemon configuration...\n");
-
-    // Show configuration and reports directories
-    const { configDir, reportsDir, logsDir } =
-      this.ensureCentralizedDirectories();
-    console.log(`📁 Configuration will be saved to: ${configDir}`);
-    console.log(`📄 Reports will be saved to: ${reportsDir}`);
-    console.log(`📋 Logs will be saved to: ${logsDir}\n`);
-
-    // Get user identification
-    const userId = await input({
-      message: "Enter user/system identifier (e.g., user@company.com):",
-      validate: (value: string) =>
-        value.trim() ? true : "User identifier is required",
-    });
-
-    // Ask if user wants email configuration
-    console.log("\n📧 Email Configuration (Optional):");
-    console.log(
-      "Email allows the daemon to send security reports automatically.",
-    );
-    const wantsEmail = await confirm({
-      message: "Would you like to configure email notifications?",
-      default: true,
-    });
-
-    let emailConfig: EmailConfig | undefined;
-
-    if (wantsEmail) {
-      const smtpHost = await input({
-        message: "SMTP host (e.g., smtp.gmail.com):",
-        validate: (value: string) =>
-          value.trim() ? true : "SMTP host is required",
-      });
-
-      const smtpPortInput = await input({
-        message: "SMTP port (587 for TLS, 465 for SSL):",
-        default: "587",
-      });
-      const smtpPort = parseInt(smtpPortInput) || 587;
-      const smtpSecure = smtpPort === 465;
-
-      const smtpUser = await input({
-        message: "SMTP username/email:",
-        validate: (value: string) =>
-          value.trim() ? true : "SMTP username is required",
-      });
-
-      // Import password utilities for secure input
-      const { promptForPassword } = await import("../utils/password-utils");
-      const smtpPass = await promptForPassword(
-        "SMTP password (use app-specific password for Gmail): ",
-      );
-      if (!smtpPass.trim()) {
-        throw new Error("SMTP password is required");
-      }
-
-      const fromEmail = await input({
-        message: "From email address:",
-        default: smtpUser,
-      });
-
-      const toEmails = await input({
-        message: "To email addresses (comma-separated):",
-        validate: (value: string) =>
-          value.trim() ? true : "At least one recipient email is required",
-      });
-
-      emailConfig = {
-        smtp: {
-          host: smtpHost.trim(),
-          port: smtpPort,
-          secure: smtpSecure,
-          auth: {
-            user: smtpUser.trim(),
-            pass: smtpPass.trim(),
-          },
-        },
-        from: `EAI Security Check <${fromEmail.trim()}>`,
-        to: toEmails
-          .split(",")
-          .map((email) => email.trim())
-          .filter((email) => email.length > 0),
-        subject: "Security Audit Report",
-      };
-    }
-
-    // Get scheduling settings
-    console.log("\n⏰ Scheduling Configuration:");
-
-    const intervalType = await select({
-      message: "Choose interval type:",
-      choices: [
-        { name: "Days (for production use)", value: "days" },
-        { name: "Minutes (for testing)", value: "minutes" },
-      ],
-      default: "days",
-    });
-
-    let intervalDays = 7;
-    let intervalMinutes: number | undefined;
-
-    if (intervalType === "minutes") {
-      const minutesInput = await input({
-        message: "Check interval in minutes:",
-        default: "5",
-        validate: (value: string) => {
-          const num = parseInt(value);
-          return num > 0 ? true : "Interval must be greater than 0";
-        },
-      });
-      intervalMinutes = parseInt(minutesInput) || 5;
-      intervalDays = Math.ceil(intervalMinutes / (24 * 60)); // Convert to days for backward compatibility
-    } else {
-      const daysInput = await input({
-        message: "Check interval in days:",
-        default: "7",
-        validate: (value: string) => {
-          const num = parseInt(value);
-          return num > 0 ? true : "Interval must be greater than 0";
-        },
-      });
-      intervalDays = parseInt(daysInput) || 7;
-    }
-
-    // Get security profile
-    const profileInput = await input({
-      message: `Security profile (default, strict, relaxed, developer, eai):`,
-      default: defaultProfile,
-    });
-    const securityProfile = profileInput.trim() || defaultProfile;
-
-    // SCP Configuration (optional)
-    console.log("\n📤 SCP File Transfer Configuration (Optional):");
-    console.log(
-      "SCP can automatically transfer reports to a remote server via SSH.",
-    );
-    const wantsScp = await confirm({
-      message: "Would you like to configure SCP file transfer?",
-      default: false,
-    });
-
-    let scpConfig: ScpConfig | undefined;
-
-    if (wantsScp) {
-      console.log("\n🔧 Setting up SCP configuration...");
-
-      const scpHost = await input({
-        message: "Remote server hostname/IP:",
-        validate: (value: string) =>
-          value.trim() ? true : "SCP host is required",
-      });
-
-      const scpUsername = await input({
-        message: "SSH username:",
-        validate: (value: string) =>
-          value.trim() ? true : "SSH username is required",
-      });
-
-      const scpDestDir = await input({
-        message: "Destination directory on remote server:",
-        validate: (value: string) =>
-          value.trim() ? true : "Destination directory is required",
-      });
-
-      const scpPortInput = await input({
-        message: "SSH port:",
-        default: "22",
-      });
-      const scpPort = parseInt(scpPortInput) || 22;
-
-      const authMethod = await select({
-        message: "Choose authentication method:",
-        choices: [
-          { name: "SSH key (recommended)", value: "1" },
-          { name: "Password", value: "2" },
-        ],
-      });
-
-      if (authMethod === "1") {
-        const keyPath = await input({
-          message: "Path to SSH private key file:",
-          validate: (value: string) =>
-            value.trim() ? true : "SSH private key path is required",
-        });
-
-        scpConfig = {
-          enabled: true,
-          host: scpHost.trim(),
-          username: scpUsername.trim(),
-          destinationDirectory: scpDestDir.trim(),
-          port: scpPort,
-          authMethod: "key",
-          privateKeyPath: keyPath.trim(),
-        };
-      } else if (authMethod === "2") {
-        // Import password utilities for secure SSH password input
-        const { promptForPassword } = await import("../utils/password-utils");
-        const scpPassword = await promptForPassword("SSH password: ");
-        if (!scpPassword.trim()) {
-          throw new Error("SSH password is required");
-        }
-
-        console.log(
-          '⚠️  Note: Password authentication requires "sshpass" to be installed on the system.',
-        );
-
-        scpConfig = {
-          enabled: true,
-          host: scpHost.trim(),
-          username: scpUsername.trim(),
-          destinationDirectory: scpDestDir.trim(),
-          port: scpPort,
-          authMethod: "password",
-          password: scpPassword.trim(),
-        };
-      } else {
-        console.log("❌ Invalid choice. Skipping SCP configuration.");
-      }
-    }
-
-    const config: SchedulingConfig = {
-      enabled: true,
-      intervalDays,
-      ...(intervalMinutes && { intervalMinutes }),
-      userId: userId.trim(),
-      ...(emailConfig && { email: emailConfig }),
-      ...(scpConfig && { scp: scpConfig }),
-      reportFormat: emailConfig ? "email" : "plain",
-      securityProfile: securityProfile,
-    };
-
-    this.ensureCentralizedDirectories();
-    const configPath = this.getSchedulingConfigPath();
-
-    if (fs.existsSync(configPath)) {
-      const overwrite = await confirm({
-        message: "Scheduling config already exists. Overwrite?",
-        default: false,
-      });
-      if (!overwrite) {
-        console.log("❌ Configuration creation cancelled.");
-        return;
-      }
-    }
-
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-    console.log(`✅ Scheduling configuration created: ${configPath}`);
-
-    if (intervalMinutes) {
-      console.log(
-        `🤖 Configured for ${intervalMinutes}-minute intervals using '${securityProfile}' profile`,
-      );
-    } else {
-      console.log(
-        `🤖 Configured for ${intervalDays}-day intervals using '${securityProfile}' profile`,
-      );
-    }
-
-    if (emailConfig) {
-      console.log(`📧 Will send reports to: ${emailConfig.to.join(", ")}`);
-    } else {
-      console.log("📧 Email notifications: ❌ Disabled");
-    }
-
-    if (scpConfig) {
-      console.log(
-        `📤 Will also transfer reports via SCP to: ${scpConfig.username}@${scpConfig.host}:${scpConfig.destinationDirectory}/`,
-      );
-    } else {
-      console.log("📤 SCP file transfer: ❌ Disabled");
-    }
-
-    if (!emailConfig && !scpConfig) {
-      console.log("");
-      console.log("⚠️  Note: Both email and SCP are disabled.");
-      console.log(
-        "   Reports will be generated but not automatically delivered.",
-      );
-      console.log(
-        "   You can view reports in the daemon logs or run checks manually.",
-      );
-    }
-  }
-
-  /**
-   * Ask user to select a security profile with explanations
-   */
-  static async promptForSecurityProfile(): Promise<string> {
-    console.log("\n🔒 Security Profile Selection");
-    console.log("Choose a default security profile for your system:\n");
-
-    console.log("📋 Available Profiles:");
-    console.log(
-      "  1. default   - Recommended security settings (7-min auto-lock timeout)",
-    );
-    console.log(
-      "                 Good balance of security and usability for most users",
-    );
-    console.log(
-      "  2. strict    - Maximum security, minimal convenience (3-min auto-lock)",
-    );
-    console.log(
-      "                 Highest security requirements, may impact workflow",
-    );
-    console.log(
-      "  3. relaxed   - Balanced security with convenience (15-min auto-lock)",
-    );
-    console.log("                 More lenient settings for easier daily use");
-    console.log(
-      "  4. developer - Developer-friendly with remote access enabled",
-    );
-    console.log(
-      "                 Allows SSH and remote management for development work",
-    );
-    console.log(
-      "  5. eai       - EAI focused security (10+ char passwords, 180-day expiration)",
-    );
-    console.log(
-      "                 Specialized profile for EAI organizational requirements\n",
-    );
-
-    const answer = await select({
-      message: "Select profile:",
-      choices: [
-        {
-          name: "1. default - Recommended security settings (7-min auto-lock timeout)",
-          value: "default",
-        },
-        {
-          name: "2. strict - Maximum security, minimal convenience (3-min auto-lock)",
-          value: "strict",
-        },
-        {
-          name: "3. relaxed - Balanced security with convenience (15-min auto-lock)",
-          value: "relaxed",
-        },
-        {
-          name: "4. developer - Developer-friendly with remote access enabled",
-          value: "developer",
-        },
-        {
-          name: "5. eai - EAI focused security (10+ char passwords, 180-day expiration)",
-          value: "eai",
-        },
-      ],
-      default: "default",
-    });
-
-    return answer;
-  }
-
-  /**
-   * Ask user if they want to setup daemon configuration
-   */
-  static async promptForDaemonSetup(): Promise<boolean> {
-    console.log("\n🤖 Automated Scheduling Setup");
-    console.log(
-      "The daemon can automatically run security checks on a schedule and email results.",
-    );
-    console.log(
-      'This is optional - you can always run checks manually with "eai-security-check check".',
-    );
-
-    // Show platform-specific capabilities
-    const platformInfo = SchedulingService.getDaemonPlatformInfo();
-
-    console.log(`\n📱 Platform: ${platformInfo.platform}`);
-    console.log(
-      `✅ Supports scheduled execution: ${platformInfo.supportsScheduling ? "Yes" : "No"}`,
-    );
-    console.log(
-      `✅ Supports manual restart: ${platformInfo.supportsRestart ? "Yes" : "No"}`,
-    );
-    console.log(
-      `⚠️  Auto-starts on boot: ${platformInfo.supportsAutoStart ? "Yes" : "Requires manual setup"}`,
-    );
-
-    if (!platformInfo.supportsAutoStart) {
-      console.log("💡 Note: Daemon runs as user process, not system service");
-      console.log(
-        "💡 For auto-start on boot, see platform-specific setup in daemon --help\n",
-      );
-    }
-
-    return await confirm({
-      message: "Would you like to set up automated scheduling (daemon)?",
-      default: false,
-    });
   }
 
   /**
@@ -1659,31 +1222,6 @@ export class ConfigManager {
   }
 
   /**
-   * Ask user if they want to force overwrite existing configurations
-   */
-  static async promptForForceOverwrite(): Promise<boolean> {
-    return await confirm({
-      message: "🔄 Would you like to overwrite existing configurations?",
-      default: false,
-    });
-  }
-
-  /**
-   * Ask user if they want to start the daemon now
-   */
-  static async promptToStartDaemon(): Promise<boolean> {
-    console.log("\n🚀 Daemon Ready to Start");
-    console.log(
-      "The daemon is now configured and ready to run automated security checks.",
-    );
-
-    return await confirm({
-      message: "Would you like to start the daemon now?",
-      default: false,
-    });
-  }
-
-  /**
    * Check if security configuration exists
    */
   static hasSecurityConfig(): boolean {
@@ -1756,222 +1294,99 @@ export class ConfigManager {
   }
 
   /**
-   * Prompt user if they want global installation
-   */
-  static async promptForGlobalInstall(): Promise<boolean> {
-    const platform = os.platform();
-    let installationDescription = "";
-
-    switch (platform) {
-      case "win32":
-        installationDescription =
-          "Add to PATH or create desktop shortcuts (requires admin privileges)";
-        break;
-      case "darwin":
-      case "linux":
-        installationDescription =
-          "Create symbolic link in /usr/local/bin (requires sudo)";
-        break;
-      default:
-        installationDescription = "Enable system-wide access";
-    }
-
-    console.log("🌍 Global Installation Setup");
-    console.log(
-      `   Platform: ${platform === "win32" ? "Windows" : platform === "darwin" ? "macOS" : "Linux"}`,
-    );
-    console.log(`   Action: ${installationDescription}`);
-    console.log("");
-
-    return await confirm({
-      message: "Would you like to install globally for system-wide access?",
-      default: false,
-    });
-  }
-
-  /**
-   * Get comprehensive system status including global install and daemon status
+   * Get comprehensive system status including global install, config, and daemon status
    */
   static async getSystemStatus(): Promise<{
     globalInstall: {
       exists: boolean;
-      isDifferentVersion: boolean;
-      globalVersion: string | null;
-      currentVersion: string;
-    };
-    daemon: {
-      isRunning: boolean;
-      needsUpdate: boolean;
-      daemonVersion: string | null;
-      currentVersion: string;
+      globalVersion?: string | null;
+      isDifferentVersion?: boolean;
     };
     config: {
       configDirectory: string;
       reportsDirectory: string;
       securityConfigExists: boolean;
-      schedulingConfigExists: boolean;
       securityConfigPath: string;
+      schedulingConfigExists: boolean;
       schedulingConfigPath: string;
     };
+    daemon: {
+      isRunning: boolean;
+      daemonVersion?: string | null;
+      needsUpdate?: boolean;
+    };
   }> {
-    const [globalCheck, daemonCheck, configStatus] = await Promise.all([
-      this.checkGlobalInstallVersion(),
-      this.checkDaemonVersion(),
-      Promise.resolve(this.getConfigStatus()),
-    ]);
+    const fs = await import("fs");
+
+    // Check global installation
+    const globalPath = "/usr/local/bin/eai-security-check";
+    const globalExists = fs.existsSync(globalPath);
+    let globalVersion: string | null = null;
+    let isDifferentVersion = false;
+
+    if (globalExists) {
+      try {
+        const { exec } = await import("child_process");
+        const { promisify } = await import("util");
+        const execAsync = promisify(exec);
+        const { stdout } = await execAsync(`${globalPath} --version`);
+        globalVersion = stdout.trim();
+
+        const currentVersion = this.getCurrentVersion();
+        isDifferentVersion = globalVersion !== currentVersion;
+      } catch {
+        // Global version check failed, but global exists
+        globalVersion = null;
+        isDifferentVersion = true;
+      }
+    }
+
+    // Get config status
+    const configStatus = this.getConfigStatus();
+
+    // Check daemon status
+    let daemonRunning = false;
+    let daemonVersion: string | null = null;
+    let daemonNeedsUpdate = false;
+
+    try {
+      const daemonStatePath = this.getDaemonStatePath();
+      if (fs.existsSync(daemonStatePath)) {
+        const stateContent = fs.readFileSync(daemonStatePath, "utf8");
+        const state = JSON.parse(stateContent);
+        daemonRunning = state.isRunning || false;
+        daemonVersion = state.version || null;
+
+        if (daemonVersion) {
+          const currentVersion = this.getCurrentVersion();
+          daemonNeedsUpdate = daemonVersion !== currentVersion;
+        }
+      }
+    } catch {
+      // Daemon state check failed, assume not running
+      daemonRunning = false;
+    }
 
     return {
-      globalInstall: globalCheck,
-      daemon: daemonCheck,
-      config: configStatus,
+      globalInstall: {
+        exists: globalExists,
+        globalVersion,
+        isDifferentVersion,
+      },
+      config: {
+        configDirectory: configStatus.configDirectory,
+        reportsDirectory: configStatus.reportsDirectory,
+        securityConfigExists: configStatus.securityConfigExists,
+        securityConfigPath: configStatus.securityConfigPath,
+        schedulingConfigExists: configStatus.schedulingConfigExists,
+        schedulingConfigPath: configStatus.schedulingConfigPath,
+      },
+      daemon: {
+        isRunning: daemonRunning,
+        daemonVersion,
+        needsUpdate: daemonNeedsUpdate,
+      },
     };
-  }
-
-  /**
-   * Remove global installation
-   */
-  static async removeGlobalInstall(): Promise<void> {
-    const platform = os.platform();
-    const execAsync = promisify(exec);
-
-    console.log("🗑️  Removing global installation...");
-
-    // First, stop any running daemon
-    try {
-      await this.manageDaemon("stop");
-    } catch {
-      // Daemon might not be running, continue with removal
-    }
-
-    switch (platform) {
-      case "darwin":
-      case "linux": {
-        const targetPath = "/usr/local/bin/eai-security-check";
-        const { promptForPassword } = await import("../utils/password-utils");
-
-        // Remove the symlink
-        if (fs.existsSync(targetPath)) {
-          const password = await promptForPassword(
-            "Enter your password to remove the global installation: ",
-          );
-
-          await execAsync(`echo "${password}" | sudo -S rm "${targetPath}"`);
-          console.log("✅ Removed global symlink");
-        } else {
-          console.log("ℹ️  No global symlink found");
-        }
-
-        // Ask if user wants to remove the actual executable and data
-        const removeData = await confirm({
-          message:
-            "Would you also like to remove the executable and all configuration data? (This cannot be undone)",
-          default: false,
-        });
-
-        if (removeData) {
-          // Get the current executable path
-          let executablePath = process.execPath;
-          try {
-            // Resolve symlinks to get the actual executable path
-            const stats = fs.lstatSync(executablePath);
-            if (stats.isSymbolicLink()) {
-              executablePath = fs.readlinkSync(executablePath);
-              if (!path.isAbsolute(executablePath)) {
-                executablePath = path.resolve(
-                  path.dirname(process.execPath),
-                  executablePath,
-                );
-              }
-            }
-          } catch (error) {
-            console.warn("Warning: Could not resolve executable path:", error);
-          }
-
-          const executableDir = path.dirname(executablePath);
-          const executableName = path.basename(executablePath);
-
-          // Only remove if it looks like our executable
-          if (executableName.includes("eai-security-check")) {
-            console.log(`📁 Removing executable directory: ${executableDir}`);
-
-            // Remove the entire executable directory (includes config, reports, logs)
-            try {
-              fs.rmSync(executableDir, { recursive: true, force: true });
-              console.log("✅ Removed executable and all associated data");
-            } catch (error) {
-              console.error(
-                `❌ Failed to remove executable directory: ${error}`,
-              );
-              console.log("💡 You may need to manually remove:");
-              console.log(`   ${executableDir}`);
-            }
-          } else {
-            console.log(
-              "⚠️  Executable doesn't appear to be ours, skipping removal for safety",
-            );
-
-            // Remove the OS-appropriate configuration and data directories
-            try {
-              const configDir = this.getCentralizedConfigDirectory();
-              const reportsDir = this.getCentralizedReportsDirectory();
-              const logsDir = this.getCentralizedLogsDirectory();
-
-              if (fs.existsSync(configDir)) {
-                fs.rmSync(configDir, { recursive: true, force: true });
-                console.log(`✅ Removed config directory: ${configDir}`);
-              }
-
-              if (fs.existsSync(reportsDir)) {
-                fs.rmSync(reportsDir, { recursive: true, force: true });
-                console.log(`✅ Removed reports directory: ${reportsDir}`);
-              }
-
-              if (fs.existsSync(logsDir)) {
-                fs.rmSync(logsDir, { recursive: true, force: true });
-                console.log(`✅ Removed logs directory: ${logsDir}`);
-              }
-            } catch (error) {
-              console.error(`❌ Failed to remove data directories: ${error}`);
-            }
-          }
-        }
-        break;
-      }
-      case "win32": {
-        console.log(
-          "💡 Windows global installation removal requires manual action:",
-        );
-        console.log("   - Remove from PATH environment variable");
-        console.log("   - Or delete executable from installed location");
-
-        const removeData = await confirm({
-          message: "Would you like to remove configuration data?",
-          default: false,
-        });
-
-        if (removeData) {
-          try {
-            const { configDir, reportsDir } =
-              this.ensureCentralizedDirectories();
-
-            if (fs.existsSync(configDir)) {
-              fs.rmSync(configDir, { recursive: true, force: true });
-              console.log(`✅ Removed config directory: ${configDir}`);
-            }
-
-            if (fs.existsSync(reportsDir)) {
-              fs.rmSync(reportsDir, { recursive: true, force: true });
-              console.log(`✅ Removed reports directory: ${reportsDir}`);
-            }
-          } catch (error) {
-            console.error(`❌ Failed to remove data directories: ${error}`);
-          }
-        }
-        break;
-      }
-      default:
-        throw new Error(`Platform not supported: ${platform}`);
-    }
   }
 
   /**
@@ -2195,7 +1610,9 @@ export class ConfigManager {
   private static async setupUnixGlobalInstall(
     executablePath: string,
     executableFile: string,
+
     execAsync: typeof exec.__promisify__,
+    password: string = "", // Password for sudo, if needed
   ): Promise<void> {
     const targetDir = "/usr/local/bin";
     const targetPath = path.join(targetDir, "eai-security-check");
@@ -2220,13 +1637,7 @@ export class ConfigManager {
             console.log(
               "⚠️  Existing symbolic link points to different executable, removing...",
             );
-            // Use sudo with password prompt handling
-            const { promptForPassword } = await import(
-              "../utils/password-utils"
-            );
-            const password = await promptForPassword(
-              "Enter your password to update the global installation: ",
-            );
+
             await execAsync(`echo "${password}" | sudo -S rm "${targetPath}"`);
           }
         } else {
@@ -2243,12 +1654,6 @@ export class ConfigManager {
     try {
       console.log(
         "💡 Creating symbolic link (requires administrator privileges)...",
-      );
-
-      // Import password utilities
-      const { promptForPassword } = await import("../utils/password-utils");
-      const password = await promptForPassword(
-        "Enter your password to create the global installation: ",
       );
 
       // Create symlink using sudo with password
