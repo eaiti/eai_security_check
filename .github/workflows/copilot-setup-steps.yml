@@ -14,7 +14,7 @@ jobs:
   # The job MUST be called `copilot-setup-steps`
   # otherwise it will not be picked up by Copilot.
   copilot-setup-steps:
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
 
     # Permissions set just for the setup steps
     # Copilot has permissions to its branch
