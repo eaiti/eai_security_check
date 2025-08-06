@@ -91,6 +91,7 @@ This is a **cross-platform enterprise security auditing tool** that:
 - Security profiles: JSON configs for different security levels
 
 ## Development Workflow
+
 1. **Always run tests**: Use `npm run verify:quick` for rapid feedback or `npm run verify` for full validation
 2. **Test-driven development**: Write tests first, especially for security checks
 3. **Fix all issues**: Ensure zero warnings/errors in tests, builds, and linting
@@ -113,6 +114,23 @@ This is a **cross-platform enterprise security auditing tool** that:
 - **Comprehensive coverage** of component lifecycle and user interactions
 
 ### Error Handling Pattern (Both Frameworks)
+=======
+1. **Always run tests**: Ensure `npm test` passes
+2. **Fix lint issues**: Run `npm run lint:fix:all` 
+3. **Format code**: Run `npm run format:all`
+4. **Verify builds**: Run `npm run build` and `npm run build:ui`
+5. **Test cross-platform** when adding system integrations
+
+## Common Patterns & Anti-Patterns
+
+### System Command Execution
+- **Always use `child_process.exec` wrapped in `execAsync`**
+- **Handle platform differences**: Check for multiple command variations
+- **Graceful error handling**: Continue execution when individual checks fail
+- **Parse output reliably**: Handle empty, malformed, or missing output
+
+### Error Handling Pattern
+
 ```typescript
 try {
   const { stdout } = await execAsync('command');
@@ -122,6 +140,14 @@ try {
   return false; // Default safe state
 }
 ```
+
+
+### Testing Requirements
+- **Mock all system commands** using `src/test-utils/mocks.ts`
+- **Test success AND failure scenarios** for every security check
+- **Platform-specific test cases** for cross-platform features
+- **Use descriptive test names** explaining the scenario being tested
+
 
 ### Adding New Security Checks (Step-by-Step)
 1. **Define interface** in `src/types.ts` (add to `ISecurityChecker`)

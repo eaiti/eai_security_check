@@ -23,7 +23,6 @@ jobs:
       # To allow us to clone the repo for setup
       contents: read
 
-    # The setup steps - install Node.js and dependencies
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
