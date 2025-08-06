@@ -38,13 +38,23 @@ cd ../
 
 # Test basic functionality without password prompts for CI/testing
 echo "Testing CLI version command..."
-npm run version:show
+if [[ -n "$CI" ]]; then
+    npm run version:show:linux
+else
+    npm run version:show
+fi
 
 echo "Testing basic security check..."
 # For testing, we'll run a simpler check that doesn't require interactive input
-npm run check:dev -- --non-interactive || {
-    echo "⚠️  Security check completed with warnings (this is expected for testing)"
-}
+if [[ -n "$CI" ]]; then
+    npm run check:dev:linux -- --non-interactive || {
+        echo "⚠️  Security check completed with warnings (this is expected for testing)"
+    }
+else
+    npm run check:dev -- --non-interactive || {
+        echo "⚠️  Security check completed with warnings (this is expected for testing)"
+    }
+fi
 
 # Test report generation by creating a simple mock report
 echo "📊 Testing report generation..."

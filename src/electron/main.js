@@ -428,6 +428,15 @@ EXAMPLES:
  * Initialize the Electron app (GUI mode)
  */
 function initializeElectronApp() {
+  // Handle Linux sandbox issues in CI environments
+  if (process.platform === "linux") {
+    // Disable sandbox for CI environments or when running headless
+    if (process.env.CI || process.env.DISPLAY === undefined) {
+      app.commandLine.appendSwitch("--no-sandbox");
+      app.commandLine.appendSwitch("--disable-dev-shm-usage");
+    }
+  }
+
   // Global variables
   let mainWindow;
   let configManager;
