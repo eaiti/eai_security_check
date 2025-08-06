@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background gradient -->
+    <radialGradient id="bgGradient" cx="50%" cy="30%" r="80%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8fafc;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- Shield gradient -->
+    <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16a34a;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Inner shield gradient -->
+    <linearGradient id="innerShieldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#dcfce7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#bbf7d0;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Shadow filter -->
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="4" stdDeviation="4" flood-opacity="0.3"/>
+    </filter>
+    
+    <!-- Subtle glow -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGradient)" stroke="#e5e7eb" stroke-width="2"/>
+  
+  <!-- Main shield shape -->
+  <path d="M256 80 
+           C 200 80, 160 100, 160 140
+           C 160 180, 160 220, 160 260
+           C 160 340, 200 400, 256 430
+           C 312 400, 352 340, 352 260
+           C 352 220, 352 180, 352 140
+           C 352 100, 312 80, 256 80 Z" 
+        fill="url(#shieldGradient)" 
+        filter="url(#shadow)"/>
+  
+  <!-- Inner shield for depth -->
+  <path d="M256 100 
+           C 210 100, 180 115, 180 145
+           C 180 175, 180 205, 180 235
+           C 180 295, 210 340, 256 365
+           C 302 340, 332 295, 332 235
+           C 332 205, 332 175, 332 145
+           C 332 115, 302 100, 256 100 Z" 
+        fill="url(#innerShieldGradient)" 
+        opacity="0.6"/>
+  
+  <!-- Security checkmark -->
+  <g filter="url(#glow)">
+    <path d="M220 240 L240 260 L300 200" 
+          stroke="#ffffff" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" 
+          fill="none"/>
+  </g>
+  
+  <!-- Highlight on shield -->
+  <ellipse cx="256" cy="160" rx="40" ry="60" 
+           fill="url(#innerShieldGradient)" 
+           opacity="0.4"/>
+  
+  <!-- Security dots pattern (subtle) -->
+  <g opacity="0.3">
+    <circle cx="220" cy="180" r="3" fill="#16a34a"/>
+    <circle cx="292" cy="180" r="3" fill="#16a34a"/>
+    <circle cx="200" cy="220" r="2" fill="#16a34a"/>
+    <circle cx="312" cy="220" r="2" fill="#16a34a"/>
+    <circle cx="210" cy="300" r="2" fill="#16a34a"/>
+    <circle cx="302" cy="300" r="2" fill="#16a34a"/>
+  </g>
+  
+  <!-- Text label (optional, can be removed for cleaner look) -->
+  <text x="256" y="460" 
+        font-family="system-ui, -apple-system, sans-serif" 
+        font-size="24" 
+        font-weight="600" 
+        text-anchor="middle" 
+        fill="#374151">EAI Security</text>
+</svg>

@@ -1,4 +1,3 @@
-import { confirm, input } from "@inquirer/prompts";
 import { ConfigManager } from "../config/config-manager";
 
 export interface InstallationResult {
@@ -78,20 +77,6 @@ export class InstallationOperations {
     console.log("🗑️  Uninstalling globally...\n");
 
     try {
-      if (cleanupData) {
-        const confirmInput = await input({
-          message:
-            '⚠️ This will remove ALL configuration files, reports, and logs. Type "yes" to confirm:',
-        });
-
-        if (confirmInput.toLowerCase() !== "yes") {
-          return {
-            success: false,
-            message: "Uninstall cancelled by user",
-          };
-        }
-      }
-
       const result = await ConfigManager.uninstallGlobally(cleanupData);
       return result;
     } catch (error) {
@@ -186,41 +171,34 @@ export class InstallationOperations {
   }
 
   /**
-   * Remove global installation with user interaction
+   * Remove global installation (non-interactive version)
+   * Use uninstallGlobally() directly with cleanupData parameter instead
    */
-  static async removeGlobalInstallation(): Promise<void> {
+  static async removeGlobalInstallation(
+    cleanupData: boolean = false,
+  ): Promise<void> {
     console.log("🗑️  Remove Global Installation\n");
 
-    console.log(
-      "⚠️  This will remove system-wide access to eai-security-check.",
-    );
+    if (cleanupData) {
+      console.log(
+        "⚠️  This will remove system-wide access AND all configuration data.",
+      );
+    } else {
+      console.log(
+        "⚠️  This will remove system-wide access (keeping configuration data).",
+      );
+    }
 
-    const cleanupData = await confirm({
-      message: "Do you also want to remove all configuration files and data?",
-      default: false,
-    });
+    const result = await this.uninstallGlobally(cleanupData);
 
-    const confirmRemoval = await confirm({
-      message: cleanupData
-        ? "Are you sure you want to uninstall and remove ALL data?"
-        : "Are you sure you want to uninstall (keeping configuration data)?",
-      default: false,
-    });
-
-    if (confirmRemoval) {
-      const result = await this.uninstallGlobally(cleanupData);
-
-      if (result.success) {
-        console.log("✅", result.message);
-        if (!cleanupData) {
-          console.log("\n💡 Configuration files and data were preserved.");
-        }
-      } else {
-        console.error("❌", result.message);
-        throw new Error(result.message);
+    if (result.success) {
+      console.log("✅", result.message);
+      if (!cleanupData) {
+        console.log("\n💡 Configuration files and data were preserved.");
       }
     } else {
-      console.log("❌ Removal cancelled.");
+      console.error("❌", result.message);
+      throw new Error(result.message);
     }
   }
 

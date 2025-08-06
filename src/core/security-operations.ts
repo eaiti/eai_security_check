@@ -4,7 +4,7 @@ import { SecurityAuditor } from "../services/auditor";
 import { SecurityConfig } from "../types";
 import { OutputUtils, OutputFormat } from "../utils/output-utils";
 import { CryptoUtils } from "../utils/crypto-utils";
-import { PlatformDetector, Platform } from "../utils/platform-detector";
+import { PlatformDetector } from "../utils/platform-detector";
 import { ConfigManager } from "../config/config-manager";
 import { isValidProfile } from "../config/config-profiles";
 
@@ -149,28 +149,9 @@ export class SecurityOperations {
     }
 
     // Handle password for sudo operations if needed
-    let password: string | undefined;
-    if (options.password) {
-      password = options.password;
-    } else if (!options.quiet) {
-      // Prompt for password interactively if not in quiet mode
-      try {
-        const { promptForPassword } = await import("../utils/password-utils");
-        const promptText =
-          platformInfo.platform === Platform.MACOS
-            ? "🔐 Enter your macOS password: "
-            : "🔐 Enter your sudo password: ";
-        password = await promptForPassword(promptText);
-        if (!options.quiet) {
-          console.log("✅ Password collected.\n");
-        }
-      } catch (error) {
-        throw new Error(`Password collection failed: ${error}`);
-      }
-    }
 
     // Create auditor with password if needed
-    const auditor = new SecurityAuditor(password);
+    const auditor = new SecurityAuditor(options.password);
     const versionInfo = await auditor.checkVersionCompatibility();
 
     // Show version warning immediately if there are issues
@@ -288,19 +269,6 @@ export class SecurityOperations {
       outputPath: outputFilename,
       hashInfo,
     };
-  }
-
-  /**
-   * Run an interactive security check with profile selection
-   */
-  static async runInteractiveSecurityCheck(): Promise<void> {
-    console.log("🔍 Security Check - Profile Selection\n");
-
-    const profile = await ConfigManager.promptForSecurityProfile();
-    console.log(`\n🚀 Running security check with '${profile}' profile...\n`);
-
-    const result = await this.runSecurityCheck({ profile });
-    console.log(result.report);
   }
 
   /**

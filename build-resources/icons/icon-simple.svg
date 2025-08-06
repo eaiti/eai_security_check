@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgGradient" cx="50%" cy="30%" r="80%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8fafc;stop-opacity:1" />
+    </radialGradient>
+    <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16a34a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="innerShieldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#dcfce7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#bbf7d0;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="4" stdDeviation="6" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGradient)" stroke="#e5e7eb" stroke-width="2"/>
+  
+  <!-- Main shield shape -->
+  <path d="M256 60 
+           C 180 60, 120 90, 120 150
+           C 120 210, 120 270, 120 330
+           C 120 420, 180 480, 256 520
+           C 332 480, 392 420, 392 330
+           C 392 270, 392 210, 392 150
+           C 392 90, 332 60, 256 60 Z" 
+        fill="url(#shieldGradient)" 
+        filter="url(#shadow)"/>
+  
+  <!-- Inner shield for depth -->
+  <path d="M256 90 
+           C 190 90, 150 110, 150 160
+           C 150 210, 150 260, 150 310
+           C 150 380, 190 430, 256 460
+           C 322 430, 362 380, 362 310
+           C 362 260, 362 210, 362 160
+           C 362 110, 322 90, 256 90 Z" 
+        fill="url(#innerShieldGradient)" 
+        opacity="0.7"/>
+  
+  <!-- Security checkmark -->
+  <path d="M200 280 L230 310 L330 210" 
+        stroke="#ffffff" 
+        stroke-width="16" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        fill="none"
+        filter="url(#shadow)"/>
+  
+  <!-- Highlight on shield -->
+  <ellipse cx="256" cy="180" rx="60" ry="80" 
+           fill="url(#innerShieldGradient)" 
+           opacity="0.4"/>
+</svg>

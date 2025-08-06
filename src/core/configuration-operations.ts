@@ -1,6 +1,5 @@
 import * as fs from "fs";
 import * as path from "path";
-import { select } from "@inquirer/prompts";
 import { ConfigManager } from "../config/config-manager";
 import { VALID_PROFILES } from "../config/config-profiles";
 
@@ -46,66 +45,6 @@ export class ConfigurationOperations {
   }
 
   /**
-   * Setup or modify security configurations
-   */
-  static async setupOrModifyConfigurations(): Promise<void> {
-    console.log("🔧 Security Configuration Management\n");
-
-    if (!ConfigManager.hasSecurityConfig()) {
-      console.log(
-        "📝 No security configuration found. Setting up for first time...\n",
-      );
-
-      const profile = await ConfigManager.promptForSecurityProfile();
-      ConfigManager.createAllSecurityConfigs(false, profile);
-
-      console.log("✅ Security configurations created successfully!");
-    } else {
-      console.log(
-        "🔧 Security configuration exists. What would you like to do?\n",
-      );
-
-      const choice = await select({
-        message: "Choose an option:",
-        choices: [
-          { name: "View current configuration", value: "1" },
-          { name: "Change default profile", value: "2" },
-          { name: "Recreate all configurations", value: "3" },
-          { name: "Go back", value: "4" },
-        ],
-      });
-
-      switch (choice) {
-        case "1": {
-          const config = ConfigManager.loadSecurityConfig();
-          console.log("\n📋 Current Security Configuration:");
-          console.log(JSON.stringify(config, null, 2));
-          break;
-        }
-        case "2": {
-          const profile = await ConfigManager.promptForSecurityProfile();
-          const force = await ConfigManager.promptForForceOverwrite();
-          ConfigManager.createAllSecurityConfigs(force, profile);
-          console.log(
-            `✅ Security configurations updated to '${profile}' profile!`,
-          );
-          break;
-        }
-        case "3": {
-          const profile = await ConfigManager.promptForSecurityProfile();
-          ConfigManager.createAllSecurityConfigs(true, profile);
-          console.log("✅ All security configurations recreated!");
-          break;
-        }
-        case "4":
-          return;
-        default:
-          console.log("❌ Invalid choice.");
-      }
-    }
-  }
-
-  /**
    * View configuration status with detailed information
    */
   static async viewConfigurationStatus(): Promise<void> {
@@ -135,21 +74,6 @@ export class ConfigurationOperations {
     }
 
     console.log("");
-  }
-
-  /**
-   * Reset all configurations with confirmation
-   */
-  static async resetAllConfigurations(): Promise<void> {
-    console.log("🔄 Reset All Configurations\n");
-
-    if (await ConfigManager.promptForConfigReset()) {
-      ConfigManager.resetAllConfigurations();
-      console.log("✅ All configurations have been reset!");
-      console.log("💡 You can now set up fresh configurations if needed.");
-    } else {
-      console.log("❌ Reset cancelled.");
-    }
   }
 
   /**
