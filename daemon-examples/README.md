@@ -46,7 +46,7 @@ The daemon uses the standard user directory structure for configuration and file
 ✅ **No permission issues**: User has full access to their config directory  
 ✅ **Service-friendly**: LaunchAgent/systemd can reliably find user configs  
 
-## �📋 Manual Setup Instructions
+## 📋 Manual Setup Instructions
 
 ### macOS (LaunchAgent)
 
