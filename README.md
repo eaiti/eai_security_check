@@ -1,12 +1,12 @@
 # EAI Security Check
 
-A cross-platform enterprise security auditing tool built with Node.js, TypeScript, and Angular. Features a unified desktop application with integrated CLI functionality for both interactive and automated security auditing on macOS, Linux, and Windows systems.
+A cross-platform enterprise security auditing tool built with Node.js, TypeScript, and Angular. Features a unified desktop application that provides both intuitive GUI and integrated CLI functionality for comprehensive security auditing on macOS, Linux, and Windows systems.
 
-**🎯 Unified Architecture**: Single Electron application that provides both intuitive GUI and powerful CLI functionality in one cross-platform executable.
+**🎯 Unified Architecture**: Single Electron-based desktop application that seamlessly integrates GUI and CLI modes - no separate installations needed.
 
 **🔒 Enterprise Security**: Comprehensive auditing with tamper-proof reports, cryptographic verification, and configurable security profiles.
 
-**🖥️ Modern Desktop Application**: Intuitive Angular-based GUI with comprehensive security auditing, report management, and automated monitoring.
+**🖥️ Modern Desktop UI**: Intuitive Angular-based interface with comprehensive security management, automated scheduling, and professional reporting.
 └── examples/                      # Configuration examples
 ```
 
@@ -33,64 +33,62 @@ A cross-platform enterprise security auditing tool built with Node.js, TypeScrip
 
 ## 🧪 Testing & Development
 
-### Automated Testing
+### Comprehensive Test Suite
 
-The project includes comprehensive testing infrastructure with **295 total tests**:
+The project includes extensive testing with **305 total tests** across dual frameworks:
 
 ```bash
-# Run all tests (295 total)
-npm run test:all        # Jest (285) + Angular (10) tests
+# Run all tests (295 Jest + 10 Angular tests)
+npm run test:all        # Complete test suite
 
-# Individual test suites  
-npm run test:core       # Jest tests for Node.js/TypeScript logic
-npm run test:ui         # Angular/Jasmine tests for UI components
+# Individual test frameworks  
+npm run test:core       # Jest tests (295) - Core Node.js/TypeScript functionality
+npm run test:ui         # Angular/Jasmine tests (10) - UI components and services
 
 # Development workflow
-npm run verify          # Full verification (tests + build + lint + format)
-npm run verify:quick    # Quick check (core tests + linting)
+npm run verify          # Full verification: tests + build + lint + format check
+npm run verify:quick    # Quick verification: core tests + linting only
 ```
 
-### Platform Testing Scripts (Updated)
+### Platform Testing
 
-Cross-platform compatibility validation using unified npm scripts:
+Cross-platform validation using npm scripts that auto-detect the current platform:
 
 ```bash
-# Test current platform automatically
+# Auto-detect current platform and run appropriate tests
 npm run test:platform
 
-# Platform-specific testing  
-npm run test:macos      # macOS security features (when on macOS)
-npm run test:linux      # Linux security features (when on Linux)  
-npm run test:windows    # Windows security features (when on Windows)
+# Platform-specific testing (runs on respective platforms)
+npm run test:macos      # macOS security features testing
+npm run test:linux      # Linux security features testing  
+npm run test:windows    # Windows security features testing
 
-# Test all platforms (runs appropriate test for current platform)
-npm run test:all-platforms
+# Comprehensive platform testing
+npm run test:all-platforms    # Runs unified test suite for current platform
 ```
 
-### CLI Testing Commands
+### Integrated CLI Testing
 
-Test the integrated CLI functionality:
+The unified application provides both GUI and CLI functionality. Test CLI features directly:
 
 ```bash
-# Test CLI help and version
-npm run version:show
-npx electron . --help
+# CLI functionality testing
+npm run version:show           # Test CLI version and help display
+npm run check:dev              # Test security check with developer profile
+npm run check:strict -- --non-interactive  # Test automated security checking
 
-# Test security checks in non-interactive mode
-npm run check:dev -- --non-interactive
-npm run check:strict -- --non-interactive --format json
-
-# Test report validation
-npm run validate security-report.json
+# Report validation testing
+npm run validate security-report.json      # Test report validation functionality
 ```
 
-### Quality Assurance
+### Code Quality Assurance
 
 ```bash
-# Code quality and formatting
-npm run lint            # ESLint validation
-npm run format:all      # Format code and fix lint issues
-npm run build           # TypeScript compilation check
+# Code quality and consistency
+npm run lint              # ESLint validation
+npm run format:all        # Format code and fix lint issues automatically
+npm run build            # TypeScript compilation check
+npm run format:check     # Verify code formatting compliance
 ```urable security profiles.
 
 **🖥️ Modern Desktop Application: Intuitive Angular-based GUI with comprehensive security auditing, report management, and automated monitoring.**
@@ -130,11 +128,11 @@ npm run build           # TypeScript compilation check
 
 ## 🚀 Quick Start
 
-### 🖥️ Desktop Application (GUI Mode)
+### 🖥️ Desktop Application (Unified GUI + CLI)
 
-**For End Users (Recommended)**
+**Recommended for All Users**
 
-Download the desktop application from the [GitHub Releases](https://github.com/eaiti/eai_security_check/releases) page:
+Download the unified desktop application from [GitHub Releases](https://github.com/eaiti/eai_security_check/releases):
 
 ```bash
 # macOS
@@ -147,31 +145,38 @@ curl -L -o EAI-Security-Check.AppImage https://github.com/eaiti/eai_security_che
 # Download EAI-Security-Check-Windows-Setup.exe from releases page
 ```
 
-### 🖲️ Command Line Interface (CLI Mode)
+### 🎯 Usage Modes
 
-The same Electron application also provides a full CLI interface for automation:
+The same application works in two modes:
 
+#### GUI Mode (Interactive)
 ```bash
-# After installation, use the application as a CLI tool:
+# Launch the desktop application normally:
+./EAI-Security-Check           # Linux
+open EAI-Security-Check.app    # macOS
+# Double-click .exe on Windows
+```
 
-# Show version and help
-npx electron . --version
-npx electron . --help
+#### CLI Mode (Automation & Scripting)
+```bash
+# Use the same application as a CLI tool:
+npx electron . --version                    # Show version information
+npx electron . --help                       # Display help and usage
 
-# Run security checks
+# Security auditing
 npx electron . check --profile developer --format human
 npx electron . check --profile strict --format json --non-interactive
 
-# Validate security reports
+# Report management
 npx electron . validate /path/to/security-report.json
 
-# Example automated usage
+# Automated usage example
 npx electron . check --profile developer --non-interactive --format json > security-report.json
 ```
 
 ### 🛠️ Development Setup
 
-**For Developers**
+**For Developers and Contributors**
 
 ```bash
 # Clone and build from source
@@ -180,23 +185,33 @@ cd eai_security_check
 npm install
 npm run build
 
-# Launch GUI mode
-npm start
+# Development mode with hot reload
+npm run dev:start              # Start development mode with live reload
 
-# Use CLI mode
-npm run check:dev                    # Basic security check
-npm run version:show                 # Show version
-npm run cli:help                     # Show CLI help
+# Testing and verification
+npm run verify                 # Full test suite, build, and quality checks
+npm run test:all              # Run all tests (Jest + Angular)
+
+# CLI development testing
+npm run check:dev             # Test security check functionality
+npm run version:show          # Test CLI version display
 ```
 
-### First Launch
+### ⚡ First Launch
 
 #### GUI Mode (Interactive)
-1. **Launch the Application**: Double-click the downloaded application
-2. **Dashboard Overview**: View your system's current security status
-3. **Run Security Check**: Click "Run Security Audit" to perform your first scan
-4. **Review Results**: View detailed results with explanations and recommendations
-5. **Configure Settings**: Customize security profiles and notification preferences
+1. **Launch the Application**: Double-click the downloaded application or run from terminal
+2. **Dashboard Overview**: View your system's current security status with real-time indicators
+3. **Run Security Audit**: Click "Run Security Check" and select a security profile
+4. **Review Results**: View detailed findings with explanations and actionable recommendations
+5. **Generate Reports**: Export results to multiple formats (JSON, HTML, Markdown, CSV)
+6. **Configure Settings**: Customize security profiles, scheduling, and notification preferences
+
+#### CLI Mode (Automation)
+1. **Verify Installation**: `npx electron . --version`
+2. **Run First Check**: `npx electron . check --profile developer --format human`
+3. **Review Output**: Check console output for security findings
+4. **Automate**: Integrate into scripts with `--non-interactive` flag for automated environments
 
 #### CLI Mode (Automation)
 ```bash
@@ -522,46 +537,48 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### 🧪 Development & Testing
 
-**Comprehensive Test Suite (295 tests)**
+**Comprehensive Test Suite (305 tests total)**
 ```bash
-# Run all tests
-npm run test:all        # Jest (285) + Angular (10) tests
+# Complete test suite
+npm run test:all        # Jest (295) + Angular (10) tests
 
-# Platform-specific testing (updated npm scripts approach)
+# Platform testing with npm scripts
 npm run test:platform   # Auto-detect and test current platform
-npm run test:macos      # macOS-specific tests
-npm run test:linux      # Linux-specific tests  
-npm run test:windows    # Windows-specific tests
+npm run test:macos      # macOS-specific security feature tests
+npm run test:linux      # Linux-specific security feature tests  
+npm run test:windows    # Windows-specific security feature tests
 
-# CLI testing
-npm run check:dev       # Test CLI security check functionality
-npm run version:show    # Test CLI version and help system
+# Integrated application testing
+npm run check:dev       # Test unified CLI functionality
+npm run version:show    # Test version and help display
+npm run validate        # Test report validation features
 
-# Quality assurance
-npm run verify          # Full verification (tests + build + lint)
-npm run lint            # ESLint check
-npm run format:all      # Format and fix all code
+# Development workflow
+npm run verify          # Full verification: tests + build + lint + format
+npm run verify:quick    # Quick check: core tests + linting only
+npm run format:all      # Format code and fix lint issues
 ```
 
 **Test Coverage Areas:**
-- ✅ Cross-platform security checkers (macOS, Linux, Windows)
-- ✅ Unified Electron app with integrated CLI functionality
-- ✅ Desktop application UI and daemon automation (comprehensive coverage)
-- ✅ Configuration management and profiles
-- ✅ Cryptographic verification and tamper detection
-- ✅ Daemon automation and scheduling
-- ✅ Error handling and edge cases
-- ✅ Non-interactive automation for CI/CD pipelines
+- ✅ **Cross-Platform Security Checkers**: macOS, Linux, Windows platform-specific auditing
+- ✅ **Unified Desktop Application**: GUI and CLI integration with full feature parity  
+- ✅ **Angular UI Components**: Dashboard, report viewer, configuration editor, daemon management
+- ✅ **Security Profile Management**: Profile creation, validation, and switching
+- ✅ **Cryptographic Operations**: Report signing, verification, and tamper detection
+- ✅ **Automated Scheduling**: Daemon installation, configuration, and lifecycle management
+- ✅ **Error Handling & Edge Cases**: Graceful failure handling across all platforms
+- ✅ **CI/CD Integration**: Non-interactive automation for enterprise environments
 
-**Platform Compatibility Testing:**
+**Platform Testing Strategy:**
 ```bash
-# Auto-detect platform and run appropriate tests (updated npm scripts)
-npm run test:platform
+# Unified testing approach using npm scripts
+npm run test:platform     # Auto-detects macOS/Linux/Windows and runs appropriate tests
+npm run test:all-platforms # Comprehensive testing with platform-specific validation
 
-# Run platform-specific tests using npm scripts
-npm run test:macos      # macOS systems (uses npm scripts internally)
-npm run test:linux      # Linux systems (uses npm scripts internally)
-npm run test:windows    # Windows systems (uses npm scripts internally)
+# Individual platform testing (when on respective platforms)
+npm run test:macos        # Tests FileVault, Gatekeeper, macOS-specific features
+npm run test:linux        # Tests LUKS, firewalld, Linux distribution variations
+npm run test:windows      # Tests BitLocker, Windows Defender, PowerShell integrations
 
 # Non-interactive testing for CI/CD
 npm run check:dev -- --non-interactive --format json

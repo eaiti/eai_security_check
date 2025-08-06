@@ -1,8 +1,5 @@
 name: "Copilot Setup Steps"
 
-# Automatically run the setup steps when they are changed
-# Allows for streamlined validation,
-# and allow manual testing through the repository's "Actions" tab
 
 on:
   workflow_dispatch:
@@ -11,16 +8,11 @@ on:
       - .github/workflows/copilot-setup-steps.yml
 
 jobs:
-  # The job MUST be called `copilot-setup-steps`
-  # otherwise it will not be picked up by Copilot.
   copilot-setup-steps:
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-latest
 
-    # Permissions set just for the setup steps
-    # Copilot has permissions to its branch
 
     permissions:
-      # To allow us to clone the repo for setup
       contents: read
 
     steps:

@@ -1,11 +1,9 @@
-name: Multi-Platform CI/CD
+name: Build and Release
 
 on:
   push:
-    branches: [main, master, develop, ui-conversion]
-    tags: ['v*']
-  pull_request:
     branches: [main, master]
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       deploy_environment:

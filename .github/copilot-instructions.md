@@ -17,10 +17,10 @@ This is a **cross-platform enterprise security auditing tool** that:
 
 ## Project Structure
 - **CLI**: `src/` - Main TypeScript codebase with security checkers for macOS, Linux, Windows
-- **UI**: `ui/` - Angular + Electron desktop application
-- **Executables**: Built for distribution to end users via `npm run pkg:build`
+- **UI**: `ui/` and `src/ui/` - Angular + Electron desktop application
+- **Executables**: Built for distribution to end users via `npm run dist` (Electron Builder)
 - **Tests**: Jest tests adjacent to source files (`.test.ts` files)
-- **Config**: JSON security profiles in `examples/` and `bin/config/`
+- **Config**: JSON security profiles in `examples/` and user config directory
 
 ## Essential Development Rules
 

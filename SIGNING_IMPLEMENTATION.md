@@ -29,7 +29,7 @@ The implementation adds comprehensive code signing support for all three support
 ## Key Features
 
 ### Multi-Platform Support
-- **Windows Build Support**: Added `node18-win-x64` target to pkg configuration
+- **Windows Build Support**: Full Electron application with Windows-specific build configuration
 - **Cross-Platform Signing**: Scripts work on appropriate platforms or provide graceful fallbacks
 - **Automated CI/CD**: GitHub Actions workflow handles signing in appropriate runners
 
@@ -49,13 +49,16 @@ The implementation adds comprehensive code signing support for all three support
 
 ### Before
 ```bash
-npm run pkg:build  # Created index-macos, index-linux
+# Build desktop application
+npm run build    # TypeScript compilation + Angular build
+npm run dist     # Create Electron distributables
 ```
 
 ### After  
 ```bash
-npm run pkg:build  # Creates index-macos, index-linux, index-win.exe
-npm run sign:all   # Signs all executables (with appropriate certs)
+npm run build    # TypeScript compilation + Angular build
+npm run dist     # Create signed Electron distributables with certificates
+npm run sign:all # Signs all executables (with appropriate certs)
 ```
 
 ### GitHub Actions Workflow

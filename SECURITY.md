@@ -9,7 +9,7 @@ The original implementation used simple SHA-256 hashing for tamper detection, wh
 1. **Open Source Visibility**: Since the code is open source, attackers could see exactly how hashes are calculated
 2. **No Secret Key**: The hashing only used publicly visible data (content + metadata + timestamp)
 3. **Predictable Algorithm**: An attacker could easily replicate the hashing process and forge valid signatures
-4. **PKG Vulnerability**: Even after packaging with PKG, the JavaScript code could potentially be extracted
+4. **Distribution Vulnerability**: Even after building with Electron, the application code could potentially be extracted
 
 ## Security Solution
 
@@ -94,8 +94,8 @@ Enhanced reports include additional fields:
 
 2. **Build with Enhanced Security**:
    ```bash
-   npm run build
-   npm run pkg:build
+   npm run build      # TypeScript + Angular build
+   npm run dist       # Create signed Electron distributables
    ```
 
 3. **Keep Secret Secure**:
@@ -103,14 +103,15 @@ Enhanced reports include additional fields:
    - Don't commit to version control
    - Use different secrets for different environments
 
-### For Package Distribution
+### For Distribution
 
 1. **Use Secure Build Scripts**:
    ```bash
-   # All pkg: scripts use secure build by default
-   npm run pkg:build    # Enhanced security (auto-generates secret if not set)
-   npm run pkg:macos    # macOS binary with enhanced security
-   npm run pkg:linux    # Linux binary with enhanced security
+   # All distribution scripts use secure build by default
+   npm run dist         # Enhanced security (auto-generates secret if not set)
+   npm run dist:mac     # macOS app with enhanced security
+   npm run dist:linux   # Linux AppImage with enhanced security
+   npm run dist:win     # Windows installer with enhanced security
    ```
 
 ## Verification Process
@@ -144,7 +145,7 @@ Enhanced reports include additional fields:
 
 ### Remaining Considerations
 
-1. **PKG Extraction**: While PKG binaries can potentially be reverse-engineered, the build secret embedded in the binary significantly raises the bar for attackers compared to having no secret at all.
+1. **Distribution Security**: While Electron applications can potentially be reverse-engineered, the build secret embedded in the application significantly raises the bar for attackers compared to having no secret at all.
 
 2. **Secret Management**: The security level is only as strong as the secret management practices. Secrets should be:
    - Generated cryptographically securely
