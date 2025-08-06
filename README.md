@@ -91,8 +91,6 @@ npm run build            # TypeScript compilation check
 npm run format:check     # Verify code formatting compliance
 ```
 
-EAI Security Check provides comprehensive security auditing across platforms with configurable security profiles.
-
 ## 🌟 Key Features
 
 ### 🖥️ Cross-Platform Desktop Application with Integrated CLI
